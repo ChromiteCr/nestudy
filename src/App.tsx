@@ -8,6 +8,7 @@ import { SettingsDialog } from '@/components/settings/SettingsDialog'
 import { TasksView } from '@/components/tasks/TasksView'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
+import { useReminderStore } from '@/stores/reminderStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { AppView } from '@/types'
 
@@ -19,7 +20,11 @@ export default function App() {
   useEffect(() => {
     void useSettingsStore.getState().load()
     void useChatStore.getState().init()
-    void usePlanningStore.getState().load()
+    // 规则引擎依赖档案/任务/事件，等 planning 加载完再算提醒
+    void usePlanningStore
+      .getState()
+      .load()
+      .then(() => useReminderStore.getState().init())
   }, [])
 
   if (!settingsLoaded) return null

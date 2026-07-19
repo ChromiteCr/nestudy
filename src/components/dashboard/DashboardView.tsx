@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   ArrowRight,
+  BellRing,
   CalendarClock,
   GraduationCap,
   ListTodo,
@@ -9,6 +10,7 @@ import {
   NotebookPen,
   Pencil,
   Sparkles,
+  X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,6 +23,7 @@ import {
 } from '@/components/ui/card'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore, selectTodayTasks } from '@/stores/planningStore'
+import { useReminderStore } from '@/stores/reminderStore'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
 import { formatCountdown } from '@/components/tasks/EventList'
@@ -55,6 +58,14 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     setPendingPrompt(ONBOARDING_PROMPT)
     onNavigate('chat')
   }
+
+  const reminders = useReminderStore((s) => s.reminders)
+  const dismissReminder = useReminderStore((s) => s.dismiss)
+  const handleReminder = (prompt: string, key: string) => {
+    void dismissReminder(key)
+    setPendingPrompt(prompt)
+    onNavigate('chat')
+  }
   const upcomingEvents = events.filter((e) => daysUntil(e.date) >= 0).slice(0, 4)
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',
@@ -69,6 +80,35 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           <p className="text-sm text-muted-foreground">{today}</p>
           <h1 className="font-heading text-2xl font-semibold">{greeting()}</h1>
         </header>
+
+        {/* 主动提醒卡（规则引擎命中项） */}
+        {reminders.map((r) => (
+          <div
+            key={r.key}
+            className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+          >
+            <BellRing className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{r.title}</p>
+              <p className="text-sm text-muted-foreground">{r.body}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => handleReminder(r.prompt, r.key)}>
+                去处理
+                <ArrowRight className="size-3" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                aria-label="关闭提醒"
+                onClick={() => void dismissReminder(r.key)}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
 
         {/* 档案：空态引导建档 / 摘要 */}
         {profile && isProfileEmpty(profile) ? (

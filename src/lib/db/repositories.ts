@@ -76,5 +76,13 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function saveModelConfig(modelConfig: ModelConfig): Promise<void> {
-  await db.settings.put({ id: SETTINGS_ID, modelConfig })
+  const current = await getSettings()
+  await db.settings.put({ ...current, modelConfig })
+}
+
+export async function patchSettings(patch: Partial<Omit<Settings, 'id'>>): Promise<Settings> {
+  const current = await getSettings()
+  const next = { ...current, ...patch }
+  await db.settings.put(next)
+  return next
 }

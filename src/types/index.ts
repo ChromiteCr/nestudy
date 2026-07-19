@@ -151,6 +151,10 @@ export interface Settings {
   /** 固定为 'app'，settings 表只有这一行 */
   id: string
   modelConfig: ModelConfig
+  /** 上次活跃时间戳（主动提醒的回归规则用） */
+  lastActiveAt?: number
+  /** 已关闭的提醒：ruleKey → 关闭当天(yyyy-mm-dd)，当天内不再显示 */
+  dismissedReminders?: Record<string, string>
 }
 
 // ---- 数据导出 ----
