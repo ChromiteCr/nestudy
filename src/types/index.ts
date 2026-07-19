@@ -79,7 +79,41 @@ export interface Message {
   role: MessageRole
   content: string
   createdAt: number
+  /** AI 提案（导入/档案更新），渲染为确认卡；随消息持久化 */
+  proposal?: Proposal
 }
+
+// ---- AI 提案（「AI 提案 → 卡片确认 → 入库」模式，AI 不直接写库） ----
+
+export interface ProposedEvent {
+  include: boolean
+  title: string
+  type: EventType
+  date: string
+}
+
+export interface ProposedTask {
+  include: boolean
+  title: string
+  dueDate: string
+  priority: TaskPriority
+  /** 按标题关联到（本次提案或已有的）事件 */
+  eventTitle?: string
+}
+
+export type ProposalStatus = 'pending' | 'confirmed' | 'dismissed'
+
+/** 档案补丁提案（S1d：Onboarding 用） */
+export interface ProfilePatchProposal {
+  grade?: number
+  curriculum?: Curriculum
+  courses?: Omit<Course, 'id'>[]
+  targetSchools?: (Omit<TargetSchool, 'id' | 'deadline'> & { deadline?: string | null })[]
+}
+
+export type Proposal =
+  | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
+  | { kind: 'profile'; patch: ProfilePatchProposal; status: ProposalStatus; resultNote?: string }
 
 export interface Conversation {
   id: string

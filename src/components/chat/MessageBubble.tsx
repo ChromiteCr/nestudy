@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Message } from '@/types'
 import { cn } from '@/lib/utils'
+import { ProposalCard } from './ProposalCard'
 
 interface MessageBubbleProps {
   message: Message
@@ -10,6 +11,14 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, streaming }: MessageBubbleProps) {
   const isUser = message.role === 'user'
+
+  if (message.proposal) {
+    return (
+      <div className="flex justify-start">
+        <ProposalCard message={message} />
+      </div>
+    )
+  }
 
   if (isUser) {
     return (

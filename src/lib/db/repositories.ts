@@ -57,6 +57,10 @@ export async function updateMessageContent(id: string, content: string): Promise
   await db.messages.update(id, { content })
 }
 
+export async function updateMessageProposal(id: string, proposal: Message['proposal']): Promise<void> {
+  await db.messages.update(id, { proposal })
+}
+
 export async function deleteMessage(id: string): Promise<void> {
   await db.messages.delete(id)
 }

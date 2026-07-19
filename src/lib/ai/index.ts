@@ -2,7 +2,7 @@ import type { ModelConfig } from '@/types'
 import type { ChatProvider } from './provider'
 import { OpenAICompatibleProvider } from './openai-compatible'
 
-export type { ChatProvider, ChatTurn, StreamOptions } from './provider'
+export type { ChatProvider, ChatTurn, StreamEvent, StreamOptions, ToolCallRequest, ToolDef } from './provider'
 
 /** 依据模型配置选择通道。S2 在此接入 ProxyProvider（免费层，北京服务器代理）。 */
 export function resolveProvider(config: ModelConfig): ChatProvider {
