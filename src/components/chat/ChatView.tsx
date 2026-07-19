@@ -32,7 +32,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
               <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
                 <Sparkles className="size-6 text-primary" />
               </div>
-              <h2 className="font-heading text-lg font-semibold">你好，我是 Student Agent</h2>
+              <h2 className="font-heading text-lg font-semibold">你好，我是学栖</h2>
               <p className="max-w-md text-sm text-muted-foreground">
                 我帮国际部学生做学习规划、背景提升和时间管理。
                 {hasKey ? '说说你现在最想解决的事？' : '先在设置中填写 DeepSeek API Key，然后我们开始。'}

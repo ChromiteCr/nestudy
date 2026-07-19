@@ -1,3 +1,8 @@
+// ---- 界面 ----
+
+/** 主界面视图。后续阶段追加：tasks(S2)、timeline/graph(S3)、reflection(S4)、skills(S5) */
+export type AppView = 'dashboard' | 'chat'
+
 // ---- 聊天 ----
 
 /** 消息角色。`tool` 为 S5 skill 系统的 function-calling 预留 */

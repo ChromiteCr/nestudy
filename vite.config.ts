@@ -5,8 +5,8 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub Pages 子路径部署；备案后迁移北京服务器时改为 '/'
-  base: '/student-agent/',
+  // GitHub Pages 子路径部署（需与仓库名一致）；备案后迁移北京服务器时改为 '/'
+  base: '/studynest/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

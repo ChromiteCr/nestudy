@@ -1,9 +1,10 @@
-# Student Agent
+# 学栖 StudyNest
 
-开源、聊天优先、**本地优先**的 AI Agent，帮助国际部（IB / AP / A-Level）学生做学习规划、背景提升与时间管理。
+开源、**本地优先**的 AI Agent，帮助国际部（IB / AP / A-Level）学生做学习规划、背景提升与时间管理。
 
 - 🔒 **数据 100% 本地**：所有数据存于浏览器 IndexedDB，永不上传服务器；支持 JSON 一键导出/导入备份
-- 💬 **聊天为主界面**：与 Agent 对话完成一切操作，任务/时间轴/成果网络/反思等视图逐步推出
+- 📊 **面板主界面**：打开即见规划全景，任务/时间轴/成果网络/反思等模块逐步推出
+- 💬 **AI 对话随时可用**：与学栖对话完成规划、提问与安排
 - 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
 - 🧩 **Skill 体系**（规划中）：声明式 skill + 开源 skill 市场
 
@@ -36,4 +37,5 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S1a | 2026-07-18 | 更名学栖 StudyNest；新增面板（Dashboard）主界面，聊天改为侧栏导航视图 | feat |
 | S1 | 2026-07-18 | 骨架 + 聊天核心：Vite/React/TS/Tailwind/shadcn 脚手架、Dexie 本地存储 + JSON 导出导入、模型路由（DeepSeek 自带 Key 流式直连）、聊天 UI、GitHub Pages 部署 | milestone |
