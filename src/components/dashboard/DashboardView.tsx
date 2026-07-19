@@ -6,6 +6,7 @@ import {
   Network,
   NotebookPen,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -15,35 +16,12 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useChatStore } from '@/stores/chatStore'
+import { usePlanningStore, selectTodayTasks } from '@/stores/planningStore'
+import { daysUntil } from '@/lib/db/planning'
+import { TaskRow } from '@/components/tasks/TaskRow'
+import { formatCountdown } from '@/components/tasks/EventList'
+import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
-
-/** 面板占位卡片：内容随对应阶段落地（S2 任务/DDL、S3 网络图、S4 反思） */
-const PLACEHOLDER_CARDS = [
-  {
-    icon: ListTodo,
-    title: '今日任务',
-    stage: 'S2',
-    description: '每日该做什么，完成打勾、自动顺延',
-  },
-  {
-    icon: CalendarClock,
-    title: '近期 DDL',
-    stage: 'S2',
-    description: '所有截止日期聚合、倒计时与预警',
-  },
-  {
-    icon: Network,
-    title: '成果网络',
-    stage: 'S3',
-    description: '活动、课程与成果串成叙事网络',
-  },
-  {
-    icon: NotebookPen,
-    title: '反思',
-    stage: 'S4',
-    description: '活动结束后的 AI 采访式反思记录',
-  },
-]
 
 function greeting(): string {
   const hour = new Date().getHours()
@@ -59,6 +37,10 @@ interface DashboardViewProps {
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
   const conversations = useChatStore((s) => s.conversations)
+  const tasks = usePlanningStore((s) => s.tasks)
+  const events = usePlanningStore((s) => s.events)
+  const todayTasks = selectTodayTasks(tasks)
+  const upcomingEvents = events.filter((e) => daysUntil(e.date) >= 0).slice(0, 4)
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',
     day: 'numeric',
@@ -94,27 +76,95 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </CardHeader>
         </Card>
 
-        {/* 模块占位 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {PLACEHOLDER_CARDS.map((card) => (
-            <Card key={card.title} className="border-dashed">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-base">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <card.icon className="size-4" />
-                    {card.title}
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {card.stage} 推出
-                  </span>
-                </CardTitle>
-                <CardDescription>{card.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-16 rounded-md bg-muted/40" />
-              </CardContent>
-            </Card>
-          ))}
+          {/* 今日任务（真实数据） */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <ListTodo className="size-4" />
+                  今日任务
+                </span>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('tasks')}>
+                  全部
+                  <ArrowRight className="size-3" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-0.5">
+              {todayTasks.slice(0, 5).map((t) => (
+                <TaskRow key={t.id} task={t} />
+              ))}
+              {todayTasks.length > 5 && (
+                <p className="px-2 pt-1 text-xs text-muted-foreground">
+                  还有 {todayTasks.length - 5} 条，去任务页查看
+                </p>
+              )}
+              {todayTasks.length === 0 && (
+                <p className="py-4 text-center text-sm text-muted-foreground">今天没有待办 🎉</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 近期 DDL（真实数据） */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <CalendarClock className="size-4" />
+                  近期 DDL
+                </span>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('tasks')}>
+                  管理
+                  <ArrowRight className="size-3" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {upcomingEvents.map((e) => {
+                const urgent = daysUntil(e.date) <= 7
+                return (
+                  <div key={e.id} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm">{e.title}</span>
+                    <span className={cn('shrink-0 text-xs', urgent ? 'font-medium text-destructive' : 'text-muted-foreground')}>
+                      {formatCountdown(e.date)}
+                    </span>
+                  </div>
+                )
+              })}
+              {upcomingEvents.length === 0 && (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  暂无即将到来的考试或截止日期
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 占位：S3/S4 */}
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Network className="size-4" />
+                  成果网络
+                </span>
+                <Badge variant="secondary" className="text-[10px]">S3 推出</Badge>
+              </CardTitle>
+              <CardDescription>活动、课程与成果串成叙事网络</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card className="border-dashed">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <NotebookPen className="size-4" />
+                  反思
+                </span>
+                <Badge variant="secondary" className="text-[10px]">S4 推出</Badge>
+              </CardTitle>
+              <CardDescription>活动结束后的 AI 采访式反思记录</CardDescription>
+            </CardHeader>
+          </Card>
         </div>
 
         <p className="text-center text-xs text-muted-foreground">

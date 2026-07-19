@@ -1,7 +1,72 @@
 // ---- 界面 ----
 
-/** 主界面视图。后续阶段追加：tasks(S2)、timeline/graph(S3)、reflection(S4)、skills(S5) */
-export type AppView = 'dashboard' | 'chat'
+/** 主界面视图。后续阶段追加：timeline/graph(S3)、reflection(S4)、skills(S5) */
+export type AppView = 'dashboard' | 'chat' | 'tasks'
+
+// ---- 学生档案 ----
+
+export type Curriculum = 'IB' | 'AP' | 'ALevel' | 'Other'
+
+export interface Course {
+  id: string
+  name: string
+  /** HL/SL(IB)、AP、Standard */
+  level: string
+  currentGrade: string
+  targetGrade: string
+}
+
+export interface TargetSchool {
+  id: string
+  name: string
+  major: string
+  round: 'ED' | 'EA' | 'RD' | 'Other'
+  /** ISO 日期字符串，可为空 */
+  deadline: string | null
+}
+
+export interface StudentProfile {
+  /** 固定为 'app'，profile 表只有这一行 */
+  id: string
+  grade: number | null
+  curriculum: Curriculum | null
+  courses: Course[]
+  targetSchools: TargetSchool[]
+}
+
+export function isProfileEmpty(p: StudentProfile): boolean {
+  return p.grade === null && p.curriculum === null && p.courses.length === 0 && p.targetSchools.length === 0
+}
+
+// ---- 日程与任务（分表：DDL 是"事实"，任务是"行动"） ----
+
+export type EventType = 'exam' | 'deadline' | 'activity'
+export type DataSource = 'manual' | 'import' | 'ai'
+
+export interface EventItem {
+  id: string
+  title: string
+  type: EventType
+  /** ISO 日期字符串（yyyy-mm-dd） */
+  date: string
+  source: DataSource
+  createdAt: number
+}
+
+export type TaskPriority = 'high' | 'medium' | 'low'
+export type TaskStatus = 'pending' | 'completed'
+
+export interface Task {
+  id: string
+  title: string
+  /** ISO 日期字符串（yyyy-mm-dd） */
+  dueDate: string
+  priority: TaskPriority
+  status: TaskStatus
+  parentEventId?: string
+  source: DataSource
+  createdAt: number
+}
 
 // ---- 聊天 ----
 
@@ -61,6 +126,10 @@ export interface ExportBundle {
   exportedAt: number
   conversations: Conversation[]
   messages: Message[]
+  /** v2 起包含；旧备份导入时按空处理 */
+  profile?: StudentProfile
+  events?: EventItem[]
+  tasks?: Task[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>
