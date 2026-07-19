@@ -1,5 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Conversation, EventItem, Message, Settings, StudentProfile, Task } from '@/types'
+import type {
+  Activity,
+  Conversation,
+  EventItem,
+  Message,
+  NarrativeEdge,
+  Settings,
+  StudentProfile,
+  Task,
+} from '@/types'
 
 /** 本地数据库：所有用户数据只存于浏览器 IndexedDB，永不上传 */
 export const db = new Dexie('studynest') as Dexie & {
@@ -9,6 +18,8 @@ export const db = new Dexie('studynest') as Dexie & {
   profile: EntityTable<StudentProfile, 'id'>
   events: EntityTable<EventItem, 'id'>
   tasks: EntityTable<Task, 'id'>
+  activities: EntityTable<Activity, 'id'>
+  narrativeEdges: EntityTable<NarrativeEdge, 'id'>
 }
 
 db.version(1).stores({
@@ -24,4 +35,15 @@ db.version(2).stores({
   profile: 'id',
   events: 'id, date, type',
   tasks: 'id, dueDate, status, parentEventId',
+})
+
+db.version(3).stores({
+  conversations: 'id, updatedAt',
+  messages: 'id, conversationId, createdAt',
+  settings: 'id',
+  profile: 'id',
+  events: 'id, date, type',
+  tasks: 'id, dueDate, status, parentEventId',
+  activities: 'id, category, startDate',
+  narrativeEdges: 'id, sourceNodeId, targetNodeId',
 })

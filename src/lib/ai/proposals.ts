@@ -1,13 +1,29 @@
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
 import type {
+  ActivityCategory,
+  ActivityLevel,
   Curriculum,
   EventType,
   ProfilePatchProposal,
+  ProposedActivity,
   ProposedEvent,
   ProposedTask,
   TaskPriority,
 } from '@/types'
+
+const ACTIVITY_CATEGORIES: ActivityCategory[] = [
+  'academic',
+  'leadership',
+  'service',
+  'athletics',
+  'arts',
+  'work',
+  'research',
+  'other',
+]
+const ACTIVITY_LEVELS: ActivityLevel[] = ['school', 'regional', 'national', 'international']
+const isoRe = /^\d{4}-\d{2}-\d{2}$/
 
 /** 解析模型给出的 propose_import 参数为可编辑提案（宽松校验，坏行丢弃） */
 export function parseImportArgs(rawArgs: string): { events: ProposedEvent[]; tasks: ProposedTask[] } {
@@ -122,4 +138,59 @@ export async function applyProfileProposal(patch: ProfilePatchProposal): Promise
   }
   await store.updateProfile(update)
   return `已更新档案：${parts.join('、')}`
+}
+
+/** 解析 propose_activities 参数为可编辑提案 */
+export function parseActivitiesArgs(rawArgs: string): ProposedActivity[] {
+  const args = JSON.parse(rawArgs) as {
+    activities?: {
+      title?: string
+      category?: string
+      role?: string
+      organization?: string
+      startDate?: string
+      endDate?: string
+      description?: string
+      achievements?: string[]
+      level?: string
+    }[]
+  }
+  return (args.activities ?? [])
+    .filter((a) => a.title?.trim())
+    .map((a) => ({
+      include: true,
+      title: a.title!.trim(),
+      category: (ACTIVITY_CATEGORIES.includes(a.category as ActivityCategory)
+        ? a.category
+        : 'other') as ActivityCategory,
+      role: a.role ?? '',
+      organization: a.organization ?? '',
+      startDate: a.startDate && isoRe.test(a.startDate) ? a.startDate : '',
+      endDate: a.endDate && isoRe.test(a.endDate) ? a.endDate : null,
+      description: a.description ?? '',
+      achievements: Array.isArray(a.achievements) ? a.achievements.filter((s) => typeof s === 'string') : [],
+      level: (ACTIVITY_LEVELS.includes(a.level as ActivityLevel) ? a.level : 'school') as ActivityLevel,
+    }))
+}
+
+/** 用户确认活动提案：逐条写入活动档案 */
+export async function applyActivitiesProposal(activities: ProposedActivity[]): Promise<string> {
+  const store = usePlanningStore.getState()
+  let count = 0
+  for (const a of activities.filter((x) => x.include)) {
+    await store.createActivity({
+      title: a.title,
+      category: a.category,
+      role: a.role,
+      organization: a.organization,
+      startDate: a.startDate,
+      endDate: a.endDate,
+      description: a.description,
+      achievements: a.achievements,
+      level: a.level,
+      source: 'ai',
+    })
+    count++
+  }
+  return `已添加 ${count} 个活动`
 }

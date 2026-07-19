@@ -1,12 +1,20 @@
 import { useState } from 'react'
-import { CalendarClock, Check, GraduationCap, ListTodo, X } from 'lucide-react'
+import { CalendarClock, Check, GraduationCap, ListTodo, Sparkles, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
-import type { Message, Proposal, ProposedEvent, ProposedTask } from '@/types'
+import {
+  ACTIVITY_CATEGORY_LABEL,
+  ACTIVITY_LEVEL_LABEL,
+  type Message,
+  type Proposal,
+  type ProposedActivity,
+  type ProposedEvent,
+  type ProposedTask,
+} from '@/types'
 
 const EVENT_TYPE_LABEL = { exam: '考试', deadline: '截止', activity: '活动' } as const
 const PRIORITY_LABEL = { high: '高', medium: '中', low: '低' } as const
@@ -19,6 +27,7 @@ interface ProposalCardProps {
 export function ProposalCard({ message }: ProposalCardProps) {
   const proposal = message.proposal!
   if (proposal.kind === 'import') return <ImportProposalCard message={message} proposal={proposal} />
+  if (proposal.kind === 'activities') return <ActivitiesProposalCard message={message} proposal={proposal} />
   return <ProfileProposalCard message={message} proposal={proposal} />
 }
 
@@ -235,6 +244,74 @@ function ProfileProposalCard({
             </ul>
           </div>
         )}
+      </div>
+    </CardShell>
+  )
+}
+
+function ActivitiesProposalCard({
+  message,
+  proposal,
+}: {
+  message: Message
+  proposal: Extract<Proposal, { kind: 'activities' }>
+}) {
+  const confirmProposal = useChatStore((s) => s.confirmProposal)
+  const dismissProposal = useChatStore((s) => s.dismissProposal)
+  const [activities, setActivities] = useState<ProposedActivity[]>(proposal.activities)
+  const editable = proposal.status === 'pending'
+
+  const patchActivity = (i: number, patch: Partial<ProposedActivity>) =>
+    setActivities((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...patch } : a)))
+
+  return (
+    <CardShell
+      icon={<Sparkles className="size-4 text-primary" />}
+      title={`活动提案（${activities.length}）`}
+      status={proposal.status}
+      resultNote={proposal.resultNote}
+      onConfirm={() => void confirmProposal(message.id, { ...proposal, activities })}
+      onDismiss={() => void dismissProposal(message.id)}
+    >
+      <div className="flex flex-col gap-2">
+        {activities.map((a, i) => (
+          <div key={i} className="flex items-start gap-2 rounded-lg border bg-background/50 p-2">
+            {editable && (
+              <Checkbox
+                className="mt-0.5"
+                checked={a.include}
+                onCheckedChange={(v) => patchActivity(i, { include: v === true })}
+              />
+            )}
+            <div className={cn('flex min-w-0 flex-1 flex-col gap-1', !a.include && 'opacity-50')}>
+              <div className="flex items-center gap-1.5">
+                {editable ? (
+                  <Input
+                    value={a.title}
+                    onChange={(e) => patchActivity(i, { title: e.target.value })}
+                    className="h-7 flex-1 text-sm font-medium"
+                  />
+                ) : (
+                  <span className="truncate text-sm font-medium">{a.title}</span>
+                )}
+                <Badge variant="outline" className="shrink-0 text-[10px]">
+                  {ACTIVITY_CATEGORY_LABEL[a.category]}
+                </Badge>
+                <Badge variant="secondary" className="shrink-0 text-[10px]">
+                  {ACTIVITY_LEVEL_LABEL[a.level]}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {[a.role, a.organization].filter(Boolean).join(' · ')}
+                {a.startDate && ` · ${a.startDate}${a.endDate ? ` ~ ${a.endDate}` : ' 至今'}`}
+              </p>
+              {a.description && <p className="text-xs">{a.description}</p>}
+              {a.achievements.length > 0 && (
+                <p className="text-xs text-muted-foreground">🏅 {a.achievements.join('、')}</p>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </CardShell>
   )

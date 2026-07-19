@@ -9,6 +9,7 @@ import {
   Puzzle,
   Settings,
   Trash2,
+  Trophy,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -74,6 +75,12 @@ export function Sidebar({ view, onViewChange, onOpenSettings }: SidebarProps) {
           label="任务"
           active={view === 'tasks'}
           onClick={() => onViewChange('tasks')}
+        />
+        <NavItem
+          icon={Trophy}
+          label="活动"
+          active={view === 'activities'}
+          onClick={() => onViewChange('activities')}
         />
       </nav>
 

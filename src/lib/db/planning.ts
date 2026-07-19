@@ -1,6 +1,6 @@
 import { db } from './index'
 import { newId } from './repositories'
-import type { EventItem, StudentProfile, Task } from '@/types'
+import type { Activity, EventItem, NarrativeEdge, StudentProfile, Task } from '@/types'
 
 const PROFILE_ID = 'app'
 
@@ -83,6 +83,53 @@ export async function updateTask(id: string, patch: Partial<Omit<Task, 'id'>>): 
 
 export async function deleteTask(id: string): Promise<void> {
   await db.tasks.delete(id)
+}
+
+// ---- 活动 ----
+
+export async function listActivities(): Promise<Activity[]> {
+  const activities = await db.activities.toArray()
+  // 进行中（endDate=null）排前，其余按开始日期倒序
+  return activities.sort((a, b) => {
+    if (!a.endDate && b.endDate) return -1
+    if (a.endDate && !b.endDate) return 1
+    return b.startDate.localeCompare(a.startDate)
+  })
+}
+
+export async function addActivity(input: Omit<Activity, 'id' | 'createdAt'>): Promise<Activity> {
+  const activity: Activity = { ...input, id: newId(), createdAt: Date.now() }
+  await db.activities.add(activity)
+  return activity
+}
+
+export async function updateActivity(id: string, patch: Partial<Omit<Activity, 'id'>>): Promise<void> {
+  await db.activities.update(id, patch)
+}
+
+export async function deleteActivity(id: string): Promise<void> {
+  await db.transaction('rw', db.activities, db.narrativeEdges, async () => {
+    const nodeId = `activity:${id}`
+    await db.narrativeEdges.where('sourceNodeId').equals(nodeId).delete()
+    await db.narrativeEdges.where('targetNodeId').equals(nodeId).delete()
+    await db.activities.delete(id)
+  })
+}
+
+// ---- 叙事线（成果网络图的边） ----
+
+export async function listNarrativeEdges(): Promise<NarrativeEdge[]> {
+  return db.narrativeEdges.toArray()
+}
+
+export async function addNarrativeEdge(input: Omit<NarrativeEdge, 'id' | 'createdAt'>): Promise<NarrativeEdge> {
+  const edge: NarrativeEdge = { ...input, id: newId(), createdAt: Date.now() }
+  await db.narrativeEdges.add(edge)
+  return edge
+}
+
+export async function deleteNarrativeEdge(id: string): Promise<void> {
+  await db.narrativeEdges.delete(id)
 }
 
 // ---- 日期工具 ----

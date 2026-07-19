@@ -15,8 +15,10 @@ import { resolveProvider, type ChatTurn } from '@/lib/ai'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { AGENT_TOOLS, executeReadTool, isProposeTool, isReadTool } from '@/lib/ai/tools'
 import {
+  applyActivitiesProposal,
   applyImportProposal,
   applyProfileProposal,
+  parseActivitiesArgs,
   parseImportArgs,
   parseProfileArgs,
 } from '@/lib/ai/proposals'
@@ -155,6 +157,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let resultNote: string
     if (proposal.kind === 'import') {
       resultNote = await applyImportProposal(proposal.events, proposal.tasks)
+    } else if (proposal.kind === 'activities') {
+      resultNote = await applyActivitiesProposal(proposal.activities)
     } else {
       resultNote = await applyProfileProposal(proposal.patch)
     }
@@ -265,10 +269,13 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
         } else if (isProposeTool(call.name)) {
           let proposal: Proposal | null = null
           try {
-            proposal =
-              call.name === 'propose_import'
-                ? { kind: 'import', ...parseImportArgs(call.arguments), status: 'pending' }
-                : { kind: 'profile', patch: parseProfileArgs(call.arguments), status: 'pending' }
+            if (call.name === 'propose_import') {
+              proposal = { kind: 'import', ...parseImportArgs(call.arguments), status: 'pending' }
+            } else if (call.name === 'propose_activities') {
+              proposal = { kind: 'activities', activities: parseActivitiesArgs(call.arguments), status: 'pending' }
+            } else {
+              proposal = { kind: 'profile', patch: parseProfileArgs(call.arguments), status: 'pending' }
+            }
           } catch {
             convo.push({ role: 'tool', toolCallId: call.id, content: '参数 JSON 解析失败，请修正后重试' })
             continue
@@ -276,7 +283,9 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
           const isEmpty =
             proposal.kind === 'import'
               ? proposal.events.length === 0 && proposal.tasks.length === 0
-              : Object.keys(proposal.patch).length === 0
+              : proposal.kind === 'activities'
+                ? proposal.activities.length === 0
+                : Object.keys(proposal.patch).length === 0
           if (isEmpty) {
             convo.push({ role: 'tool', toolCallId: call.id, content: '提案为空，未展示。请确认解析内容后重试或直接告知用户。' })
             continue

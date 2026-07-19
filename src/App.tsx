@@ -6,6 +6,7 @@ import { ChatView } from '@/components/chat/ChatView'
 import { DashboardView } from '@/components/dashboard/DashboardView'
 import { SettingsDialog, type SettingsCategory } from '@/components/settings/SettingsDialog'
 import { TasksView } from '@/components/tasks/TasksView'
+import { ActivitiesView } from '@/components/activities/ActivitiesView'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useReminderStore } from '@/stores/reminderStore'
@@ -44,6 +45,7 @@ export default function App() {
         {view === 'dashboard' && <DashboardView onNavigate={setView} onOpenSettings={openSettings} />}
         {view === 'chat' && <ChatView onOpenSettings={() => openSettings('model')} />}
         {view === 'tasks' && <TasksView />}
+        {view === 'activities' && <ActivitiesView onNavigate={setView} />}
       </div>
       <SettingsDialog
         open={settingsOpen}

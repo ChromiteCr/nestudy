@@ -3,18 +3,21 @@ import { getSettings } from './repositories'
 import { getProfile } from './planning'
 import type { ExportBundle } from '@/types'
 
-const EXPORT_VERSION = 2
+const EXPORT_VERSION = 3
 
 /** 导出全部本地数据为 JSON（剥离 apiKey，避免备份文件泄露密钥） */
 export async function exportAll(): Promise<ExportBundle> {
-  const [conversations, messages, settings, profile, events, tasks] = await Promise.all([
-    db.conversations.toArray(),
-    db.messages.toArray(),
-    getSettings(),
-    getProfile(),
-    db.events.toArray(),
-    db.tasks.toArray(),
-  ])
+  const [conversations, messages, settings, profile, events, tasks, activities, narrativeEdges] =
+    await Promise.all([
+      db.conversations.toArray(),
+      db.messages.toArray(),
+      getSettings(),
+      getProfile(),
+      db.events.toArray(),
+      db.tasks.toArray(),
+      db.activities.toArray(),
+      db.narrativeEdges.toArray(),
+    ])
   const { apiKey: _apiKey, ...safeModelConfig } = settings.modelConfig
   return {
     version: EXPORT_VERSION,
@@ -24,6 +27,8 @@ export async function exportAll(): Promise<ExportBundle> {
     profile,
     events,
     tasks,
+    activities,
+    narrativeEdges,
     settings: { ...settings, modelConfig: safeModelConfig },
   }
 }
@@ -50,19 +55,23 @@ export async function importAll(bundle: ExportBundle): Promise<void> {
   const current = await getSettings()
   await db.transaction(
     'rw',
-    [db.conversations, db.messages, db.settings, db.profile, db.events, db.tasks],
+    [db.conversations, db.messages, db.settings, db.profile, db.events, db.tasks, db.activities, db.narrativeEdges],
     async () => {
       await Promise.all([
         db.conversations.clear(),
         db.messages.clear(),
         db.events.clear(),
         db.tasks.clear(),
+        db.activities.clear(),
+        db.narrativeEdges.clear(),
       ])
       await db.conversations.bulkAdd(bundle.conversations)
       await db.messages.bulkAdd(bundle.messages)
       if (bundle.profile) await db.profile.put(bundle.profile)
       if (bundle.events?.length) await db.events.bulkAdd(bundle.events)
       if (bundle.tasks?.length) await db.tasks.bulkAdd(bundle.tasks)
+      if (bundle.activities?.length) await db.activities.bulkAdd(bundle.activities)
+      if (bundle.narrativeEdges?.length) await db.narrativeEdges.bulkAdd(bundle.narrativeEdges)
       await db.settings.put({
         ...current,
         modelConfig: { ...bundle.settings.modelConfig, apiKey: current.modelConfig.apiKey },

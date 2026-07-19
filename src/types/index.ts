@@ -1,7 +1,7 @@
 // ---- 界面 ----
 
-/** 主界面视图。后续阶段追加：timeline/graph(S3)、reflection(S4)、skills(S5) */
-export type AppView = 'dashboard' | 'chat' | 'tasks'
+/** 主界面视图。后续阶段追加：reflection(S4)、skills(S5) */
+export type AppView = 'dashboard' | 'chat' | 'tasks' | 'activities' | 'timeline' | 'graph'
 
 // ---- 学生档案 ----
 
@@ -59,6 +59,72 @@ export interface EventItem {
   source: DataSource
   createdAt: number
 }
+
+// ---- 活动（背景/成长档案；成果网络图的主节点） ----
+
+export type ActivityCategory =
+  | 'academic'
+  | 'leadership'
+  | 'service'
+  | 'athletics'
+  | 'arts'
+  | 'work'
+  | 'research'
+  | 'other'
+
+export type ActivityLevel = 'school' | 'regional' | 'national' | 'international'
+
+export const ACTIVITY_CATEGORY_LABEL: Record<ActivityCategory, string> = {
+  academic: '学术',
+  leadership: '领导力',
+  service: '志愿服务',
+  athletics: '体育',
+  arts: '艺术',
+  work: '实习/工作',
+  research: '科研',
+  other: '其他',
+}
+
+export const ACTIVITY_LEVEL_LABEL: Record<ActivityLevel, string> = {
+  school: '校级',
+  regional: '地区级',
+  national: '国家级',
+  international: '国际级',
+}
+
+export interface Activity {
+  id: string
+  title: string
+  category: ActivityCategory
+  role: string
+  organization: string
+  /** ISO 日期字符串（yyyy-mm-dd） */
+  startDate: string
+  /** null = 进行中 */
+  endDate: string | null
+  description: string
+  achievements: string[]
+  level: ActivityLevel
+  source: DataSource
+  createdAt: number
+}
+
+// ---- 叙事线（成果网络图的边；跨实体稳定引用节点） ----
+
+/** 节点 id 带类型前缀：activity:<id> / course:<id> / school:<id> / (S4) reflection:<id> */
+export type GraphNodeId = string
+
+export interface NarrativeEdge {
+  id: string
+  sourceNodeId: GraphNodeId
+  targetNodeId: GraphNodeId
+  /** 为什么连（叙事说明） */
+  label: string
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
+// ---- 任务 ----
 
 export type TaskPriority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'pending' | 'completed'
@@ -119,9 +185,23 @@ export interface ProfilePatchProposal {
   targetSchools?: (Omit<TargetSchool, 'id' | 'deadline'> & { deadline?: string | null })[]
 }
 
+export interface ProposedActivity {
+  include: boolean
+  title: string
+  category: ActivityCategory
+  role: string
+  organization: string
+  startDate: string
+  endDate: string | null
+  description: string
+  achievements: string[]
+  level: ActivityLevel
+}
+
 export type Proposal =
   | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
   | { kind: 'profile'; patch: ProfilePatchProposal; status: ProposalStatus; resultNote?: string }
+  | { kind: 'activities'; activities: ProposedActivity[]; status: ProposalStatus; resultNote?: string }
 
 export interface Conversation {
   id: string
@@ -178,6 +258,9 @@ export interface ExportBundle {
   profile?: StudentProfile
   events?: EventItem[]
   tasks?: Task[]
+  /** v3 起包含 */
+  activities?: Activity[]
+  narrativeEdges?: NarrativeEdge[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

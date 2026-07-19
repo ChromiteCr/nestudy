@@ -1,4 +1,10 @@
-import { getProfile, isoToday, listTasks, listUpcomingEvents } from '@/lib/db/planning'
+import {
+  getProfile,
+  isoToday,
+  listActivities,
+  listTasks,
+  listUpcomingEvents,
+} from '@/lib/db/planning'
 import type { ToolDef } from './provider'
 
 /**
@@ -20,6 +26,11 @@ export const AGENT_TOOLS: ToolDef[] = [
   {
     name: 'get_events',
     description: '获取未来 90 天内的考试/截止日期/活动',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_activities',
+    description: '获取学生的课外活动档案（竞赛/社团/科研/志愿/实习等，含角色、成果、级别）',
     parameters: { type: 'object', properties: {} },
   },
   {
@@ -100,16 +111,48 @@ export const AGENT_TOOLS: ToolDef[] = [
       required: [],
     },
   },
+  {
+    name: 'propose_activities',
+    description:
+      '把课外活动（竞赛/社团/科研/志愿/实习/艺术/体育等）作为提案展示给用户确认（不会直接写入）。用户描述自己参加过的活动、经历、成果时使用。日期用 YYYY-MM-DD，进行中的活动 endDate 省略或留空。',
+    parameters: {
+      type: 'object',
+      properties: {
+        activities: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: '活动名称' },
+              category: {
+                type: 'string',
+                enum: ['academic', 'leadership', 'service', 'athletics', 'arts', 'work', 'research', 'other'],
+              },
+              role: { type: 'string', description: '担任的角色，如队长、创始人、成员' },
+              organization: { type: 'string', description: '所属组织/机构' },
+              startDate: { type: 'string', description: 'YYYY-MM-DD' },
+              endDate: { type: 'string', description: 'YYYY-MM-DD，进行中则省略' },
+              description: { type: 'string', description: '一句话描述做了什么' },
+              achievements: { type: 'array', items: { type: 'string' }, description: '成果/奖项列表' },
+              level: { type: 'string', enum: ['school', 'regional', 'national', 'international'] },
+            },
+            required: ['title', 'category'],
+          },
+        },
+      },
+      required: ['activities'],
+    },
+  },
 ]
 
-const READ_TOOLS = new Set(['get_profile', 'get_tasks', 'get_events'])
+const READ_TOOLS = new Set(['get_profile', 'get_tasks', 'get_events', 'get_activities'])
 
 export function isReadTool(name: string): boolean {
   return READ_TOOLS.has(name)
 }
 
 export function isProposeTool(name: string): boolean {
-  return name === 'propose_import' || name === 'propose_profile_update'
+  return name === 'propose_import' || name === 'propose_profile_update' || name === 'propose_activities'
 }
 
 /** 执行读工具，返回给模型的 JSON 字符串 */
@@ -127,6 +170,21 @@ export async function executeReadTool(name: string): Promise<string> {
     case 'get_events': {
       const events = await listUpcomingEvents(90)
       return JSON.stringify({ today: isoToday(), events: events.map((e) => ({ title: e.title, type: e.type, date: e.date })) })
+    }
+    case 'get_activities': {
+      const activities = await listActivities()
+      return JSON.stringify({
+        activities: activities.map((a) => ({
+          title: a.title,
+          category: a.category,
+          role: a.role,
+          organization: a.organization,
+          startDate: a.startDate,
+          endDate: a.endDate,
+          achievements: a.achievements,
+          level: a.level,
+        })),
+      })
     }
     default:
       return JSON.stringify({ error: `未知工具：${name}` })
