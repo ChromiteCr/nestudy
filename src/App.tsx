@@ -24,6 +24,8 @@ export default function App() {
   }
 
   useEffect(() => {
+    // 申请持久化存储资格，降低浏览器在磁盘紧张时自动清除 IndexedDB/OPFS 的风险
+    void navigator.storage?.persist?.()
     void useSettingsStore.getState().load()
     void useChatStore.getState().init()
     // 规则引擎依赖档案/任务/事件，等 planning 加载完再算提醒
