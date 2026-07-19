@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import {
   ArrowRight,
   CalendarClock,
+  GraduationCap,
   ListTodo,
   MessageSquare,
   Network,
   NotebookPen,
+  Pencil,
+  Sparkles,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,8 +24,11 @@ import { usePlanningStore, selectTodayTasks } from '@/stores/planningStore'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
 import { formatCountdown } from '@/components/tasks/EventList'
+import { ProfileDialog } from '@/components/profile/ProfileDialog'
 import { cn } from '@/lib/utils'
-import type { AppView } from '@/types'
+import { isProfileEmpty, type AppView } from '@/types'
+
+const ONBOARDING_PROMPT = '我想建立我的学生档案，请像采访一样一步步引导我：年级、课程体系、在读课程和目标分数、目标学校和专业。每次只问一个问题。'
 
 function greeting(): string {
   const hour = new Date().getHours()
@@ -37,9 +44,17 @@ interface DashboardViewProps {
 
 export function DashboardView({ onNavigate }: DashboardViewProps) {
   const conversations = useChatStore((s) => s.conversations)
+  const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
   const tasks = usePlanningStore((s) => s.tasks)
   const events = usePlanningStore((s) => s.events)
+  const profile = usePlanningStore((s) => s.profile)
+  const [profileOpen, setProfileOpen] = useState(false)
   const todayTasks = selectTodayTasks(tasks)
+
+  const startOnboarding = () => {
+    setPendingPrompt(ONBOARDING_PROMPT)
+    onNavigate('chat')
+  }
   const upcomingEvents = events.filter((e) => daysUntil(e.date) >= 0).slice(0, 4)
   const today = new Date().toLocaleDateString('zh-CN', {
     month: 'long',
@@ -54,6 +69,63 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           <p className="text-sm text-muted-foreground">{today}</p>
           <h1 className="font-heading text-2xl font-semibold">{greeting()}</h1>
         </header>
+
+        {/* 档案：空态引导建档 / 摘要 */}
+        {profile && isProfileEmpty(profile) ? (
+          <Card className="border-dashed border-primary/40">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="size-4 text-primary" />
+                  建立你的档案
+                </CardTitle>
+                <CardDescription>
+                  告诉学栖你的年级、课程和目标，之后的规划建议都会围绕它展开
+                </CardDescription>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" onClick={startOnboarding}>
+                  对话建档
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setProfileOpen(true)}>
+                  手动填写
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+        ) : (
+          profile && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <GraduationCap className="size-4" />
+                  我的档案
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => setProfileOpen(true)}
+                >
+                  <Pencil className="size-3" />
+                  编辑
+                </Button>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2 text-sm">
+                {profile.grade && <Badge variant="secondary">{profile.grade} 年级</Badge>}
+                {profile.curriculum && <Badge variant="secondary">{profile.curriculum}</Badge>}
+                {profile.courses.length > 0 && (
+                  <Badge variant="secondary">{profile.courses.length} 门课程</Badge>
+                )}
+                {profile.targetSchools.length > 0 && (
+                  <Badge variant="secondary">
+                    目标：{profile.targetSchools.map((s) => s.name).slice(0, 3).join(' / ')}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          )
+        )}
 
         {/* 对话入口 */}
         <Card className="border-primary/20 bg-primary/5">
@@ -171,6 +243,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           数据 100% 存于本地浏览器 · 学栖 StudyNest
         </p>
       </div>
+      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   )
 }

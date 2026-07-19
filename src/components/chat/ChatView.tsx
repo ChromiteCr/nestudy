@@ -15,6 +15,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const streaming = useChatStore((s) => s.streaming)
   const error = useChatStore((s) => s.error)
   const retryLast = useChatStore((s) => s.retryLast)
+  const pendingPrompt = useChatStore((s) => s.pendingPrompt)
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -22,6 +23,14 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages])
+
+  // 带引导语进入（建档 CTA / 提醒卡跳转）：新开会话并自动发送
+  useEffect(() => {
+    if (!pendingPrompt || streaming) return
+    const store = useChatStore.getState()
+    store.setPendingPrompt(null)
+    void store.newConversation().then(() => store.sendMessage(pendingPrompt))
+  }, [pendingPrompt, streaming])
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
