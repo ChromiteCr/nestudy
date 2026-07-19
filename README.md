@@ -32,6 +32,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 | S5 | Skill 系统 |
 | S6 | Skill 市场 |
 | S7 | 文书素材库 + 本地记忆层 + 导出增强 |
+| 专项 | 模型安全与质量评测（红队 + eval，公开推广前完成） |
 
 ## 版本记录
 
