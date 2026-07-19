@@ -191,6 +191,11 @@ function ProfileProposalCard({
       onDismiss={() => void dismissProposal(message.id)}
     >
       <div className="flex flex-col gap-1 text-sm">
+        {patch.name !== undefined && (
+          <p>
+            名字：<span className="font-medium">{patch.name}</span>
+          </p>
+        )}
         {patch.grade !== undefined && (
           <p>
             年级：<span className="font-medium">{patch.grade} 年级</span>

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   ArrowRight,
   BellRing,
@@ -27,7 +26,7 @@ import { useReminderStore } from '@/stores/reminderStore'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
 import { formatCountdown } from '@/components/tasks/EventList'
-import { ProfileDialog } from '@/components/profile/ProfileDialog'
+import type { SettingsCategory } from '@/components/settings/SettingsDialog'
 import { cn } from '@/lib/utils'
 import { isProfileEmpty, type AppView } from '@/types'
 
@@ -43,15 +42,15 @@ function greeting(): string {
 
 interface DashboardViewProps {
   onNavigate: (view: AppView) => void
+  onOpenSettings: (category: SettingsCategory) => void
 }
 
-export function DashboardView({ onNavigate }: DashboardViewProps) {
+export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps) {
   const conversations = useChatStore((s) => s.conversations)
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
   const tasks = usePlanningStore((s) => s.tasks)
   const events = usePlanningStore((s) => s.events)
   const profile = usePlanningStore((s) => s.profile)
-  const [profileOpen, setProfileOpen] = useState(false)
   const todayTasks = selectTodayTasks(tasks)
 
   const startOnboarding = () => {
@@ -78,7 +77,16 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
         <header className="flex flex-col gap-1">
           <p className="text-sm text-muted-foreground">{today}</p>
-          <h1 className="font-heading text-2xl font-semibold">{greeting()}</h1>
+          <h1 className="font-heading text-2xl font-semibold">
+            {greeting()}
+            {profile?.name ? `，${profile.name}` : ''}
+          </h1>
+          {profile?.name && (profile.grade || profile.curriculum) && (
+            <p className="text-sm text-muted-foreground">
+              {[profile.grade && `${profile.grade} 年级`, profile.curriculum].filter(Boolean).join(' · ')}
+              {profile.targetSchools.length > 0 && ` · 目标 ${profile.targetSchools[0].name}`}
+            </p>
+          )}
         </header>
 
         {/* 主动提醒卡（规则引擎命中项） */}
@@ -127,7 +135,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                 <Button size="sm" onClick={startOnboarding}>
                   对话建档
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setProfileOpen(true)}>
+                <Button size="sm" variant="outline" onClick={() => onOpenSettings('profile')}>
                   手动填写
                 </Button>
               </div>
@@ -145,13 +153,14 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
                   variant="ghost"
                   size="sm"
                   className="h-7 gap-1 text-xs"
-                  onClick={() => setProfileOpen(true)}
+                  onClick={() => onOpenSettings('profile')}
                 >
                   <Pencil className="size-3" />
                   编辑
                 </Button>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2 text-sm">
+                {profile.name && <Badge variant="secondary">{profile.name}</Badge>}
                 {profile.grade && <Badge variant="secondary">{profile.grade} 年级</Badge>}
                 {profile.curriculum && <Badge variant="secondary">{profile.curriculum}</Badge>}
                 {profile.courses.length > 0 && (
@@ -188,7 +197,8 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           </CardHeader>
         </Card>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* 竖屏（高>宽）时始终单列纵向 */}
+        <div className="grid grid-cols-1 gap-4 landscape:sm:grid-cols-2">
           {/* 今日任务（真实数据） */}
           <Card>
             <CardHeader className="pb-2">
@@ -283,7 +293,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
           数据 100% 存于本地浏览器 · 学栖 StudyNest
         </p>
       </div>
-      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   )
 }

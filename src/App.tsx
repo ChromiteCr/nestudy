@@ -4,7 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatView } from '@/components/chat/ChatView'
 import { DashboardView } from '@/components/dashboard/DashboardView'
-import { SettingsDialog } from '@/components/settings/SettingsDialog'
+import { SettingsDialog, type SettingsCategory } from '@/components/settings/SettingsDialog'
 import { TasksView } from '@/components/tasks/TasksView'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
@@ -15,7 +15,13 @@ import type { AppView } from '@/types'
 export default function App() {
   const [view, setView] = useState<AppView>('dashboard')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>('model')
   const settingsLoaded = useSettingsStore((s) => s.loaded)
+
+  const openSettings = (category: SettingsCategory = 'model') => {
+    setSettingsCategory(category)
+    setSettingsOpen(true)
+  }
 
   useEffect(() => {
     void useSettingsStore.getState().load()
@@ -32,12 +38,17 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-dvh bg-background text-foreground">
-        <Sidebar view={view} onViewChange={setView} onOpenSettings={() => setSettingsOpen(true)} />
-        {view === 'dashboard' && <DashboardView onNavigate={setView} />}
-        {view === 'chat' && <ChatView onOpenSettings={() => setSettingsOpen(true)} />}
+        <Sidebar view={view} onViewChange={setView} onOpenSettings={() => openSettings()} />
+        {view === 'dashboard' && <DashboardView onNavigate={setView} onOpenSettings={openSettings} />}
+        {view === 'chat' && <ChatView onOpenSettings={() => openSettings('model')} />}
         {view === 'tasks' && <TasksView />}
       </div>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        category={settingsCategory}
+        onCategoryChange={setSettingsCategory}
+      />
       <Toaster position="top-center" />
     </TooltipProvider>
   )

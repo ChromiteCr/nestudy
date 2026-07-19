@@ -28,6 +28,7 @@ export interface TargetSchool {
 export interface StudentProfile {
   /** 固定为 'app'，profile 表只有这一行 */
   id: string
+  name: string
   grade: number | null
   curriculum: Curriculum | null
   courses: Course[]
@@ -35,7 +36,13 @@ export interface StudentProfile {
 }
 
 export function isProfileEmpty(p: StudentProfile): boolean {
-  return p.grade === null && p.curriculum === null && p.courses.length === 0 && p.targetSchools.length === 0
+  return (
+    !p.name &&
+    p.grade === null &&
+    p.curriculum === null &&
+    p.courses.length === 0 &&
+    p.targetSchools.length === 0
+  )
 }
 
 // ---- 日程与任务（分表：DDL 是"事实"，任务是"行动"） ----
@@ -105,6 +112,7 @@ export type ProposalStatus = 'pending' | 'confirmed' | 'dismissed'
 
 /** 档案补丁提案（S1d：Onboarding 用） */
 export interface ProfilePatchProposal {
+  name?: string
   grade?: number
   curriculum?: Curriculum
   courses?: Omit<Course, 'id'>[]
@@ -155,6 +163,8 @@ export interface Settings {
   lastActiveAt?: number
   /** 已关闭的提醒：ruleKey → 关闭当天(yyyy-mm-dd)，当天内不再显示 */
   dismissedReminders?: Record<string, string>
+  /** 用户自定义界面主色；null/缺省 = 主题默认 */
+  themeColor?: { r: number; g: number; b: number } | null
 }
 
 // ---- 数据导出 ----

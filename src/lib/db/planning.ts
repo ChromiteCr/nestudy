@@ -8,9 +8,11 @@ const PROFILE_ID = 'app'
 
 export async function getProfile(): Promise<StudentProfile> {
   const existing = await db.profile.get(PROFILE_ID)
-  if (existing) return existing
+  // name 为 S2a2 新增字段，旧记录补默认值
+  if (existing) return { ...existing, name: existing.name ?? '' }
   const fresh: StudentProfile = {
     id: PROFILE_ID,
+    name: '',
     grade: null,
     curriculum: null,
     courses: [],

@@ -39,6 +39,7 @@ export function parseImportArgs(rawArgs: string): { events: ProposedEvent[]; tas
 export function parseProfileArgs(rawArgs: string): ProfilePatchProposal {
   const args = JSON.parse(rawArgs) as ProfilePatchProposal
   const patch: ProfilePatchProposal = {}
+  if (typeof args.name === 'string' && args.name.trim()) patch.name = args.name.trim()
   if (typeof args.grade === 'number') patch.grade = args.grade
   if (args.curriculum && ['IB', 'AP', 'ALevel', 'Other'].includes(args.curriculum)) {
     patch.curriculum = args.curriculum as Curriculum
@@ -99,6 +100,10 @@ export async function applyProfileProposal(patch: ProfilePatchProposal): Promise
   const store = usePlanningStore.getState()
   const parts: string[] = []
   const update: Parameters<typeof store.updateProfile>[0] = {}
+  if (patch.name !== undefined) {
+    update.name = patch.name
+    parts.push(`名字 ${patch.name}`)
+  }
   if (patch.grade !== undefined) {
     update.grade = patch.grade
     parts.push(`年级 ${patch.grade}`)

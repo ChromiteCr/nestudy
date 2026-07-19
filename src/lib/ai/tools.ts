@@ -67,6 +67,7 @@ export const AGENT_TOOLS: ToolDef[] = [
     parameters: {
       type: 'object',
       properties: {
+        name: { type: 'string', description: '学生名字/昵称' },
         grade: { type: 'number', description: '年级（9-12）' },
         curriculum: { type: 'string', enum: ['IB', 'AP', 'ALevel', 'Other'] },
         courses: {
@@ -116,7 +117,7 @@ export async function executeReadTool(name: string): Promise<string> {
   switch (name) {
     case 'get_profile': {
       const p = await getProfile()
-      return JSON.stringify({ grade: p.grade, curriculum: p.curriculum, courses: p.courses, targetSchools: p.targetSchools })
+      return JSON.stringify({ name: p.name, grade: p.grade, curriculum: p.curriculum, courses: p.courses, targetSchools: p.targetSchools })
     }
     case 'get_tasks': {
       const tasks = await listTasks()
