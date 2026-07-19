@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
+import { ThinkingIndicator } from './ThinkingIndicator'
 
 interface ChatViewProps {
   onOpenSettings: () => void
@@ -19,17 +20,20 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // 新消息时滚到底部
+  // 新消息/思考指示出现时滚到底部
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [messages])
+  }, [messages, streaming])
 
-  // 带引导语进入（建档 CTA / 提醒卡跳转）：新开会话并自动发送
+  // 带引导语进入（建档 CTA / 提醒卡跳转）：新开会话并自动发送。
+  // 从 getState() 复核最新值：StrictMode 下 effect 会连跑两次，
+  // 第二次时 pendingPrompt 已被清空，避免重复发送。
   useEffect(() => {
-    if (!pendingPrompt || streaming) return
     const store = useChatStore.getState()
+    const prompt = store.pendingPrompt
+    if (!prompt || store.streaming) return
     store.setPendingPrompt(null)
-    void store.newConversation().then(() => store.sendMessage(pendingPrompt))
+    void store.newConversation().then(() => store.sendMessage(prompt))
   }, [pendingPrompt, streaming])
 
   return (
@@ -54,13 +58,18 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
             </div>
           )}
 
-          {messages.map((m, i) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              streaming={streaming && i === messages.length - 1}
-            />
+          {messages.map((m) => (
+            <MessageBubble key={m.id} message={m} />
           ))}
+
+          {/* 等待模型产出文本时（含工具轮次间隙）显示思考指示 */}
+          {streaming &&
+            !(
+              messages.length > 0 &&
+              messages[messages.length - 1].role === 'assistant' &&
+              messages[messages.length - 1].content &&
+              !messages[messages.length - 1].proposal
+            ) && <ThinkingIndicator />}
 
           {error && (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive">

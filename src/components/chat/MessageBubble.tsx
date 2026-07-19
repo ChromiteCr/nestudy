@@ -6,10 +6,9 @@ import { ProposalCard } from './ProposalCard'
 
 interface MessageBubbleProps {
   message: Message
-  streaming?: boolean
 }
 
-export function MessageBubble({ message, streaming }: MessageBubbleProps) {
+export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   if (message.proposal) {
@@ -19,6 +18,9 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
       </div>
     )
   }
+
+  // 空的 assistant 占位（流式尚未产出文本）由 ThinkingIndicator 呈现
+  if (!isUser && !message.content) return null
 
   if (isUser) {
     return (
@@ -38,11 +40,7 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
           'prose-pre:bg-background prose-pre:text-foreground',
         )}
       >
-        {message.content ? (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-        ) : streaming ? (
-          <span className="inline-block animate-pulse text-muted-foreground">…</span>
-        ) : null}
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
       </div>
     </div>
   )

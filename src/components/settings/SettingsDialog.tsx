@@ -1,9 +1,10 @@
 import { useRef } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
+import { Cpu, Database, Download, GraduationCap, Palette, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -37,10 +38,19 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open, onOpenChange, category, onCategoryChange }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[80dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogHeader className="border-b px-4 py-3">
+      <DialogContent
+        showCloseButton={false}
+        className="flex h-[80dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+      >
+        {/* 自渲染关闭按钮放在标题行内，与标题严格同轴，避免默认绝对定位的 X 压过分隔线 */}
+        <DialogHeader className="min-h-12 flex-row items-center justify-between border-b px-4 py-0">
           <DialogTitle>设置</DialogTitle>
           <DialogDescription className="sr-only">学栖设置中心</DialogDescription>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="size-7" aria-label="关闭设置">
+              <X className="size-4" />
+            </Button>
+          </DialogClose>
         </DialogHeader>
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           {/* 分类侧栏（窄屏横排） */}
