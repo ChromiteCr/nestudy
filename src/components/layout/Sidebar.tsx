@@ -23,9 +23,8 @@ import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
 
-/** 后续阶段的模块入口占位（S3 时间轴/网络图、S4 反思、S5 技能） */
+/** 后续阶段的模块入口占位（S3 网络图、S4 反思、S5 技能） */
 const UPCOMING_MODULES = [
-  { icon: CalendarRange, label: '时间轴', stage: 'S3' },
   { icon: Network, label: '成果网络', stage: 'S3' },
   { icon: NotebookPen, label: '反思', stage: 'S4' },
   { icon: Puzzle, label: '技能', stage: 'S5' },
@@ -81,6 +80,12 @@ export function Sidebar({ view, onViewChange, onOpenSettings }: SidebarProps) {
           label="活动"
           active={view === 'activities'}
           onClick={() => onViewChange('activities')}
+        />
+        <NavItem
+          icon={CalendarRange}
+          label="时间轴"
+          active={view === 'timeline'}
+          onClick={() => onViewChange('timeline')}
         />
       </nav>
 
