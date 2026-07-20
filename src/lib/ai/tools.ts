@@ -143,6 +143,29 @@ export const AGENT_TOOLS: ToolDef[] = [
       required: ['activities'],
     },
   },
+  {
+    name: 'propose_narrative',
+    description:
+      '把活动/课程/目标校之间的"叙事线"连接作为提案展示给用户确认（成果网络图的边）。用户要求梳理成长/申请故事、分析活动之间的逻辑关联时使用。先用 get_activities / get_profile 拿到确切标题，source/target 必须用完全一致的节点标题（活动名/课程名/学校名）。',
+    parameters: {
+      type: 'object',
+      properties: {
+        edges: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              source: { type: 'string', description: '起点节点标题（活动/课程/学校名，须完全一致）' },
+              target: { type: 'string', description: '终点节点标题（活动/课程/学校名，须完全一致）' },
+              reason: { type: 'string', description: '为什么连——这条叙事线的逻辑' },
+            },
+            required: ['source', 'target', 'reason'],
+          },
+        },
+      },
+      required: ['edges'],
+    },
+  },
 ]
 
 const READ_TOOLS = new Set(['get_profile', 'get_tasks', 'get_events', 'get_activities'])
@@ -152,7 +175,12 @@ export function isReadTool(name: string): boolean {
 }
 
 export function isProposeTool(name: string): boolean {
-  return name === 'propose_import' || name === 'propose_profile_update' || name === 'propose_activities'
+  return (
+    name === 'propose_import' ||
+    name === 'propose_profile_update' ||
+    name === 'propose_activities' ||
+    name === 'propose_narrative'
+  )
 }
 
 /** 执行读工具，返回给模型的 JSON 字符串 */

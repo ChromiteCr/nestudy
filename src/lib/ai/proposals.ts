@@ -1,5 +1,6 @@
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
+import { buildGraphNodes, resolveLabelToNodeId } from '@/components/graph/graph-model'
 import type {
   ActivityCategory,
   ActivityLevel,
@@ -7,6 +8,7 @@ import type {
   EventType,
   ProfilePatchProposal,
   ProposedActivity,
+  ProposedEdge,
   ProposedEvent,
   ProposedTask,
   TaskPriority,
@@ -193,4 +195,40 @@ export async function applyActivitiesProposal(activities: ProposedActivity[]): P
     count++
   }
   return `已添加 ${count} 个活动`
+}
+
+/** 解析 propose_narrative 参数为可编辑提案（按当前节点标题解析到 node id，解析失败的标红不可入库） */
+export function parseNarrativeArgs(rawArgs: string): ProposedEdge[] {
+  const args = JSON.parse(rawArgs) as {
+    edges?: { source?: string; target?: string; reason?: string }[]
+  }
+  const { activities, profile } = usePlanningStore.getState()
+  const nodes = buildGraphNodes(activities, profile)
+  return (args.edges ?? [])
+    .filter((e) => e.source?.trim() && e.target?.trim())
+    .map((e) => ({
+      include: true,
+      sourceLabel: e.source!.trim(),
+      targetLabel: e.target!.trim(),
+      reason: e.reason ?? '',
+      sourceNodeId: resolveLabelToNodeId(e.source!, nodes),
+      targetNodeId: resolveLabelToNodeId(e.target!, nodes),
+    }))
+}
+
+/** 用户确认叙事线提案：写入可解析且不自连的边 */
+export async function applyNarrativeProposal(edges: ProposedEdge[]): Promise<string> {
+  const store = usePlanningStore.getState()
+  let count = 0
+  for (const e of edges.filter((x) => x.include && x.sourceNodeId && x.targetNodeId)) {
+    if (e.sourceNodeId === e.targetNodeId) continue
+    await store.createEdge({
+      sourceNodeId: e.sourceNodeId!,
+      targetNodeId: e.targetNodeId!,
+      label: e.reason,
+      source: 'ai',
+    })
+    count++
+  }
+  return `已连接 ${count} 条叙事线`
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarClock, Check, GraduationCap, ListTodo, Sparkles, X } from 'lucide-react'
+import { CalendarClock, Check, GraduationCap, ListTodo, Network, Sparkles, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,6 +12,7 @@ import {
   type Message,
   type Proposal,
   type ProposedActivity,
+  type ProposedEdge,
   type ProposedEvent,
   type ProposedTask,
 } from '@/types'
@@ -28,6 +29,7 @@ export function ProposalCard({ message }: ProposalCardProps) {
   const proposal = message.proposal!
   if (proposal.kind === 'import') return <ImportProposalCard message={message} proposal={proposal} />
   if (proposal.kind === 'activities') return <ActivitiesProposalCard message={message} proposal={proposal} />
+  if (proposal.kind === 'narrative') return <NarrativeProposalCard message={message} proposal={proposal} />
   return <ProfileProposalCard message={message} proposal={proposal} />
 }
 
@@ -312,6 +314,62 @@ function ActivitiesProposalCard({
             </div>
           </div>
         ))}
+      </div>
+    </CardShell>
+  )
+}
+
+function NarrativeProposalCard({
+  message,
+  proposal,
+}: {
+  message: Message
+  proposal: Extract<Proposal, { kind: 'narrative' }>
+}) {
+  const confirmProposal = useChatStore((s) => s.confirmProposal)
+  const dismissProposal = useChatStore((s) => s.dismissProposal)
+  const [edges, setEdges] = useState<ProposedEdge[]>(proposal.edges)
+  const editable = proposal.status === 'pending'
+
+  const toggle = (i: number, include: boolean) =>
+    setEdges((prev) => prev.map((e, idx) => (idx === i ? { ...e, include } : e)))
+
+  return (
+    <CardShell
+      icon={<Network className="size-4 text-primary" />}
+      title={`叙事线提案（${edges.length}）`}
+      status={proposal.status}
+      resultNote={proposal.resultNote}
+      onConfirm={() => void confirmProposal(message.id, { ...proposal, edges })}
+      onDismiss={() => void dismissProposal(message.id)}
+    >
+      <div className="flex flex-col gap-1.5">
+        {edges.map((e, i) => {
+          const unresolved = !e.sourceNodeId || !e.targetNodeId
+          return (
+            <div key={i} className="flex items-start gap-2">
+              {editable && (
+                <Checkbox
+                  className="mt-0.5"
+                  checked={e.include && !unresolved}
+                  disabled={unresolved}
+                  onCheckedChange={(v) => toggle(i, v === true)}
+                />
+              )}
+              <div className={cn('flex min-w-0 flex-1 flex-col', (!e.include || unresolved) && 'opacity-50')}>
+                <p className="text-sm">
+                  <span className="font-medium">{e.sourceLabel}</span>
+                  <span className="mx-1 text-muted-foreground">→</span>
+                  <span className="font-medium">{e.targetLabel}</span>
+                  {unresolved && (
+                    <span className="ml-1 text-xs text-destructive">（未匹配到节点，无法连接）</span>
+                  )}
+                </p>
+                {e.reason && <p className="text-xs text-muted-foreground">{e.reason}</p>}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </CardShell>
   )

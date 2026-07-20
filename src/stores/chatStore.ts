@@ -17,9 +17,11 @@ import { AGENT_TOOLS, executeReadTool, isProposeTool, isReadTool } from '@/lib/a
 import {
   applyActivitiesProposal,
   applyImportProposal,
+  applyNarrativeProposal,
   applyProfileProposal,
   parseActivitiesArgs,
   parseImportArgs,
+  parseNarrativeArgs,
   parseProfileArgs,
 } from '@/lib/ai/proposals'
 import { useSettingsStore } from './settingsStore'
@@ -159,6 +161,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       resultNote = await applyImportProposal(proposal.events, proposal.tasks)
     } else if (proposal.kind === 'activities') {
       resultNote = await applyActivitiesProposal(proposal.activities)
+    } else if (proposal.kind === 'narrative') {
+      resultNote = await applyNarrativeProposal(proposal.edges)
     } else {
       resultNote = await applyProfileProposal(proposal.patch)
     }
@@ -273,6 +277,8 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
               proposal = { kind: 'import', ...parseImportArgs(call.arguments), status: 'pending' }
             } else if (call.name === 'propose_activities') {
               proposal = { kind: 'activities', activities: parseActivitiesArgs(call.arguments), status: 'pending' }
+            } else if (call.name === 'propose_narrative') {
+              proposal = { kind: 'narrative', edges: parseNarrativeArgs(call.arguments), status: 'pending' }
             } else {
               proposal = { kind: 'profile', patch: parseProfileArgs(call.arguments), status: 'pending' }
             }
@@ -285,7 +291,9 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
               ? proposal.events.length === 0 && proposal.tasks.length === 0
               : proposal.kind === 'activities'
                 ? proposal.activities.length === 0
-                : Object.keys(proposal.patch).length === 0
+                : proposal.kind === 'narrative'
+                  ? proposal.edges.length === 0
+                  : Object.keys(proposal.patch).length === 0
           if (isEmpty) {
             convo.push({ role: 'tool', toolCallId: call.id, content: '提案为空，未展示。请确认解析内容后重试或直接告知用户。' })
             continue

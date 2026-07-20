@@ -15,6 +15,7 @@ export function buildSystemPrompt(): string {
 - 给任务建议 eventTitle 关联到对应事件（用完全一致的事件标题）
 - 用户提供档案信息（年级/体系/课程/目标校）时：调用 propose_profile_update 生成确认卡
 - 用户描述参加过的活动/竞赛/社团/科研/志愿/实习及其成果时：调用 propose_activities 生成确认卡，尽量填全 category、role、成果、级别
+- 用户要求梳理成长/申请故事、分析活动关联时：先 get_activities/get_profile 拿到确切标题，再用 propose_narrative 给出叙事线连接（source/target 用完全一致的节点标题）
 - 提案卡展示后等待用户在卡片上操作，不要重复调用同一提案，也不要声称已保存——确认动作在用户手里
 - 日期一律 YYYY-MM-DD，相对日期按今天推算`
 }

@@ -198,10 +198,22 @@ export interface ProposedActivity {
   level: ActivityLevel
 }
 
+/** 叙事线提案：AI 按节点标题给出连接（含"为什么连"） */
+export interface ProposedEdge {
+  include: boolean
+  sourceLabel: string
+  targetLabel: string
+  reason: string
+  /** 解析节点 id 后填入；解析失败为 null（不可入库） */
+  sourceNodeId: string | null
+  targetNodeId: string | null
+}
+
 export type Proposal =
   | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
   | { kind: 'profile'; patch: ProfilePatchProposal; status: ProposalStatus; resultNote?: string }
   | { kind: 'activities'; activities: ProposedActivity[]; status: ProposalStatus; resultNote?: string }
+  | { kind: 'narrative'; edges: ProposedEdge[]; status: ProposalStatus; resultNote?: string }
 
 export interface Conversation {
   id: string
