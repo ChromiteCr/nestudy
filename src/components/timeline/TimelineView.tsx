@@ -33,12 +33,14 @@ const DOT_R = 6
 const GAP = 8
 /** 卡片假定宽度，用于视口边界裁剪（对应 w-60） */
 const CARD_W = 240
+/** 卡片假定高度上限，用于判断"上方是否有足够空间"（决定卡片朝上还是朝下展开） */
+const ESTIMATED_CARD_H = 170
 /** 到期超过此天数的任务视为"长期任务"，画引导线 */
 const LONG_TERM_DAYS = 14
 
 type Selected =
-  | { type: 'span'; id: string; anchorX: number; anchorY: number }
-  | { type: 'point'; kind: PointKind; id: string; anchorX: number; anchorY: number }
+  | { type: 'span'; id: string; anchorX: number; anchorY: number; growUp: boolean }
+  | { type: 'point'; kind: PointKind; id: string; anchorX: number; anchorY: number; growUp: boolean }
   | null
 
 interface TimelineViewProps {
@@ -108,6 +110,12 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
     const viewLeft = el.scrollLeft + LANE_LABEL_W + 4
     const viewRight = el.scrollLeft + el.clientWidth - CARD_W - 4
     return clamp(rawX, viewLeft, Math.max(viewLeft, viewRight))
+  }
+
+  /** 上方空间足够（当前滚动位置之上有 ESTIMATED_CARD_H 空间）才朝上展开，否则朝下，避免卡片被裁掉 */
+  const hasRoomAbove = (shapeTopY: number): boolean => {
+    const scrollTop = scrollRef.current?.scrollTop ?? 0
+    return shapeTopY - scrollTop >= ESTIMATED_CARD_H
   }
 
   return (
@@ -182,17 +190,25 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
                 const barLeft = LANE_LABEL_W + left
                 const barWidth = Math.max(right - left, 8)
                 const barTop = s.row * SPAN_ROW_H + 4
+                const barTopY = HEADER_H + barTop
+                const barBottomY = barTopY + 24 // h-6 = 24px
                 return (
                   <button
                     key={s.id}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
+                      // 用点击位置而非条形图真实右端定位——不然跨度很长（如进行中活动）时，
+                      // 锚点会落在时间轴的最右端，和实际点击处相差十万八千里
+                      const scrollEl = scrollRef.current
+                      const clickX = scrollEl ? e.clientX - scrollEl.getBoundingClientRect().left + scrollEl.scrollLeft : barLeft
+                      const growUp = hasRoomAbove(barTopY)
                       setSelected({
                         type: 'span',
                         id: s.id,
-                        anchorX: clampAnchorX(barLeft + barWidth + GAP),
-                        anchorY: HEADER_H + barTop - GAP,
+                        anchorX: clampAnchorX(clickX + GAP),
+                        anchorY: growUp ? barTopY - GAP : barBottomY + GAP,
+                        growUp,
                       })
                     }}
                     title={s.label}
@@ -235,12 +251,16 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
                           onClick={(e) => {
                             e.stopPropagation()
                             const cyLocal = laneTop + POINT_ROW_H / 2
+                            const shapeTopY = cyLocal - DOT_R
+                            const shapeBottomY = cyLocal + DOT_R
+                            const growUp = hasRoomAbove(shapeTopY)
                             setSelected({
                               type: 'point',
                               kind,
                               id: p.id,
                               anchorX: clampAnchorX(LANE_LABEL_W + x + DOT_R + GAP),
-                              anchorY: cyLocal - DOT_R - GAP,
+                              anchorY: growUp ? shapeTopY - GAP : shapeBottomY + GAP,
+                              growUp,
                             })
                           }}
                           title={p.label}
@@ -343,7 +363,7 @@ function TimelineCard({
   return (
     <div
       className="absolute z-40 flex w-60 flex-col gap-1.5 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border"
-      style={{ left: selected.anchorX, top: selected.anchorY, transform: 'translateY(-100%)' }}
+      style={{ left: selected.anchorX, top: selected.anchorY, transform: selected.growUp ? 'translateY(-100%)' : undefined }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-2">
