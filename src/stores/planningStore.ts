@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Activity, EventItem, NarrativeEdge, StudentProfile, Task } from '@/types'
+import type { Activity, EventItem, GraphNodeMeta, NarrativeEdge, StudentProfile, Task } from '@/types'
 import {
   addActivity,
   addEvent,
@@ -13,11 +13,14 @@ import {
   isoToday,
   listActivities,
   listEvents,
+  listGraphNodeMeta,
   listNarrativeEdges,
   listTasks,
+  saveGraphNodeMeta,
   saveProfile,
   updateActivity,
   updateEvent,
+  updateNarrativeEdge,
   updateTask,
 } from '@/lib/db/planning'
 
@@ -28,6 +31,7 @@ interface PlanningState {
   tasks: Task[]
   activities: Activity[]
   narrativeEdges: NarrativeEdge[]
+  graphMeta: Record<string, GraphNodeMeta>
   loaded: boolean
 
   load: () => Promise<void>
@@ -47,8 +51,10 @@ interface PlanningState {
   removeActivity: (id: string) => Promise<void>
 
   createEdge: (input: Omit<NarrativeEdge, 'id' | 'createdAt'>) => Promise<void>
+  editEdge: (id: string, patch: Partial<Omit<NarrativeEdge, 'id'>>) => Promise<void>
   removeEdge: (id: string) => Promise<void>
   refreshEdges: () => Promise<void>
+  setNodeMeta: (nodeId: string, patch: Partial<Omit<GraphNodeMeta, 'nodeId'>>) => Promise<void>
 }
 
 export const usePlanningStore = create<PlanningState>((set, get) => ({
@@ -57,17 +63,20 @@ export const usePlanningStore = create<PlanningState>((set, get) => ({
   tasks: [],
   activities: [],
   narrativeEdges: [],
+  graphMeta: {},
   loaded: false,
 
   load: async () => {
-    const [profile, events, tasks, activities, narrativeEdges] = await Promise.all([
+    const [profile, events, tasks, activities, narrativeEdges, metaList] = await Promise.all([
       getProfile(),
       listEvents(),
       listTasks(),
       listActivities(),
       listNarrativeEdges(),
+      listGraphNodeMeta(),
     ])
-    set({ profile, events, tasks, activities, narrativeEdges, loaded: true })
+    const graphMeta = Object.fromEntries(metaList.map((m) => [m.nodeId, m]))
+    set({ profile, events, tasks, activities, narrativeEdges, graphMeta, loaded: true })
   },
 
   updateProfile: async (patch) => {
@@ -134,6 +143,11 @@ export const usePlanningStore = create<PlanningState>((set, get) => ({
     set({ narrativeEdges: await listNarrativeEdges() })
   },
 
+  editEdge: async (id, patch) => {
+    await updateNarrativeEdge(id, patch)
+    set({ narrativeEdges: await listNarrativeEdges() })
+  },
+
   removeEdge: async (id) => {
     await deleteNarrativeEdge(id)
     set({ narrativeEdges: await listNarrativeEdges() })
@@ -141,6 +155,12 @@ export const usePlanningStore = create<PlanningState>((set, get) => ({
 
   refreshEdges: async () => {
     set({ narrativeEdges: await listNarrativeEdges() })
+  },
+
+  setNodeMeta: async (nodeId, patch) => {
+    await saveGraphNodeMeta(nodeId, patch)
+    const metaList = await listGraphNodeMeta()
+    set({ graphMeta: Object.fromEntries(metaList.map((m) => [m.nodeId, m])) })
   },
 }))
 

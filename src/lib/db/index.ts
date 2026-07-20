@@ -3,6 +3,7 @@ import type {
   Activity,
   Conversation,
   EventItem,
+  GraphNodeMeta,
   Message,
   NarrativeEdge,
   Settings,
@@ -20,6 +21,7 @@ export const db = new Dexie('studynest') as Dexie & {
   tasks: EntityTable<Task, 'id'>
   activities: EntityTable<Activity, 'id'>
   narrativeEdges: EntityTable<NarrativeEdge, 'id'>
+  graphNodeMeta: EntityTable<GraphNodeMeta, 'nodeId'>
 }
 
 db.version(1).stores({
@@ -46,4 +48,16 @@ db.version(3).stores({
   tasks: 'id, dueDate, status, parentEventId',
   activities: 'id, category, startDate',
   narrativeEdges: 'id, sourceNodeId, targetNodeId',
+})
+
+db.version(4).stores({
+  conversations: 'id, updatedAt',
+  messages: 'id, conversationId, createdAt',
+  settings: 'id',
+  profile: 'id',
+  events: 'id, date, type',
+  tasks: 'id, dueDate, status, parentEventId',
+  activities: 'id, category, startDate',
+  narrativeEdges: 'id, sourceNodeId, targetNodeId',
+  graphNodeMeta: 'nodeId',
 })

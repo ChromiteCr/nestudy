@@ -52,7 +52,7 @@ export function effectiveMajors(profile: StudentProfile | null): string[] {
 }
 
 /** 默认分层（AI 整理前）：活动按级别、课程居中层 */
-function defaultShell(a: Activity): number {
+export function defaultActivityShell(a: Activity): number {
   if (a.level === 'international' || a.level === 'national') return 1
   return 2
 }
@@ -90,7 +90,7 @@ export function buildSphereNodes(
       label: a.title,
       sublabel: a.role || a.organization || undefined,
       category: a.category,
-      shell: shellOverride[id] ?? defaultShell(a),
+      shell: shellOverride[id] ?? defaultActivityShell(a),
       color: CATEGORY_HEX[a.category],
     })
   }

@@ -126,6 +126,17 @@ export interface NarrativeEdge {
   createdAt: number
 }
 
+/** 星图节点的叠加元数据：分层覆盖 + 星图专属注解（不改动底层活动/课程实体） */
+export interface GraphNodeMeta {
+  nodeId: GraphNodeId
+  /** 手动/AI 分层覆盖默认层 */
+  shell?: number
+  /** 手动固定层，AI 整理时不改动 */
+  pinned?: boolean
+  /** 星图卡片上展示的一句话注解（手动编辑 / AI 生成） */
+  blurb?: string
+}
+
 // ---- 任务 ----
 
 export type TaskPriority = 'high' | 'medium' | 'low'
@@ -275,6 +286,8 @@ export interface ExportBundle {
   /** v3 起包含 */
   activities?: Activity[]
   narrativeEdges?: NarrativeEdge[]
+  /** v4 起包含 */
+  graphNodeMeta?: GraphNodeMeta[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

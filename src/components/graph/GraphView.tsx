@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Network, RotateCcw, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import { Loader2, Network, Plus, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useChatStore } from '@/stores/chatStore'
-import { buildSphereNodes, projectNodes, type ProjectedNode } from './sphere-model'
+import { buildSphereNodes, effectiveMajors, projectNodes, type ProjectedNode } from './sphere-model'
+import { suggestShells } from '@/lib/ai/graph-ai'
+import { NodeCard, EdgeCard } from './StarCard'
 import type { AppView, NarrativeEdge } from '@/types'
 
 const NARRATIVE_PROMPT =
@@ -18,9 +22,17 @@ export function GraphView({ onNavigate }: GraphViewProps) {
   const activities = usePlanningStore((s) => s.activities)
   const profile = usePlanningStore((s) => s.profile)
   const narrativeEdges = usePlanningStore((s) => s.narrativeEdges)
+  const graphMeta = usePlanningStore((s) => s.graphMeta)
+  const updateProfile = usePlanningStore((s) => s.updateProfile)
+  const setNodeMeta = usePlanningStore((s) => s.setNodeMeta)
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
 
-  const nodes = useMemo(() => buildSphereNodes(activities, profile), [activities, profile])
+  const shellOverride = useMemo(() => {
+    const o: Record<string, number> = {}
+    for (const [id, m] of Object.entries(graphMeta)) if (m.shell !== undefined) o[id] = m.shell
+    return o
+  }, [graphMeta])
+  const nodes = useMemo(() => buildSphereNodes(activities, profile, shellOverride), [activities, profile, shellOverride])
   const isEmpty = nodes.length === 0
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -28,7 +40,18 @@ export function GraphView({ onNavigate }: GraphViewProps) {
   const [rot, setRot] = useState({ x: -0.35, y: 0.5 })
   const [zoom, setZoom] = useState(1)
   const dragging = useRef<{ x: number; y: number } | null>(null)
+  const moved = useRef(false)
   const autoRef = useRef(true)
+  const [selected, setSelected] = useState<{ type: 'node' | 'edge'; id: string } | null>(null)
+  const [layouting, setLayouting] = useState(false)
+  const [addingMajor, setAddingMajor] = useState(false)
+  const [majorDraft, setMajorDraft] = useState('')
+
+  // 打开卡片时冻结自转
+  const cardOpen = selected !== null
+  useEffect(() => {
+    if (cardOpen) autoRef.current = false
+  }, [cardOpen])
 
   // 尺寸自适应
   useEffect(() => {
@@ -56,6 +79,7 @@ export function GraphView({ onNavigate }: GraphViewProps) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     dragging.current = { x: e.clientX, y: e.clientY }
+    moved.current = false
     autoRef.current = false
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
   }
@@ -63,11 +87,46 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     if (!dragging.current) return
     const dx = e.clientX - dragging.current.x
     const dy = e.clientY - dragging.current.y
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true
     dragging.current = { x: e.clientX, y: e.clientY }
     setRot((r) => ({ x: clamp(r.x + dy * 0.006, -1.4, 1.4), y: r.y + dx * 0.006 }))
   }
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     dragging.current = null
+    if (moved.current) return
+    // 未拖动 = 点击：命中前景未遮挡的星点或边
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const px = e.clientX - rect.left
+    const py = e.clientY - rect.top
+    setSelected(hitTest(px, py))
+  }
+
+  /** 命中检测：优先取包含光标、深度最大（最前）的星点；否则取最近的边 */
+  const hitTest = (px: number, py: number): { type: 'node' | 'edge'; id: string } | null => {
+    let bestNode: ProjectedNode | null = null
+    for (const p of projected) {
+      const d = Math.hypot(p.sx - px, p.sy - py)
+      if (d <= p.radius + 3 && (!bestNode || p.depth > bestNode.depth)) bestNode = p
+    }
+    if (bestNode) return { type: 'node', id: bestNode.id }
+
+    let bestEdge: { id: string; dist: number } | null = null
+    for (const edge of narrativeEdges) {
+      const a = posById.get(edge.sourceNodeId)
+      const b = posById.get(edge.targetNodeId)
+      if (!a || !b) continue
+      // 沿实际二次贝塞尔曲线采样（与 EdgeArc 的控制点一致）
+      const [ctrlX, ctrlY] = edgeControl(a, b, cx, cy)
+      for (let t = 0.1; t <= 0.9; t += 0.08) {
+        const mt = 1 - t
+        const x = mt * mt * a.sx + 2 * mt * t * ctrlX + t * t * b.sx
+        const y = mt * mt * a.sy + 2 * mt * t * ctrlY + t * t * b.sy
+        const dist = Math.hypot(x - px, y - py)
+        if (dist < 11 && (!bestEdge || dist < bestEdge.dist)) bestEdge = { id: edge.id, dist }
+      }
+    }
+    return bestEdge ? { type: 'edge', id: bestEdge.id } : null
   }
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault()
@@ -93,8 +152,58 @@ export function GraphView({ onNavigate }: GraphViewProps) {
   const reset = () => {
     setRot({ x: -0.35, y: 0.5 })
     setZoom(1)
+    setSelected(null)
     autoRef.current = true
   }
+
+  const runAiLayout = async () => {
+    setLayouting(true)
+    try {
+      const items = nodes
+        .filter((n) => n.kind !== 'major')
+        .map((n) => ({ id: n.id, label: n.label, kind: n.kind }))
+      const byLabel = await suggestShells(
+        items.map((it) => ({ label: it.label, kind: it.kind })),
+        effectiveMajors(profile),
+      )
+      // 容错匹配：AI 回显的标题可能与原标题略有出入
+      const keys = Object.keys(byLabel)
+      let applied = 0
+      for (const it of items) {
+        const key =
+          keys.find((k) => k === it.label) ??
+          keys.find((k) => k.includes(it.label) || it.label.includes(k))
+        const shell = key ? byLabel[key] : undefined
+        if (shell) {
+          await setNodeMeta(it.id, { shell, pinned: false })
+          applied++
+        }
+      }
+      toast.success(applied ? `AI 已重新分层 ${applied} 个节点` : 'AI 未给出分层调整')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'AI 分层失败')
+    } finally {
+      setLayouting(false)
+    }
+  }
+
+  const addMajor = async () => {
+    const v = majorDraft.trim()
+    if (!v) return
+    await updateProfile({ majorDirections: [...effectiveMajors(profile), v] })
+    setMajorDraft('')
+    setAddingMajor(false)
+  }
+
+  const selectedNode = selected?.type === 'node' ? posById.get(selected.id) : undefined
+  const selectedEdge = selected?.type === 'edge' ? narrativeEdges.find((e) => e.id === selected.id) : undefined
+  const edgeEndpoints =
+    selectedEdge && posById.get(selectedEdge.sourceNodeId) && posById.get(selectedEdge.targetNodeId)
+      ? {
+          source: posById.get(selectedEdge.sourceNodeId)!.label,
+          target: posById.get(selectedEdge.targetNodeId)!.label,
+        }
+      : null
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -104,6 +213,29 @@ export function GraphView({ onNavigate }: GraphViewProps) {
           <p className="text-sm text-muted-foreground">成长星图 · 拖动旋转 · 滚轮缩放</p>
         </div>
         <div className="flex items-center gap-1.5">
+          {addingMajor ? (
+            <Input
+              autoFocus
+              value={majorDraft}
+              onChange={(e) => setMajorDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) void addMajor()
+                if (e.key === 'Escape') setAddingMajor(false)
+              }}
+              onBlur={() => (majorDraft.trim() ? void addMajor() : setAddingMajor(false))}
+              placeholder="专业方向"
+              className="h-7 w-32 text-sm"
+            />
+          ) : (
+            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setAddingMajor(true)}>
+              <Plus className="size-3" />
+              方向
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" disabled={layouting || nodes.length < 2} onClick={() => void runAiLayout()}>
+            {layouting ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
+            AI 整理
+          </Button>
           <Button variant="outline" size="icon" className="size-7" aria-label="重置视角" onClick={reset}>
             <RotateCcw className="size-3.5" />
           </Button>
@@ -146,13 +278,47 @@ export function GraphView({ onNavigate }: GraphViewProps) {
             </g>
             {/* 星点（后到前） */}
             {projected.map((p) => (
-              <StarNode key={p.id} node={p} />
+              <StarNode key={p.id} node={p} selected={selected?.type === 'node' && selected.id === p.id} />
             ))}
           </svg>
+
+          {/* 选中节点卡片（锚定到星点当前投影位置） */}
+          {selectedNode && (
+            <div
+              className="absolute z-30"
+              style={{ left: clamp(selectedNode.sx + 16, 8, size.w - 256), top: clamp(selectedNode.sy - 20, 8, size.h - 160) }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <NodeCard node={selectedNode} onClose={() => setSelected(null)} />
+            </div>
+          )}
+          {/* 选中边卡片 */}
+          {selectedEdge && edgeEndpoints && (
+            <div
+              className="absolute z-30"
+              style={{ left: clamp(edgeMidX(selectedEdge, posById, size.w), 8, size.w - 256), top: clamp(edgeMidY(selectedEdge, posById, size.h), 8, size.h - 160) }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <EdgeCard edge={selectedEdge} endpoints={edgeEndpoints} onClose={() => setSelected(null)} />
+            </div>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+function edgeMidX(edge: NarrativeEdge, posById: Map<string, ProjectedNode>, w: number): number {
+  const a = posById.get(edge.sourceNodeId)
+  const b = posById.get(edge.targetNodeId)
+  if (!a || !b) return w / 2
+  return (a.sx + b.sx) / 2 + 12
+}
+function edgeMidY(edge: NarrativeEdge, posById: Map<string, ProjectedNode>, h: number): number {
+  const a = posById.get(edge.sourceNodeId)
+  const b = posById.get(edge.targetNodeId)
+  if (!a || !b) return h / 2
+  return (a.sy + b.sy) / 2
 }
 
 function EdgeArc({
@@ -169,14 +335,7 @@ function EdgeArc({
   const a = posById.get(edge.sourceNodeId)
   const b = posById.get(edge.targetNodeId)
   if (!a || !b) return null
-  const mx = (a.sx + b.sx) / 2
-  const my = (a.sy + b.sy) / 2
-  // 控制点从画布中心向外推，形成弧
-  const ox = mx - cx
-  const oy = my - cy
-  const k = 0.25
-  const ctrlX = mx + ox * k
-  const ctrlY = my + oy * k
+  const [ctrlX, ctrlY] = edgeControl(a, b, cx, cy)
   const opacity = 0.15 + ((a.t + b.t) / 2) * 0.5
   return (
     <path
@@ -189,12 +348,15 @@ function EdgeArc({
   )
 }
 
-function StarNode({ node }: { node: ProjectedNode }) {
+function StarNode({ node, selected }: { node: ProjectedNode; selected: boolean }) {
   const showLabel = node.kind === 'major' || node.radius > 13
   return (
     <g style={{ opacity: node.opacity }}>
       {/* 光晕 */}
-      <circle cx={node.sx} cy={node.sy} r={node.radius * 1.9} fill={node.color} opacity={0.14} />
+      <circle cx={node.sx} cy={node.sy} r={node.radius * 1.9} fill={node.color} opacity={selected ? 0.28 : 0.14} />
+      {selected && (
+        <circle cx={node.sx} cy={node.sy} r={node.radius + 4} fill="none" stroke="#ffffff" strokeOpacity={0.9} strokeWidth={1.5} />
+      )}
       <circle
         cx={node.sx}
         cy={node.sy}
@@ -218,6 +380,14 @@ function StarNode({ node }: { node: ProjectedNode }) {
       )}
     </g>
   )
+}
+
+/** 叙事线弧的二次贝塞尔控制点：从画布中心向外推，形成弧（EdgeArc 与命中检测共用） */
+function edgeControl(a: ProjectedNode, b: ProjectedNode, cx: number, cy: number): [number, number] {
+  const mx = (a.sx + b.sx) / 2
+  const my = (a.sy + b.sy) / 2
+  const k = 0.25
+  return [mx + (mx - cx) * k, my + (my - cy) * k]
 }
 
 function clamp(v: number, lo: number, hi: number): number {

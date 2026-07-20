@@ -1,6 +1,6 @@
 import { db } from './index'
 import { newId } from './repositories'
-import type { Activity, EventItem, NarrativeEdge, StudentProfile, Task } from '@/types'
+import type { Activity, EventItem, GraphNodeMeta, NarrativeEdge, StudentProfile, Task } from '@/types'
 
 const PROFILE_ID = 'app'
 
@@ -128,8 +128,23 @@ export async function addNarrativeEdge(input: Omit<NarrativeEdge, 'id' | 'create
   return edge
 }
 
+export async function updateNarrativeEdge(id: string, patch: Partial<Omit<NarrativeEdge, 'id'>>): Promise<void> {
+  await db.narrativeEdges.update(id, patch)
+}
+
 export async function deleteNarrativeEdge(id: string): Promise<void> {
   await db.narrativeEdges.delete(id)
+}
+
+// ---- 星图节点元数据 ----
+
+export async function listGraphNodeMeta(): Promise<GraphNodeMeta[]> {
+  return db.graphNodeMeta.toArray()
+}
+
+export async function saveGraphNodeMeta(nodeId: string, patch: Partial<Omit<GraphNodeMeta, 'nodeId'>>): Promise<void> {
+  const existing = await db.graphNodeMeta.get(nodeId)
+  await db.graphNodeMeta.put({ nodeId, ...existing, ...patch })
 }
 
 // ---- 日期工具 ----
