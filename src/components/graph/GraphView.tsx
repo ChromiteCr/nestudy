@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, Network, Plus, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
+import { List, Loader2, Network, Plus, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { usePlanningStore } from '@/stores/planningStore'
@@ -15,6 +15,7 @@ import {
 } from './sphere-model'
 import { suggestShells } from '@/lib/ai/graph-ai'
 import { NodeCard, EdgeCard } from './StarCard'
+import { NodeListPanel } from './NodeListPanel'
 import type { AppView, NarrativeEdge } from '@/types'
 
 const NARRATIVE_PROMPT =
@@ -52,6 +53,7 @@ export function GraphView({ onNavigate }: GraphViewProps) {
   const [layouting, setLayouting] = useState(false)
   const [addingMajor, setAddingMajor] = useState(false)
   const [majorDraft, setMajorDraft] = useState('')
+  const [listOpen, setListOpen] = useState(false)
 
   // 尺寸自适应
   useEffect(() => {
@@ -332,6 +334,31 @@ export function GraphView({ onNavigate }: GraphViewProps) {
               <EdgeCard edge={selectedEdge} endpoints={edgeEndpoints} onClose={() => setSelected(null)} />
             </div>
           )}
+
+          {/* 悬浮"全部事项"列表：绕开 3D 遮挡直接定位任意节点 */}
+          <div className="absolute bottom-4 right-4 z-30" onPointerDown={(e) => e.stopPropagation()}>
+            {listOpen ? (
+              <NodeListPanel
+                nodes={nodes}
+                narrativeEdges={narrativeEdges}
+                onSelect={(id) => {
+                  setSelected({ type: 'node', id })
+                  setListOpen(false)
+                }}
+                onClose={() => setListOpen(false)}
+              />
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 bg-popover/90 shadow-md backdrop-blur"
+                onClick={() => setListOpen(true)}
+              >
+                <List className="size-3.5" />
+                全部（{nodes.length}）
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>
