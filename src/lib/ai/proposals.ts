@@ -200,7 +200,7 @@ export async function applyActivitiesProposal(activities: ProposedActivity[]): P
 /** 解析 propose_narrative 参数为可编辑提案（按当前节点标题解析到 node id，解析失败的标红不可入库） */
 export function parseNarrativeArgs(rawArgs: string): ProposedEdge[] {
   const args = JSON.parse(rawArgs) as {
-    edges?: { source?: string; target?: string; reason?: string }[]
+    edges?: { source?: string; target?: string; reason?: string; strength?: number }[]
   }
   const { activities, profile } = usePlanningStore.getState()
   const nodes = buildSphereNodes(activities, profile)
@@ -211,6 +211,7 @@ export function parseNarrativeArgs(rawArgs: string): ProposedEdge[] {
       sourceLabel: e.source!.trim(),
       targetLabel: e.target!.trim(),
       reason: e.reason ?? '',
+      strength: typeof e.strength === 'number' ? Math.min(5, Math.max(1, Math.round(e.strength))) : 3,
       sourceNodeId: resolveLabelToNodeId(e.source!, nodes),
       targetNodeId: resolveLabelToNodeId(e.target!, nodes),
     }))
@@ -226,6 +227,7 @@ export async function applyNarrativeProposal(edges: ProposedEdge[]): Promise<str
       sourceNodeId: e.sourceNodeId!,
       targetNodeId: e.targetNodeId!,
       label: e.reason,
+      strength: e.strength,
       source: 'ai',
     })
     count++

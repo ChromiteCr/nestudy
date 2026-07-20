@@ -39,8 +39,9 @@ export const CATEGORY_HEX: Record<ActivityCategory, string> = {
 }
 const COURSE_HEX = '#94a3b8'
 
-const SHELL_RADIUS = [0, 130, 225, 300]
-const GOLDEN = Math.PI * (3 - Math.sqrt(5))
+const SHELL_RADIUS = [0, 120, 210, 290]
+/** 轨道系默认俯视倾角（弧度）：让轨道环呈椭圆，减少 3D 眩晕 */
+export const DEFAULT_TILT = -0.82
 
 /** 有效专业方向：优先 profile.majorDirections，否则取目标校专业去重，再否则占位 */
 export function effectiveMajors(profile: StudentProfile | null): string[] {
@@ -57,14 +58,11 @@ export function defaultActivityShell(a: Activity): number {
   return 2
 }
 
-/** 在第 shell 层球面上按 Fibonacci 分布取第 idx 个点（共 count 个） */
-function fibPoint(idx: number, count: number, radius: number): [number, number, number] {
+/** 在第 shell 层的轨道环（XZ 平面圆）上取第 idx 个点（共 count 个），带相位错开 */
+function ringPoint(idx: number, count: number, radius: number, phase: number): [number, number, number] {
   if (radius === 0) return [0, 0, 0]
-  if (count === 1) return [0, 0, radius]
-  const y = 1 - (idx / (count - 1)) * 2
-  const r = Math.sqrt(Math.max(0, 1 - y * y))
-  const theta = GOLDEN * idx
-  return [Math.cos(theta) * r * radius, y * radius, Math.sin(theta) * r * radius]
+  const angle = (idx / Math.max(count, 1)) * Math.PI * 2 + phase
+  return [Math.cos(angle) * radius, 0, Math.sin(angle) * radius]
 }
 
 /**
@@ -117,16 +115,21 @@ export function buildSphereNodes(
   const nodes: SphereNode[] = []
   for (const [shell, arr] of byShell) {
     const radius = SHELL_RADIUS[Math.min(shell, SHELL_RADIUS.length - 1)]
+    // 每层相位错开，避免不同层节点连成一条直线
+    const phase = shell * 0.6
     arr.forEach((n, i) => {
-      // 单个中心方向放正中；多个用小半径散开
       const base =
-        shell === 0 && arr.length > 1
-          ? fibPoint(i, arr.length, 44)
-          : fibPoint(i, arr.length, radius)
+        shell === 0 && arr.length > 1 ? ringPoint(i, arr.length, 46, phase) : ringPoint(i, arr.length, radius, phase)
       nodes.push({ ...n, base })
     })
   }
   return nodes
+}
+
+/** 存在节点的轨道层半径（用于绘制轨道环，去重升序，排除中心 0） */
+export function activeOrbitRadii(nodes: SphereNode[]): number[] {
+  const shells = new Set(nodes.map((n) => n.shell).filter((s) => s > 0))
+  return [...shells].sort((a, b) => a - b).map((s) => SHELL_RADIUS[Math.min(s, SHELL_RADIUS.length - 1)])
 }
 
 export const MAX_SPHERE_RADIUS = SHELL_RADIUS[SHELL_RADIUS.length - 1]
@@ -162,16 +165,18 @@ export function projectNodes(
     const y2 = y * cosX - z1 * sinX
     const z2 = y * sinX + z1 * cosX
     const t = (z2 + maxR) / (2 * maxR) // 0..1
-    const depthScale = 0.55 + t * 0.7
-    const baseR = n.shell === 0 ? 26 : n.shell === 1 ? 17 : n.shell === 2 ? 12 : 9
+    const baseR = n.shell === 0 ? 24 : n.shell === 1 ? 16 : n.shell === 2 ? 12 : 9
+    // 中心专业方向恒定最大最亮；其余按深度渐变
+    const isCenter = n.shell === 0
+    const depthScale = isCenter ? 1.1 : 0.62 + t * 0.6
     return {
       ...n,
       sx: cx + x1 * zoom,
       sy: cy + y2 * zoom,
-      depth: z2,
+      depth: isCenter ? maxR + 1 : z2, // 中心始终渲染在最前
       t,
       radius: baseR * depthScale * zoom,
-      opacity: 0.4 + t * 0.6,
+      opacity: isCenter ? 1 : 0.45 + t * 0.55,
     }
   })
   // 后到前渲染

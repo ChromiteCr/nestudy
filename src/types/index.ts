@@ -122,6 +122,8 @@ export interface NarrativeEdge {
   targetNodeId: GraphNodeId
   /** 为什么连（叙事说明） */
   label: string
+  /** 连接强度 1-5，决定星图中线的粗细；缺省按 3 */
+  strength?: number
   source: 'ai' | 'manual'
   createdAt: number
 }
@@ -217,6 +219,8 @@ export interface ProposedEdge {
   sourceLabel: string
   targetLabel: string
   reason: string
+  /** 连接强度 1-5 */
+  strength: number
   /** 解析节点 id 后填入；解析失败为 null（不可入库） */
   sourceNodeId: string | null
   targetNodeId: string | null

@@ -158,6 +158,7 @@ export const AGENT_TOOLS: ToolDef[] = [
               source: { type: 'string', description: '起点节点标题（活动/课程/学校名，须完全一致）' },
               target: { type: 'string', description: '终点节点标题（活动/课程/学校名，须完全一致）' },
               reason: { type: 'string', description: '为什么连——这条叙事线的逻辑' },
+              strength: { type: 'number', description: '连接强度 1-5：关联越紧密、越核心给越大（决定线的粗细）' },
             },
             required: ['source', 'target', 'reason'],
           },

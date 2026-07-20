@@ -5,7 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useChatStore } from '@/stores/chatStore'
-import { buildSphereNodes, effectiveMajors, projectNodes, type ProjectedNode } from './sphere-model'
+import {
+  activeOrbitRadii,
+  buildSphereNodes,
+  DEFAULT_TILT,
+  effectiveMajors,
+  projectNodes,
+  type ProjectedNode,
+} from './sphere-model'
 import { suggestShells } from '@/lib/ai/graph-ai'
 import { NodeCard, EdgeCard } from './StarCard'
 import type { AppView, NarrativeEdge } from '@/types'
@@ -37,21 +44,14 @@ export function GraphView({ onNavigate }: GraphViewProps) {
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 800, h: 600 })
-  const [rot, setRot] = useState({ x: -0.35, y: 0.5 })
+  const [rot, setRot] = useState({ x: DEFAULT_TILT, y: 0.4 })
   const [zoom, setZoom] = useState(1)
   const dragging = useRef<{ x: number; y: number } | null>(null)
   const moved = useRef(false)
-  const autoRef = useRef(true)
   const [selected, setSelected] = useState<{ type: 'node' | 'edge'; id: string } | null>(null)
   const [layouting, setLayouting] = useState(false)
   const [addingMajor, setAddingMajor] = useState(false)
   const [majorDraft, setMajorDraft] = useState('')
-
-  // 打开卡片时冻结自转
-  const cardOpen = selected !== null
-  useEffect(() => {
-    if (cardOpen) autoRef.current = false
-  }, [cardOpen])
 
   // 尺寸自适应
   useEffect(() => {
@@ -63,24 +63,9 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     return () => ro.disconnect()
   }, [isEmpty])
 
-  // 空闲缓慢自转（拖动时暂停）
-  useEffect(() => {
-    if (isEmpty) return
-    let raf = 0
-    const tick = () => {
-      if (autoRef.current && !dragging.current) {
-        setRot((r) => ({ ...r, y: r.y + 0.0015 }))
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [isEmpty])
-
   const onPointerDown = (e: React.PointerEvent) => {
     dragging.current = { x: e.clientX, y: e.clientY }
     moved.current = false
-    autoRef.current = false
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent) => {
@@ -89,7 +74,8 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     const dy = e.clientY - dragging.current.y
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved.current = true
     dragging.current = { x: e.clientX, y: e.clientY }
-    setRot((r) => ({ x: clamp(r.x + dy * 0.006, -1.4, 1.4), y: r.y + dx * 0.006 }))
+    // 水平拖动=绕轨道系旋转；竖直拖动=调整俯视倾角（限制在俯视区间，避免眩晕的翻转）
+    setRot((r) => ({ x: clamp(r.x + dy * 0.005, -1.35, -0.25), y: r.y + dx * 0.006 }))
   }
   const onPointerUp = (e: React.PointerEvent) => {
     dragging.current = null
@@ -145,15 +131,38 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     return m
   }, [projected])
 
+  // 轨道环椭圆（rotY 不改变环形，仅倾角决定椭圆扁率）
+  const orbitRadii = useMemo(() => activeOrbitRadii(nodes), [nodes])
+  const ryFactor = Math.abs(Math.sin(rot.x))
+
+  // 每个非中心节点连到最近的专业方向（归属线）
+  const affiliations = useMemo(() => {
+    const majors = projected.filter((p) => p.kind === 'major')
+    if (majors.length === 0) return []
+    return projected
+      .filter((p) => p.kind !== 'major')
+      .map((p) => {
+        let nearest = majors[0]
+        let best = Infinity
+        for (const m of majors) {
+          const d = Math.hypot(m.sx - p.sx, m.sy - p.sy)
+          if (d < best) {
+            best = d
+            nearest = m
+          }
+        }
+        return { id: p.id, from: p, to: nearest }
+      })
+  }, [projected])
+
   const askNarrative = () => {
     setPendingPrompt(NARRATIVE_PROMPT)
     onNavigate('chat')
   }
   const reset = () => {
-    setRot({ x: -0.35, y: 0.5 })
+    setRot({ x: DEFAULT_TILT, y: 0.4 })
     setZoom(1)
     setSelected(null)
-    autoRef.current = true
   }
 
   const runAiLayout = async () => {
@@ -270,7 +279,28 @@ export function GraphView({ onNavigate }: GraphViewProps) {
           onWheel={onWheel}
         >
           <svg width={size.w} height={size.h} className="absolute inset-0 cursor-grab active:cursor-grabbing">
-            {/* 弧线边（先渲染，位于星点下方） */}
+            {/* 轨道环（最底层） */}
+            <g fill="none" stroke="#7488b8">
+              {orbitRadii.map((r, i) => (
+                <ellipse
+                  key={i}
+                  cx={cx}
+                  cy={cy}
+                  rx={r * zoom}
+                  ry={Math.max(r * ryFactor * zoom, 2)}
+                  strokeWidth={1.2}
+                  strokeOpacity={0.45}
+                  strokeDasharray="2 5"
+                />
+              ))}
+            </g>
+            {/* 归属线：每个活动/课程连到专业方向 */}
+            <g stroke="#5b6892" strokeOpacity={0.45}>
+              {affiliations.map((a) => (
+                <line key={a.id} x1={a.from.sx} y1={a.from.sy} x2={a.to.sx} y2={a.to.sy} strokeWidth={0.8} />
+              ))}
+            </g>
+            {/* 叙事线弧（粗细由强度决定） */}
             <g>
               {narrativeEdges.map((e) => (
                 <EdgeArc key={e.id} edge={e} posById={posById} cx={cx} cy={cy} />
@@ -336,14 +366,18 @@ function EdgeArc({
   const b = posById.get(edge.targetNodeId)
   if (!a || !b) return null
   const [ctrlX, ctrlY] = edgeControl(a, b, cx, cy)
-  const opacity = 0.15 + ((a.t + b.t) / 2) * 0.5
+  const opacity = 0.3 + ((a.t + b.t) / 2) * 0.45
+  // 强度 1-5 → 线宽 1-4.5px
+  const strength = edge.strength ?? 3
+  const width = 1 + (clamp(strength, 1, 5) - 1) * 0.9
   return (
     <path
       d={`M ${a.sx} ${a.sy} Q ${ctrlX} ${ctrlY} ${b.sx} ${b.sy}`}
       fill="none"
-      stroke="#8aa0d0"
-      strokeWidth={1}
+      stroke="#9db2e0"
+      strokeWidth={width}
       strokeOpacity={opacity}
+      strokeLinecap="round"
     />
   )
 }
