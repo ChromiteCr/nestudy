@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarX, GraduationCap, ListTodo, Minus, Plus } from 'lucide-react'
+import { CalendarX, GraduationCap, ListTodo, Minus, Plus, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePlanningStore } from '@/stores/planningStore'
 import { daysUntil } from '@/lib/db/planning'
 import { cn } from '@/lib/utils'
-import type { AppView } from '@/types'
-import { buildTimelineModel, dayOffset, POINT_KINDS, todayOffset, type PointKind } from './timeline-model'
+import { ACTIVITY_CATEGORY_LABEL, ACTIVITY_LEVEL_LABEL, type AppView } from '@/types'
+import {
+  buildTimelineModel,
+  dayOffset,
+  dayTicks,
+  POINT_KINDS,
+  todayOffset,
+  type PointKind,
+} from './timeline-model'
 
 const POINT_STYLE: Record<PointKind, { icon: typeof CalendarX; dot: string; text: string; label: string }> = {
   exam: { icon: GraduationCap, dot: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400', label: '考试' },
@@ -14,17 +22,24 @@ const POINT_STYLE: Record<PointKind, { icon: typeof CalendarX; dot: string; text
 }
 
 const LANE_LABEL_W = 60
-const SPAN_ROW_H = 26
-const POINT_ROW_H = 30
+const SPAN_ROW_H = 30
+const POINT_ROW_H = 40
+const HEADER_H = 42
 const MIN_PPD = 3
-const MAX_PPD = 26
-const DEFAULT_PPD = 8
+const MAX_PPD = 32
+const DEFAULT_PPD = 9
+const DOT_R = 6
+
+type Selected =
+  | { type: 'span'; id: string; topY: number }
+  | { type: 'point'; kind: PointKind; id: string; topY: number }
+  | null
 
 interface TimelineViewProps {
   onNavigate: (view: AppView) => void
 }
 
-/** 学期鸟瞰：横向泳道时间轴（活动跨度 / 考试 / 截止 / 任务各一泳道），支持缩放 */
+/** 学期鸟瞰：横向泳道时间轴，缩放显示更细日期刻度，点击项目弹出详情卡 */
 export function TimelineView({ onNavigate }: TimelineViewProps) {
   const activities = usePlanningStore((s) => s.activities)
   const events = usePlanningStore((s) => s.events)
@@ -34,38 +49,33 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
   const isEmpty = model.spans.length === 0 && POINT_KINDS.every((k) => model.points[k].length === 0)
 
   const [ppd, setPpd] = useState(DEFAULT_PPD)
+  const [selected, setSelected] = useState<Selected>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
   const width = model.totalDays * ppd
   const dayX = (offset: number) => offset * ppd
   const tOffset = todayOffset(model.rangeStart)
+  const ticks = useMemo(() => dayTicks(model.rangeStart, model.totalDays, ppd), [model, ppd])
+  const showTicks = ppd >= 7
 
-  // 缩放：ctrl/⌘ + 滚轮（含触控板捏合）以光标为锚点缩放
+  const setZoom = (next: number, anchorClientX?: number) => {
+    const el = scrollRef.current
+    setSelected(null)
+    if (!el) return setPpd(next)
+    const rect = el.getBoundingClientRect()
+    const cx = (anchorClientX ?? rect.left + rect.width / 2) - rect.left + el.scrollLeft - LANE_LABEL_W
+    const dayAt = cx / ppd
+    setPpd(next)
+    requestAnimationFrame(() => {
+      el.scrollLeft = dayAt * next - ((anchorClientX ?? rect.left + rect.width / 2) - rect.left - LANE_LABEL_W)
+    })
+  }
   const onWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return
     e.preventDefault()
-    const el = scrollRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const cursorX = e.clientX - rect.left + el.scrollLeft - LANE_LABEL_W
-    const dayAtCursor = cursorX / ppd
-    const next = Math.min(MAX_PPD, Math.max(MIN_PPD, ppd * (e.deltaY < 0 ? 1.12 : 0.89)))
-    setPpd(next)
-    requestAnimationFrame(() => {
-      el.scrollLeft = dayAtCursor * next - (e.clientX - rect.left - LANE_LABEL_W)
-    })
+    setZoom(clamp(ppd * (e.deltaY < 0 ? 1.12 : 0.89), MIN_PPD, MAX_PPD), e.clientX)
   }
 
-  const zoomBtn = (dir: 1 | -1) => {
-    const el = scrollRef.current
-    const anchorDay = el ? (el.scrollLeft + el.clientWidth / 2 - LANE_LABEL_W) / ppd : tOffset
-    const next = Math.min(MAX_PPD, Math.max(MIN_PPD, ppd * (dir === 1 ? 1.25 : 0.8)))
-    setPpd(next)
-    requestAnimationFrame(() => {
-      if (el) el.scrollLeft = anchorDay * next - (el.clientWidth - LANE_LABEL_W) / 2
-    })
-  }
-
-  // 打开时把「今天」滚到视口约 1/3 处
   useEffect(() => {
     const el = scrollRef.current
     if (!el || isEmpty) return
@@ -73,19 +83,27 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEmpty])
 
+  const openCard = (sel: Exclude<Selected, null>, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const innerRect = innerRef.current?.getBoundingClientRect()
+    const btnRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const topY = innerRect ? btnRect.top - innerRect.top : 0
+    setSelected({ ...sel, topY })
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex items-center justify-between border-b px-6 py-3">
         <div>
           <h1 className="font-heading text-xl font-semibold">时间轴</h1>
-          <p className="text-sm text-muted-foreground">学期鸟瞰 · 活动、考试、DDL 与任务的全局视图</p>
+          <p className="text-sm text-muted-foreground">学期鸟瞰 · 点击项目查看详情 · ⌘/Ctrl+滚轮缩放</p>
         </div>
         {!isEmpty && (
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="size-7" aria-label="缩小" onClick={() => zoomBtn(-1)}>
+            <Button variant="outline" size="icon" className="size-7" aria-label="缩小" onClick={() => setZoom(clamp(ppd * 0.8, MIN_PPD, MAX_PPD))}>
               <Minus className="size-3.5" />
             </Button>
-            <Button variant="outline" size="icon" className="size-7" aria-label="放大" onClick={() => zoomBtn(1)}>
+            <Button variant="outline" size="icon" className="size-7" aria-label="放大" onClick={() => setZoom(clamp(ppd * 1.25, MIN_PPD, MAX_PPD))}>
               <Plus className="size-3.5" />
             </Button>
           </div>
@@ -100,29 +118,44 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
         </div>
       ) : (
         <div ref={scrollRef} onWheel={onWheel} className="min-h-0 flex-1 overflow-auto">
-          <div className="relative" style={{ width: width + LANE_LABEL_W, minWidth: '100%' }}>
-            {/* 月份表头（粘顶） */}
-            <div className="sticky top-0 z-20 flex h-7 border-b bg-background" style={{ paddingLeft: LANE_LABEL_W }}>
+          <div ref={innerRef} className="relative" style={{ width: width + LANE_LABEL_W, minWidth: '100%' }} onClick={() => setSelected(null)}>
+            {/* 表头：月份 + （放大时）日期刻度 */}
+            <div className="sticky top-0 z-20 border-b bg-background" style={{ height: HEADER_H, paddingLeft: LANE_LABEL_W }}>
               {model.months.map((m, i) => (
                 <div
                   key={i}
-                  className="absolute top-0 flex h-7 items-center border-l pl-1.5 text-xs font-medium text-muted-foreground"
+                  className="absolute top-0 flex h-5 items-center border-l pl-1.5 text-xs font-medium text-muted-foreground"
                   style={{ left: LANE_LABEL_W + dayX(m.startDay), width: dayX(m.days) }}
                 >
                   {m.label}
                 </div>
               ))}
+              {showTicks &&
+                ticks.map((t, i) => (
+                  <div
+                    key={i}
+                    className="absolute bottom-0 flex flex-col items-start"
+                    style={{ left: LANE_LABEL_W + dayX(t.offset) }}
+                  >
+                    <span className="pl-0.5 text-[10px] leading-4 text-muted-foreground/70">{t.label}</span>
+                  </div>
+                ))}
             </div>
 
-            {/* 今日竖线（贯穿所有泳道） */}
+            {/* 竖直网格线（放大时，帮助对齐） */}
+            {showTicks &&
+              ticks.map((t, i) => (
+                <div
+                  key={`g${i}`}
+                  className="pointer-events-none absolute bottom-0 z-0 w-px bg-border/40"
+                  style={{ left: LANE_LABEL_W + dayX(t.offset), top: HEADER_H }}
+                />
+              ))}
+
+            {/* 今日竖线 */}
             {tOffset >= 0 && tOffset <= model.totalDays && (
-              <div
-                className="pointer-events-none absolute bottom-0 top-7 z-10 w-px bg-primary/70"
-                style={{ left: LANE_LABEL_W + dayX(tOffset) }}
-              >
-                <span className="absolute top-0 -translate-x-1/2 rounded bg-primary px-1 text-[9px] leading-tight text-primary-foreground">
-                  今天
-                </span>
+              <div className="pointer-events-none absolute bottom-0 z-10 w-px bg-primary/70" style={{ left: LANE_LABEL_W + dayX(tOffset), top: HEADER_H - 16 }}>
+                <span className="absolute top-0 -translate-x-1/2 rounded bg-primary px-1 text-[9px] leading-tight text-primary-foreground">今天</span>
               </div>
             )}
 
@@ -135,14 +168,15 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => onNavigate('activities')}
+                    onClick={(e) => openCard({ type: 'span', id: s.id, topY: 0 }, e)}
                     title={s.label}
                     className={cn(
-                      'absolute flex h-5 items-center overflow-hidden rounded px-1.5 text-[11px] text-white',
+                      'absolute flex h-6 items-center overflow-hidden rounded px-2 text-[11px] text-white ring-offset-2 hover:ring-2 hover:ring-white/60',
                       s.colorClass,
                       !s.end && 'opacity-80',
+                      selected?.type === 'span' && selected.id === s.id && 'ring-2 ring-white',
                     )}
-                    style={{ left, width: Math.max(right - left, 6), top: s.row * SPAN_ROW_H + 4 }}
+                    style={{ left, width: Math.max(right - left, 8), top: s.row * SPAN_ROW_H + 4 }}
                   >
                     <span className="truncate">{s.label}</span>
                   </button>
@@ -150,7 +184,7 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
               })}
             </Lane>
 
-            {/* 考试 / 截止 / 任务泳道 */}
+            {/* 考试 / 截止 / 任务泳道：大圆点，点击弹卡 */}
             {POINT_KINDS.map((kind) => {
               const pts = model.points[kind]
               if (pts.length === 0) return null
@@ -159,34 +193,41 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
                 <Lane key={kind} label={style.label} heightPx={POINT_ROW_H}>
                   {pts.map((p) => {
                     const x = dayX(dayOffset(p.date, model.rangeStart))
-                    const diff = daysUntil(p.date)
-                    const showLabel = ppd >= 10
+                    const isSel = selected?.type === 'point' && selected.id === p.id
                     return (
                       <button
                         key={p.id}
                         type="button"
-                        onClick={() => onNavigate('tasks')}
-                        title={`${p.label} · ${diff < 0 ? `逾期${-diff}天` : diff === 0 ? '今天' : `${diff}天后`}`}
-                        className="group absolute top-1/2 flex -translate-y-1/2 items-center gap-1"
+                        onClick={(e) => openCard({ type: 'point', kind, id: p.id, topY: 0 }, e)}
+                        title={p.label}
+                        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
                         style={{ left: x }}
                       >
-                        <span className={cn('size-2.5 shrink-0 rounded-full ring-2 ring-background', style.dot)} />
-                        {showLabel && (
-                          <span className="max-w-32 truncate whitespace-nowrap text-[11px] text-foreground/80">
-                            {p.label}
-                          </span>
-                        )}
-                        {!showLabel && (
-                          <span className="pointer-events-none absolute left-3 top-4 z-30 hidden whitespace-nowrap rounded bg-popover px-1.5 py-0.5 text-[10px] shadow ring-1 ring-border group-hover:block">
-                            {p.label}
-                          </span>
-                        )}
+                        <span
+                          className={cn(
+                            'block rounded-full ring-2 ring-background transition-transform hover:scale-125',
+                            style.dot,
+                            isSel && 'scale-125 ring-white',
+                          )}
+                          style={{ width: DOT_R * 2, height: DOT_R * 2 }}
+                        />
                       </button>
                     )
                   })}
                 </Lane>
               )
             })}
+
+            {/* 详情卡：点位于卡片左上角 */}
+            {selected && (
+              <TimelineCard
+                selected={selected}
+                model={model}
+                dayX={dayX}
+                onClose={() => setSelected(null)}
+                onNavigate={onNavigate}
+              />
+            )}
           </div>
         </div>
       )}
@@ -203,9 +244,90 @@ export function TimelineView({ onNavigate }: TimelineViewProps) {
             <span className="h-2.5 w-4 rounded bg-slate-400" />
             活动跨度
           </span>
-          <span className="ml-auto">⌘/Ctrl + 滚轮缩放</span>
         </div>
       )}
+    </div>
+  )
+}
+
+function TimelineCard({
+  selected,
+  model,
+  dayX,
+  onClose,
+  onNavigate,
+}: {
+  selected: Exclude<Selected, null>
+  model: ReturnType<typeof buildTimelineModel>
+  dayX: (o: number) => number
+  onClose: () => void
+  onNavigate: (v: AppView) => void
+}) {
+  const activities = usePlanningStore((s) => s.activities)
+  const events = usePlanningStore((s) => s.events)
+  const tasks = usePlanningStore((s) => s.tasks)
+
+  let left = 0
+  let title = ''
+  let rows: { k: string; v: string }[] = []
+  let go: AppView = 'tasks'
+
+  if (selected.type === 'span') {
+    const s = model.spans.find((x) => x.id === selected.id)
+    const a = activities.find((x) => x.id === selected.id)
+    if (!s || !a) return null
+    left = Math.max(dayX(dayOffset(a.startDate, model.rangeStart)), 0)
+    title = a.title
+    go = 'activities'
+    rows = [
+      { k: '类型', v: ACTIVITY_CATEGORY_LABEL[a.category] + ' · ' + ACTIVITY_LEVEL_LABEL[a.level] },
+      ...(a.role || a.organization ? [{ k: '角色', v: [a.role, a.organization].filter(Boolean).join(' · ') }] : []),
+      { k: '时间', v: `${a.startDate}${a.endDate ? ` ~ ${a.endDate}` : ' 至今'}` },
+      ...(a.achievements.length ? [{ k: '成果', v: a.achievements.join('、') }] : []),
+    ]
+  } else {
+    const p = model.points[selected.kind].find((x) => x.id === selected.id)
+    if (!p) return null
+    left = dayX(dayOffset(p.date, model.rangeStart))
+    title = p.label
+    const diff = daysUntil(p.date)
+    const due = diff < 0 ? `逾期 ${-diff} 天` : diff === 0 ? '今天' : `${diff} 天后`
+    if (selected.kind === 'task') {
+      const t = tasks.find((x) => x.id === selected.id)
+      const ev = t?.parentEventId ? events.find((e) => e.id === t.parentEventId) : undefined
+      rows = [
+        { k: '到期', v: `${p.date}（${due}）` },
+        { k: '优先级', v: t ? { high: '高', medium: '中', low: '低' }[t.priority] : '' },
+        ...(ev ? [{ k: '关联', v: ev.title }] : []),
+      ]
+    } else {
+      rows = [{ k: selected.kind === 'exam' ? '考试' : '截止', v: `${p.date}（${due}）` }]
+    }
+  }
+
+  return (
+    <div
+      className="absolute z-40 flex w-60 flex-col gap-1.5 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border"
+      style={{ left: LANE_LABEL_W + left, top: selected.topY }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium">{title}</p>
+        <button type="button" aria-label="关闭" className="text-muted-foreground" onClick={onClose}>
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <div className="flex flex-col gap-1 text-xs">
+        {rows.map((r, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="shrink-0 text-muted-foreground">{r.k}</span>
+            <span className="min-w-0">{r.v}</span>
+          </div>
+        ))}
+      </div>
+      <Badge variant="outline" className="mt-1 w-fit cursor-pointer text-[10px]" onClick={() => onNavigate(go)}>
+        前往{go === 'activities' ? '活动' : '任务'} →
+      </Badge>
     </div>
   )
 }
@@ -219,4 +341,8 @@ function Lane({ label, heightPx, children }: { label: string; heightPx: number; 
       {children}
     </div>
   )
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v))
 }

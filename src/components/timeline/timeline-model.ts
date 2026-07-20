@@ -124,3 +124,16 @@ export function todayOffset(rangeStart: Date): number {
   today.setHours(0, 0, 0, 0)
   return dayDiff(today, rangeStart)
 }
+
+/** 缩放后按可读密度生成日期刻度（放大时更细）：返回 {offset, label} */
+export function dayTicks(rangeStart: Date, totalDays: number, ppd: number): { offset: number; label: string }[] {
+  // 标签最小间距 ~52px；据此决定隔几天打一个刻度
+  const step = Math.max(1, Math.ceil(52 / ppd))
+  const ticks: { offset: number; label: string }[] = []
+  for (let d = 0; d <= totalDays; d += step) {
+    const date = new Date(rangeStart)
+    date.setDate(date.getDate() + d)
+    ticks.push({ offset: d, label: `${date.getMonth() + 1}/${date.getDate()}` })
+  }
+  return ticks
+}
