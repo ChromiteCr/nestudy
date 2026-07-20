@@ -7,6 +7,8 @@
 - 📥 **粘贴即导入**：微信群通知/邮件文字直接粘贴，AI 解析成日程与任务，确认后入库
 - 🤖 **主动式 Agent**：DDL 临近没安排、任务积压、档案缺失——学栖主动开口提醒
 - ✅ **提案确认制**：AI 不直接写数据，所有安排以卡片提案，你确认才生效
+- 🏆 **活动档案 + 时间轴**：记录竞赛/社团/科研/成果，学期鸟瞰横向时间轴聚合活动、考试与 DDL
+- 🕸️ **成果网络图**：以成长为中心，活动/课程/目标校为节点，AI 梳理「叙事线」串成你的申请故事
 - 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
 - 🧩 **Skill 体系**（规划中）：声明式 skill + 开源 skill 市场
 
@@ -21,7 +23,7 @@ npm run dev
 
 ## 技术栈
 
-Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dexie.js (IndexedDB) · OpenAI SDK（兼容通道）
+Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dexie.js (IndexedDB) · @xyflow/react (React Flow) · OpenAI SDK（兼容通道）
 
 ## 路线图
 
@@ -29,7 +31,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 |---|---|
 | S1 | 骨架 + 聊天核心（本地持久化、流式对话、自带 Key） |
 | S2 | Profile + 任务 + 主动式 Agent + 粘贴即导入 |
-| S3 | 时间轴 + 成果网络图 |
+| S3 | 活动档案 + 时间轴 + 成果网络图 |
 | S4 | Reflection Studio（AI 采访式反思 + 多媒体） |
 | S5 | Skill 系统 |
 | S6 | Skill 市场 |
@@ -40,6 +42,10 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S3 | 2026-07-19 | S3 阶段完成：活动档案 + 时间轴 + 成果网络图 | milestone |
+| S2d | 2026-07-19 | 成果网络图（React Flow）：活动/课程/目标校为节点，AI 提案叙事线连接，手动增删边 | feat |
+| S2c | 2026-07-19 | 项目时间轴（学期鸟瞰）：横向聚合活动跨度、考试/DDL/任务，今日线 + 自动定位当下 | feat |
+| S2b | 2026-07-19 | 活动档案：Activity 实体 + 手动 CRUD + AI 对话式建档（propose_activities 提案卡） | feat |
 | S2a8 | 2026-07-19 | 启动时申请持久化存储资格（navigator.storage.persist），降低浏览器自动清除本地数据的风险 | fix |
 | S2a7 | 2026-07-19 | 修复「对话建档」在开发模式下重复发送两条建档消息（StrictMode 副作用双跑） | fix |
 | S2a6 | 2026-07-19 | 新增「学栖思考中」指示：栖巢小鸟起伏动画 + 节奏点，覆盖流式等待与工具轮次间隙 | fix |
