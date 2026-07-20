@@ -33,6 +33,8 @@ export interface StudentProfile {
   curriculum: Curriculum | null
   courses: Course[]
   targetSchools: TargetSchool[]
+  /** 成长星图中心的专业方向；空则从目标校专业派生 */
+  majorDirections?: string[]
 }
 
 export function isProfileEmpty(p: StudentProfile): boolean {

@@ -1,6 +1,6 @@
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
-import { buildGraphNodes, resolveLabelToNodeId } from '@/components/graph/graph-model'
+import { buildSphereNodes, resolveLabelToNodeId } from '@/components/graph/sphere-model'
 import type {
   ActivityCategory,
   ActivityLevel,
@@ -203,7 +203,7 @@ export function parseNarrativeArgs(rawArgs: string): ProposedEdge[] {
     edges?: { source?: string; target?: string; reason?: string }[]
   }
   const { activities, profile } = usePlanningStore.getState()
-  const nodes = buildGraphNodes(activities, profile)
+  const nodes = buildSphereNodes(activities, profile)
   return (args.edges ?? [])
     .filter((e) => e.source?.trim() && e.target?.trim())
     .map((e) => ({
