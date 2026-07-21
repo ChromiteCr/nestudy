@@ -319,11 +319,16 @@ export function GraphView({ onNavigate }: GraphViewProps) {
           </svg>
 
           {/* 选中节点卡片（锚定到星点当前投影位置） */}
+          {/* stopPropagation 必须同时挡住 pointerDown 和 pointerUp：容器的 onPointerUp 会在
+              任何一次干净点击（无拖动）后按释放坐标做命中测试并 setSelected——只挡 pointerDown
+              的话，点卡片里任意按钮时，抬手的 pointerUp 仍会冒泡到容器，命中测试落空后立刻把
+              卡片关掉，导致按钮的 onClick 还没来得及生效卡片就先没了，表现为"点了没反应"。 */}
           {selectedNode && (
             <div
               className="absolute z-30"
               style={{ left: clamp(selectedNode.sx + 16, 8, size.w - 256), top: clamp(selectedNode.sy - 20, 8, size.h - 160) }}
               onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
             >
               <NodeCard node={selectedNode} onClose={() => setSelected(null)} onNavigate={onNavigate} />
             </div>
@@ -334,13 +339,18 @@ export function GraphView({ onNavigate }: GraphViewProps) {
               className="absolute z-30"
               style={{ left: clamp(edgeMidX(selectedEdge, posById, size.w), 8, size.w - 256), top: clamp(edgeMidY(selectedEdge, posById, size.h), 8, size.h - 160) }}
               onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
             >
               <EdgeCard edge={selectedEdge} endpoints={edgeEndpoints} onClose={() => setSelected(null)} />
             </div>
           )}
 
           {/* 悬浮"全部事项"列表：绕开 3D 遮挡直接定位任意节点 */}
-          <div className="absolute bottom-4 right-4 z-30" onPointerDown={(e) => e.stopPropagation()}>
+          <div
+            className="absolute bottom-4 right-4 z-30"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+          >
             {listOpen ? (
               <NodeListPanel
                 nodes={nodes}

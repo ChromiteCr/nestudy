@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, NotebookPen, Pencil, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useReflectionUiStore } from '@/stores/reflectionUiStore'
@@ -17,7 +24,8 @@ const SHELL_CHIPS: { shell: number; label: string }[] = [
 ]
 
 /**
- * 星点卡片：圆形点击后变形为圆角卡，展示名称+详情，支持手动编辑 / AI 重新生成。
+ * 星点卡片：圆形点击后变形为圆角卡，展示名称+详情摘要，「编辑」在弹出的对话框里
+ * 完成（比小卡片宽敞得多，长文字不会把小卡片撑出屏幕）。
  * 反思卫星节点走独立分支（编辑摘要 + 删除 + 跳转查看完整问答），但所有 Hooks
  * 必须无条件调用——之前把 useState 放在分支 return 之后，切换反思/其他节点类型时
  * 两次渲染的 Hook 数量不一致，触发 React "Rendered fewer hooks than expected" 崩溃。
@@ -47,7 +55,7 @@ export function NodeCard({
   const derived = isReflection ? (reflection?.summary ?? '') : derivedDetail(node, activities, profile)
   const detail = isReflection ? derived : (meta?.blurb ?? derived)
 
-  const [editing, setEditing] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [draft, setDraft] = useState(detail)
   const [busy, setBusy] = useState(false)
 
@@ -59,7 +67,7 @@ export function NodeCard({
     } else {
       await setNodeMeta(node.id, { blurb: draft.trim() })
     }
-    setEditing(false)
+    setDialogOpen(false)
   }
 
   const regenerate = async () => {
@@ -99,13 +107,9 @@ export function NodeCard({
         <span className="font-medium">{node.label}</span>
       </div>
 
-      {editing ? (
-        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-14 text-xs" autoFocus />
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          {detail || (isReflection ? '（反思内容缺失）' : '（暂无详情，试试 AI 生成或手动编辑）')}
-        </p>
-      )}
+      <p className="line-clamp-4 text-xs text-muted-foreground">
+        {detail || (isReflection ? '（反思内容缺失）' : '（暂无详情，试试 AI 生成或手动编辑）')}
+      </p>
 
       {/* 分层快捷设置（非专业方向、非反思卫星节点——反思坐标由父活动决定，不走分层系统） */}
       {node.kind !== 'major' && !isReflection && (
@@ -127,14 +131,12 @@ export function NodeCard({
 
       <CardActions
         busy={busy}
-        editing={editing}
         hideRegenerate={isReflection}
         onRegenerate={() => void regenerate()}
         onEdit={() => {
           setDraft(detail)
-          setEditing(true)
+          setDialogOpen(true)
         }}
-        onSave={() => void save()}
         extra={
           node.kind === 'major' ? (
             <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-destructive" onClick={() => void removeMajor()}>
@@ -160,6 +162,15 @@ export function NodeCard({
           ) : undefined
         }
       />
+
+      <EditDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={node.label}
+        draft={draft}
+        onDraftChange={setDraft}
+        onSave={() => void save()}
+      />
     </CardFrame>
   )
 }
@@ -177,13 +188,13 @@ export function EdgeCard({
   const profile = usePlanningStore((s) => s.profile)
   const editEdge = usePlanningStore((s) => s.editEdge)
   const removeEdge = usePlanningStore((s) => s.removeEdge)
-  const [editing, setEditing] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [draft, setDraft] = useState(edge.label)
   const [busy, setBusy] = useState(false)
 
   const save = async () => {
     await editEdge(edge.id, { label: draft.trim() })
-    setEditing(false)
+    setDialogOpen(false)
   }
   const regenerate = async () => {
     setBusy(true)
@@ -203,20 +214,14 @@ export function EdgeCard({
       <p className="text-sm font-medium">
         {endpoints.source} <span className="text-muted-foreground">↔</span> {endpoints.target}
       </p>
-      {editing ? (
-        <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-14 text-xs" autoFocus />
-      ) : (
-        <p className="text-xs text-muted-foreground">{edge.label || '（暂无说明）'}</p>
-      )}
+      <p className="line-clamp-4 text-xs text-muted-foreground">{edge.label || '（暂无说明）'}</p>
       <CardActions
         busy={busy}
-        editing={editing}
         onRegenerate={() => void regenerate()}
         onEdit={() => {
           setDraft(edge.label)
-          setEditing(true)
+          setDialogOpen(true)
         }}
-        onSave={() => void save()}
         extra={
           <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-destructive" onClick={() => void removeEdge(edge.id)}>
             <Trash2 className="size-3" />
@@ -224,11 +229,58 @@ export function EdgeCard({
           </Button>
         }
       />
+
+      <EditDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={`${endpoints.source} ↔ ${endpoints.target}`}
+        draft={draft}
+        onDraftChange={setDraft}
+        onSave={() => void save()}
+      />
     </CardFrame>
   )
 }
 
-/** 悬浮长方形卡片的通用外壳：进入渐显，点击关闭时先渐隐再真正卸载 */
+/** 编辑弹窗：比悬浮小卡片宽敞得多的文本编辑区，点「编辑」后在这里改，不会把小卡片撑爆 */
+function EditDialog({
+  open,
+  onOpenChange,
+  title,
+  draft,
+  onDraftChange,
+  onSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  draft: string
+  onDraftChange: (v: string) => void
+  onSave: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <Textarea
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          className="min-h-40 text-sm"
+          autoFocus
+        />
+        <DialogFooter>
+          <Button size="sm" onClick={onSave}>
+            保存
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** 悬浮长方形卡片的通用外壳：进入渐显，点击关闭时先渐隐再真正卸载；内容过长时内部滚动，不把按钮挤出屏幕 */
 function CardFrame({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   const [closing, setClosing] = useState(false)
 
@@ -239,7 +291,7 @@ function CardFrame({ children, onClose }: { children: React.ReactNode; onClose: 
 
   return (
     <div
-      className={`flex w-60 flex-col gap-2 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border ${
+      className={`flex max-h-[min(70vh,26rem)] w-60 flex-col gap-2 overflow-y-auto rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border ${
         closing ? 'animate-[card-fade-out_140ms_ease-in]' : 'animate-[card-fade-in_150ms_ease-out]'
       }`}
     >
@@ -253,42 +305,30 @@ function CardFrame({ children, onClose }: { children: React.ReactNode; onClose: 
 
 function CardActions({
   busy,
-  editing,
   hideRegenerate,
   onRegenerate,
   onEdit,
-  onSave,
   extra,
 }: {
   busy: boolean
-  editing: boolean
   hideRegenerate?: boolean
   onRegenerate: () => void
   onEdit: () => void
-  onSave: () => void
   extra?: React.ReactNode
 }) {
   return (
     <div className="flex items-center gap-1 border-t pt-2">
       <Sparkles className="size-3.5 text-primary" />
-      {editing ? (
-        <Button size="sm" className="h-7 text-xs" onClick={onSave}>
-          保存
+      {!hideRegenerate && (
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" disabled={busy} onClick={onRegenerate}>
+          {busy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+          重新生成
         </Button>
-      ) : (
-        <>
-          {!hideRegenerate && (
-            <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" disabled={busy} onClick={onRegenerate}>
-              {busy ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
-              重新生成
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={onEdit}>
-            <Pencil className="size-3" />
-            手动编辑
-          </Button>
-        </>
       )}
+      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={onEdit}>
+        <Pencil className="size-3" />
+        编辑
+      </Button>
       {extra}
     </div>
   )
