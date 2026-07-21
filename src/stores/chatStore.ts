@@ -14,6 +14,8 @@ import {
 import { resolveProvider, type ChatTurn } from '@/lib/ai'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { AGENT_TOOLS, executeReadTool, isProposeTool, isReadTool } from '@/lib/ai/tools'
+import { getSkill } from '@/lib/skills/registry'
+import { useSkillStore } from './skillStore'
 import {
   applyActivitiesProposal,
   applyImportProposal,
@@ -199,9 +201,16 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
     return
   }
 
+  // 激活的 skill（若有）追加人设并收窄工具面，不允许的工具连 schema 都不下发给模型
+  const activeSkill = useSkillStore.getState().activeSkillId
+  const skill = activeSkill ? getSkill(activeSkill) : undefined
+  const systemPrompt = skill ? `${buildSystemPrompt()}\n\n---\n${skill.personaPrompt}` : buildSystemPrompt()
+  const tools = skill ? AGENT_TOOLS.filter((t) => skill.allowedTools.includes(t.name)) : AGENT_TOOLS
+  const allowedToolNames = new Set(tools.map((t) => t.name))
+
   // 历史只带 user/assistant 文本（工具轮次为回合内临时上下文）
   const convo: ChatTurn[] = [
-    { role: 'system', content: buildSystemPrompt() },
+    { role: 'system', content: systemPrompt },
     ...get()
       .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
@@ -241,7 +250,7 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
       let toolCalls: Awaited<ReturnType<typeof collectRound>>['toolCalls'] = []
 
       const result = await collectRound(
-        provider.streamChat(convo, { signal: abortController.signal, tools: AGENT_TOOLS }),
+        provider.streamChat(convo, { signal: abortController.signal, tools }),
         (delta) => {
           text += delta
           ensureCurrentMessage()
@@ -267,6 +276,10 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
       convo.push({ role: 'assistant', content: text, toolCalls })
 
       for (const call of toolCalls) {
+        if (!allowedToolNames.has(call.name)) {
+          convo.push({ role: 'tool', toolCallId: call.id, content: '该工具在当前 skill 下不可用' })
+          continue
+        }
         if (isReadTool(call.name)) {
           const result = await executeReadTool(call.name)
           convo.push({ role: 'tool', toolCallId: call.id, content: result })

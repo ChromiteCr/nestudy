@@ -5,6 +5,7 @@ import { useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
+import { SkillBar } from './SkillBar'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 interface ChatViewProps {
@@ -38,6 +39,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
+      <SkillBar />
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
           {messages.length === 0 && (

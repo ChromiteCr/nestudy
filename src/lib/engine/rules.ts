@@ -1,4 +1,5 @@
 import { daysUntil, isoToday } from '@/lib/db/planning'
+import { getSkill } from '@/lib/skills/registry'
 import { isProfileEmpty } from '@/types'
 import type { Activity, EventItem, Reflection, StudentProfile, Task } from '@/types'
 
@@ -15,14 +16,17 @@ export interface Reminder {
   body: string
   /** 点「去处理」后预置到对话的引导语；与 reflectActivityId 二选一 */
   prompt?: string
-  /** 点「去处理」后跳转反思工作室并预填该活动；与 prompt 二选一 */
+  /** 点「去处理」后跳转反思工作室并预填该活动；与 prompt/suggestSkillId 三选一 */
   reflectActivityId?: string
+  /** 点「去处理」后激活该 skill 并带 prompt 跳转对话；与 prompt/reflectActivityId 三选一 */
+  suggestSkillId?: string
 }
 
 const DDL_LOOKAHEAD_DAYS = 7
 const OVERLOAD_THRESHOLD = 5
 const COMEBACK_DAYS = 3
 const REFLECTION_LOOKBACK_DAYS = 7
+const ADMISSIONS_READER_MIN_ACTIVITIES = 3
 
 export function computeReminders(input: {
   profile: StudentProfile | null
@@ -30,9 +34,10 @@ export function computeReminders(input: {
   events: EventItem[]
   activities: Activity[]
   reflections: Reflection[]
+  usedSkillIds?: string[]
   lastActiveAt?: number
 }): Reminder[] {
-  const { profile, tasks, events, activities, reflections, lastActiveAt } = input
+  const { profile, tasks, events, activities, reflections, usedSkillIds = [], lastActiveAt } = input
   const reminders: Reminder[] = []
   const pending = tasks.filter((t) => t.status === 'pending')
 
@@ -104,6 +109,17 @@ export function computeReminders(input: {
       title: `要不要反思一下「${a.title}」？`,
       body: '这个活动已经结束一段时间了，趁记忆还新鲜，写一条反思记录下来。',
       reflectActivityId: a.id,
+    })
+  }
+
+  // R6：活动数达标但从未用过「招生官读档」skill
+  const admissionsReader = getSkill('admissions-reader')
+  if (admissionsReader && activities.length >= ADMISSIONS_READER_MIN_ACTIVITIES && !usedSkillIds.includes(admissionsReader.id)) {
+    reminders.push({
+      key: `suggest-skill:${admissionsReader.id}`,
+      title: '试试「招生官读档」',
+      body: admissionsReader.suggestHint ?? admissionsReader.description,
+      suggestSkillId: admissionsReader.id,
     })
   }
 

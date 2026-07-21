@@ -6,7 +6,6 @@ import {
   MessageSquarePlus,
   Network,
   NotebookPen,
-  Puzzle,
   Settings,
   Trash2,
   Trophy,
@@ -14,17 +13,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
-
-/** 后续阶段的模块入口占位（S5 技能） */
-const UPCOMING_MODULES = [{ icon: Puzzle, label: '技能', stage: 'S5' }]
 
 interface SidebarProps {
   view: AppView
@@ -152,26 +143,6 @@ export function Sidebar({ view, onViewChange, onOpenSettings }: SidebarProps) {
       ) : (
         <div className="min-h-0 flex-1" />
       )}
-
-      <Separator />
-
-      <div className="flex flex-col gap-0.5 px-3 py-2">
-        {UPCOMING_MODULES.map((m) => (
-          <Tooltip key={m.label}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                disabled
-                className="flex cursor-not-allowed items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground/60"
-              >
-                <m.icon className="size-4" />
-                {m.label}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{m.stage} 阶段推出</TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
 
       <Separator />
 

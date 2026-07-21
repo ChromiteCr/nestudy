@@ -2,6 +2,7 @@ import {
   getProfile,
   isoToday,
   listActivities,
+  listReflections,
   listTasks,
   listUpcomingEvents,
 } from '@/lib/db/planning'
@@ -31,6 +32,11 @@ export const AGENT_TOOLS: ToolDef[] = [
   {
     name: 'get_activities',
     description: '获取学生的课外活动档案（竞赛/社团/科研/志愿/实习等，含角色、成果、级别）',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_reflections',
+    description: '获取学生已写的反思记录（含标题、摘要、关联活动）',
     parameters: { type: 'object', properties: {} },
   },
   {
@@ -169,7 +175,7 @@ export const AGENT_TOOLS: ToolDef[] = [
   },
 ]
 
-const READ_TOOLS = new Set(['get_profile', 'get_tasks', 'get_events', 'get_activities'])
+const READ_TOOLS = new Set(['get_profile', 'get_tasks', 'get_events', 'get_activities', 'get_reflections'])
 
 export function isReadTool(name: string): boolean {
   return READ_TOOLS.has(name)
@@ -212,6 +218,18 @@ export async function executeReadTool(name: string): Promise<string> {
           endDate: a.endDate,
           achievements: a.achievements,
           level: a.level,
+        })),
+      })
+    }
+    case 'get_reflections': {
+      const activities = await listActivities()
+      const reflections = await listReflections()
+      return JSON.stringify({
+        reflections: reflections.map((r) => ({
+          title: r.title,
+          summary: r.summary,
+          activityTitle: activities.find((a) => a.id === r.activityId)?.title,
+          createdAt: new Date(r.createdAt).toISOString().slice(0, 10),
         })),
       })
     }

@@ -312,6 +312,8 @@ export interface Settings {
   lastActiveAt?: number
   /** 已关闭的提醒：ruleKey → 关闭当天(yyyy-mm-dd)，当天内不再显示 */
   dismissedReminders?: Record<string, string>
+  /** 已使用过的 skill id（规则引擎"从未用过"类建议判据） */
+  usedSkillIds?: string[]
   /** 用户自定义界面主色；null/缺省 = 主题默认 */
   themeColor?: { r: number; g: number; b: number } | null
 }

@@ -24,6 +24,8 @@ import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore, selectTodayTasks } from '@/stores/planningStore'
 import { useReflectionUiStore } from '@/stores/reflectionUiStore'
 import { useReminderStore } from '@/stores/reminderStore'
+import { useSkillStore } from '@/stores/skillStore'
+import { getSkill } from '@/lib/skills/registry'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
 import { formatCountdown } from '@/components/tasks/EventList'
@@ -69,6 +71,11 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
     if (r.reflectActivityId) {
       useReflectionUiStore.getState().setPendingActivityId(r.reflectActivityId)
       onNavigate('reflection')
+    } else if (r.suggestSkillId) {
+      useSkillStore.getState().setActiveSkill(r.suggestSkillId)
+      const skill = getSkill(r.suggestSkillId)
+      setPendingPrompt(`帮我用「${skill?.name ?? '这个 skill'}」分析一下`)
+      onNavigate('chat')
     } else if (r.prompt) {
       setPendingPrompt(r.prompt)
       onNavigate('chat')

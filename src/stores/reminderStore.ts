@@ -17,7 +17,15 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
   init: async () => {
     const settings = await getSettings()
     const { profile, tasks, events, activities, reflections } = usePlanningStore.getState()
-    const all = computeReminders({ profile, tasks, events, activities, reflections, lastActiveAt: settings.lastActiveAt })
+    const all = computeReminders({
+      profile,
+      tasks,
+      events,
+      activities,
+      reflections,
+      usedSkillIds: settings.usedSkillIds,
+      lastActiveAt: settings.lastActiveAt,
+    })
     // 当天已关闭的不再显示
     const today = isoToday()
     const dismissed = settings.dismissedReminders ?? {}
