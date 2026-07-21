@@ -1,3 +1,6 @@
+# 仓库 Settings → Pages → Build and deployment → Source 必须是
+# "GitHub Actions"，否则 configure-pages 这步必失败，且线上会一直
+# 服务旧式分支部署（未构建的原始 index.html，导致白屏）。
 name: Deploy to GitHub Pages
 
 on:
