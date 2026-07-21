@@ -9,6 +9,7 @@ import { TasksView } from '@/components/tasks/TasksView'
 import { ActivitiesView } from '@/components/activities/ActivitiesView'
 import { TimelineView } from '@/components/timeline/TimelineView'
 import { GraphView } from '@/components/graph/GraphView'
+import { ReflectionStudioView } from '@/components/reflection/ReflectionStudioView'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useReminderStore } from '@/stores/reminderStore'
@@ -50,6 +51,7 @@ export default function App() {
         {view === 'activities' && <ActivitiesView onNavigate={setView} />}
         {view === 'timeline' && <TimelineView onNavigate={setView} />}
         {view === 'graph' && <GraphView onNavigate={setView} />}
+        {view === 'reflection' && <ReflectionStudioView onNavigate={setView} />}
       </div>
       <SettingsDialog
         open={settingsOpen}

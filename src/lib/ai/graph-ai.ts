@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import { useSettingsStore } from '@/stores/settingsStore'
 
-function client(): { openai: OpenAI; model: string } {
+export function getOpenAIClient(): { openai: OpenAI; model: string } {
   const { modelConfig } = useSettingsStore.getState()
   if (!modelConfig.apiKey) throw new Error('请先在设置中填写 API Key')
   return {
@@ -11,7 +11,7 @@ function client(): { openai: OpenAI; model: string } {
 }
 
 async function oneLine(system: string, user: string): Promise<string> {
-  const { openai, model } = client()
+  const { openai, model } = getOpenAIClient()
   const res = await openai.chat.completions.create({
     model,
     messages: [
@@ -45,7 +45,7 @@ export async function suggestShells(
   items: { label: string; kind: string }[],
   majors: string[],
 ): Promise<Record<string, number>> {
-  const { openai, model } = client()
+  const { openai, model } = getOpenAIClient()
   const list = items.map((it, i) => `${i + 1}. ${it.label}（${it.kind}）`).join('\n')
   const dir = majors.length ? `专业方向：${majors.join('、')}。` : ''
   const res = await openai.chat.completions.create({

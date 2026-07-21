@@ -23,11 +23,8 @@ import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
 
-/** 后续阶段的模块入口占位（S4 反思、S5 技能） */
-const UPCOMING_MODULES = [
-  { icon: NotebookPen, label: '反思', stage: 'S4' },
-  { icon: Puzzle, label: '技能', stage: 'S5' },
-]
+/** 后续阶段的模块入口占位（S5 技能） */
+const UPCOMING_MODULES = [{ icon: Puzzle, label: '技能', stage: 'S5' }]
 
 interface SidebarProps {
   view: AppView
@@ -91,6 +88,12 @@ export function Sidebar({ view, onViewChange, onOpenSettings }: SidebarProps) {
           label="成果网络"
           active={view === 'graph'}
           onClick={() => onViewChange('graph')}
+        />
+        <NavItem
+          icon={NotebookPen}
+          label="反思"
+          active={view === 'reflection'}
+          onClick={() => onViewChange('reflection')}
         />
       </nav>
 

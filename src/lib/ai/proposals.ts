@@ -11,6 +11,11 @@ import type {
   ProposedEdge,
   ProposedEvent,
   ProposedTask,
+  Reflection,
+  ReflectionAttachment,
+  ReflectionProposedEdge,
+  ReflectionQA,
+  ReflectionTrigger,
   TaskPriority,
 } from '@/types'
 
@@ -233,4 +238,53 @@ export async function applyNarrativeProposal(edges: ProposedEdge[]): Promise<str
     count++
   }
   return `已连接 ${count} 条叙事线`
+}
+
+/** 解析反思总结生成结果中的建议边为可编辑提案（按当前节点标题解析到 node id） */
+export function parseReflectionEdges(result: {
+  edges: { targetLabel: string; reason: string; strength: number }[]
+}): ReflectionProposedEdge[] {
+  const { activities, profile } = usePlanningStore.getState()
+  const nodes = buildSphereNodes(activities, profile)
+  return result.edges.map((e) => ({
+    include: true,
+    targetLabel: e.targetLabel,
+    reason: e.reason,
+    strength: e.strength,
+    targetNodeId: resolveLabelToNodeId(e.targetLabel, nodes),
+  }))
+}
+
+/** 用户确认反思草稿：写入反思条目，再写入勾选的叙事线（source 固定为这条反思本身） */
+export async function applyReflectionDraft(input: {
+  title: string
+  trigger: ReflectionTrigger
+  activityId?: string
+  qa: ReflectionQA[]
+  summary: string
+  attachments: ReflectionAttachment[]
+  edges: ReflectionProposedEdge[]
+}): Promise<Reflection> {
+  const store = usePlanningStore.getState()
+  const reflection = await store.createReflection({
+    title: input.title,
+    trigger: input.trigger,
+    activityId: input.activityId,
+    qa: input.qa,
+    summary: input.summary,
+    attachments: input.attachments,
+    source: 'ai',
+  })
+  const sourceNodeId = `reflection:${reflection.id}`
+  for (const e of input.edges.filter((x) => x.include && x.targetNodeId)) {
+    if (e.targetNodeId === sourceNodeId) continue
+    await store.createEdge({
+      sourceNodeId,
+      targetNodeId: e.targetNodeId!,
+      label: e.reason,
+      strength: e.strength,
+      source: 'ai',
+    })
+  }
+  return reflection
 }
