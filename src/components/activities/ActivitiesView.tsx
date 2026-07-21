@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { NotebookPen, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useReflectionUiStore } from '@/stores/reflectionUiStore'
 import { cn } from '@/lib/utils'
 import {
   ACTIVITY_CATEGORY_LABEL,
@@ -119,6 +120,10 @@ export function ActivitiesView({ onNavigate }: ActivitiesViewProps) {
                   setEditingId(a.id)
                 }}
                 onDelete={() => void removeActivity(a.id)}
+                onReflect={() => {
+                  useReflectionUiStore.getState().setPendingActivityId(a.id)
+                  onNavigate('reflection')
+                }}
               />
             ),
           )}
@@ -137,10 +142,12 @@ function ActivityRow({
   activity,
   onEdit,
   onDelete,
+  onReflect,
 }: {
   activity: Activity
   onEdit: () => void
   onDelete: () => void
+  onReflect: () => void
 }) {
   return (
     <div className="group flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30">
@@ -166,6 +173,9 @@ function ActivityRow({
         )}
       </div>
       <div className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+        <Button variant="ghost" size="icon" className="size-7" aria-label="反思一下" onClick={onReflect}>
+          <NotebookPen className="size-3.5" />
+        </Button>
         <Button variant="ghost" size="icon" className="size-7" aria-label="编辑活动" onClick={onEdit}>
           <Pencil className="size-3.5" />
         </Button>

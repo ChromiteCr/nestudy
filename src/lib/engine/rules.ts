@@ -1,6 +1,6 @@
 import { daysUntil, isoToday } from '@/lib/db/planning'
 import { isProfileEmpty } from '@/types'
-import type { EventItem, StudentProfile, Task } from '@/types'
+import type { Activity, EventItem, Reflection, StudentProfile, Task } from '@/types'
 
 /**
  * 主动式 Agent v1：本地规则引擎。
@@ -13,21 +13,26 @@ export interface Reminder {
   key: string
   title: string
   body: string
-  /** 点「去处理」后预置到对话的引导语 */
-  prompt: string
+  /** 点「去处理」后预置到对话的引导语；与 reflectActivityId 二选一 */
+  prompt?: string
+  /** 点「去处理」后跳转反思工作室并预填该活动；与 prompt 二选一 */
+  reflectActivityId?: string
 }
 
 const DDL_LOOKAHEAD_DAYS = 7
 const OVERLOAD_THRESHOLD = 5
 const COMEBACK_DAYS = 3
+const REFLECTION_LOOKBACK_DAYS = 7
 
 export function computeReminders(input: {
   profile: StudentProfile | null
   tasks: Task[]
   events: EventItem[]
+  activities: Activity[]
+  reflections: Reflection[]
   lastActiveAt?: number
 }): Reminder[] {
-  const { profile, tasks, events, lastActiveAt } = input
+  const { profile, tasks, events, activities, reflections, lastActiveAt } = input
   const reminders: Reminder[] = []
   const pending = tasks.filter((t) => t.status === 'pending')
 
@@ -86,6 +91,20 @@ export function computeReminders(input: {
         prompt: `我的档案还缺${missing.join('和')}，请像采访一样一步步引导我补全，然后用 propose_profile_update 更新。`,
       })
     }
+  }
+
+  // R5：活动已结束 ≥7 天且没有关联反思，提醒补写反思
+  const reflectedActivityIds = new Set(reflections.map((r) => r.activityId).filter((id): id is string => !!id))
+  const needsReflection = activities
+    .filter((a) => a.endDate && daysUntil(a.endDate) <= -REFLECTION_LOOKBACK_DAYS && !reflectedActivityIds.has(a.id))
+    .slice(0, 1)
+  for (const a of needsReflection) {
+    reminders.push({
+      key: `reflect:${a.id}`,
+      title: `要不要反思一下「${a.title}」？`,
+      body: '这个活动已经结束一段时间了，趁记忆还新鲜，写一条反思记录下来。',
+      reflectActivityId: a.id,
+    })
   }
 
   return reminders

@@ -42,6 +42,8 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S4 | 2026-07-20 | S4 阶段完成：Reflection Studio（AI 采访式反思）+ OPFS 单图附件 + 星图卫星接入 + 主动催写反思 | milestone |
+| S4d | 2026-07-20 | 主动 Agent 催写反思规则 + Dashboard 提醒卡跳转分流 + 反思/成果网络占位卡替换为真实入口 + 活动页「反思一下」入口 | feat |
 | S4c | 2026-07-20 | 成长星图接入反思节点：绕父活动的卫星坐标，点击弹出精简卡片跳转 Reflection Studio | feat |
 | S4b | 2026-07-20 | Reflection Studio：AI 采访式反思（固定模板+追问/自写草稿两种入口）+ 单图附件 + 确认卡入库，侧栏「反思」解禁 | feat |
 | S4a | 2026-07-20 | 反思数据地基：Dexie v5 反思表 + CRUD + 导出导入、OPFS 本地附件存储 + 预留上传接口 | feat |

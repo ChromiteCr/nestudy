@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore, selectTodayTasks } from '@/stores/planningStore'
+import { useReflectionUiStore } from '@/stores/reflectionUiStore'
 import { useReminderStore } from '@/stores/reminderStore'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
@@ -29,6 +30,7 @@ import { formatCountdown } from '@/components/tasks/EventList'
 import type { SettingsCategory } from '@/components/settings/SettingsDialog'
 import { cn } from '@/lib/utils'
 import { isProfileEmpty, type AppView } from '@/types'
+import type { Reminder } from '@/lib/engine/rules'
 
 const ONBOARDING_PROMPT = '我想建立我的学生档案，请像采访一样一步步引导我：年级、课程体系、在读课程和目标分数、目标学校和专业。每次只问一个问题。'
 
@@ -50,6 +52,8 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
   const tasks = usePlanningStore((s) => s.tasks)
   const events = usePlanningStore((s) => s.events)
+  const activities = usePlanningStore((s) => s.activities)
+  const reflections = usePlanningStore((s) => s.reflections)
   const profile = usePlanningStore((s) => s.profile)
   const todayTasks = selectTodayTasks(tasks)
 
@@ -60,10 +64,15 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
 
   const reminders = useReminderStore((s) => s.reminders)
   const dismissReminder = useReminderStore((s) => s.dismiss)
-  const handleReminder = (prompt: string, key: string) => {
-    void dismissReminder(key)
-    setPendingPrompt(prompt)
-    onNavigate('chat')
+  const handleReminder = (r: Reminder) => {
+    void dismissReminder(r.key)
+    if (r.reflectActivityId) {
+      useReflectionUiStore.getState().setPendingActivityId(r.reflectActivityId)
+      onNavigate('reflection')
+    } else if (r.prompt) {
+      setPendingPrompt(r.prompt)
+      onNavigate('chat')
+    }
   }
   const upcomingEvents = events.filter((e) => daysUntil(e.date) >= 0).slice(0, 4)
   const today = new Date().toLocaleDateString('zh-CN', {
@@ -101,7 +110,7 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
               <p className="text-sm text-muted-foreground">{r.body}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => handleReminder(r.prompt, r.key)}>
+              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => handleReminder(r)}>
                 去处理
                 <ArrowRight className="size-3" />
               </Button>
@@ -262,30 +271,43 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
             </CardContent>
           </Card>
 
-          {/* 占位：S3/S4 */}
-          <Card className="border-dashed">
-            <CardHeader>
+          <Card>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-base">
-                <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="flex items-center gap-2">
                   <Network className="size-4" />
                   成果网络
                 </span>
-                <Badge variant="secondary" className="text-[10px]">S3 推出</Badge>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('graph')}>
+                  查看
+                  <ArrowRight className="size-3" />
+                </Button>
               </CardTitle>
-              <CardDescription>活动、课程与成果串成叙事网络</CardDescription>
             </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {activities.length > 0 ? `${activities.length} 个活动，串成成长星图` : '添加活动后，星图会自动生成'}
+              </p>
+            </CardContent>
           </Card>
-          <Card className="border-dashed">
-            <CardHeader>
+          <Card>
+            <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-base">
-                <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="flex items-center gap-2">
                   <NotebookPen className="size-4" />
                   反思
                 </span>
-                <Badge variant="secondary" className="text-[10px]">S4 推出</Badge>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('reflection')}>
+                  查看
+                  <ArrowRight className="size-3" />
+                </Button>
               </CardTitle>
-              <CardDescription>活动结束后的 AI 采访式反思记录</CardDescription>
             </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {reflections.length > 0 ? `已写下 ${reflections.length} 条反思` : 'AI 采访式反思，记录经历背后的思考'}
+              </p>
+            </CardContent>
           </Card>
         </div>
 
