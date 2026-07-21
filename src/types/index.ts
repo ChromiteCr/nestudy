@@ -1,7 +1,7 @@
 // ---- 界面 ----
 
-/** 主界面视图。后续阶段追加：reflection(S4)、skills(S5) */
-export type AppView = 'dashboard' | 'chat' | 'tasks' | 'activities' | 'timeline' | 'graph'
+/** 主界面视图。后续阶段追加：skills(S5) */
+export type AppView = 'dashboard' | 'chat' | 'tasks' | 'activities' | 'timeline' | 'graph' | 'reflection'
 
 // ---- 学生档案 ----
 
@@ -137,6 +137,46 @@ export interface GraphNodeMeta {
   pinned?: boolean
   /** 星图卡片上展示的一句话注解（手动编辑 / AI 生成） */
   blurb?: string
+}
+
+// ---- 反思（S4：AI 采访式反思 + 星图卫星节点） ----
+
+export type ReflectionTrigger = 'activity' | 'freeform' | 'agent'
+export type ReflectionAttachmentKind = 'image'
+
+export interface ReflectionQA {
+  question: string
+  answer: string
+}
+
+export interface ReflectionAttachment {
+  id: string
+  kind: ReflectionAttachmentKind
+  /** OPFS 文件引用 */
+  ref: string
+}
+
+export interface Reflection {
+  id: string
+  title: string
+  trigger: ReflectionTrigger
+  /** freeform/agent 触发时可为空 */
+  activityId?: string
+  qa: ReflectionQA[]
+  summary: string
+  /** S4 UI 限 1 张图片；结构不限，S5 放开 */
+  attachments: ReflectionAttachment[]
+  source: DataSource
+  createdAt: number
+}
+
+/** 反思草稿里 AI 建议的叙事线：source 固定为这条反思本身，只需给出 target */
+export interface ReflectionProposedEdge {
+  include: boolean
+  targetLabel: string
+  reason: string
+  strength: number
+  targetNodeId: string | null
 }
 
 // ---- 任务 ----
@@ -292,6 +332,8 @@ export interface ExportBundle {
   narrativeEdges?: NarrativeEdge[]
   /** v4 起包含 */
   graphNodeMeta?: GraphNodeMeta[]
+  /** v5 起包含 */
+  reflections?: Reflection[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

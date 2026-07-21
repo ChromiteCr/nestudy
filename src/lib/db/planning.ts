@@ -1,6 +1,6 @@
 import { db } from './index'
 import { newId } from './repositories'
-import type { Activity, EventItem, GraphNodeMeta, NarrativeEdge, StudentProfile, Task } from '@/types'
+import type { Activity, EventItem, GraphNodeMeta, NarrativeEdge, Reflection, StudentProfile, Task } from '@/types'
 
 const PROFILE_ID = 'app'
 
@@ -108,10 +108,11 @@ export async function updateActivity(id: string, patch: Partial<Omit<Activity, '
 }
 
 export async function deleteActivity(id: string): Promise<void> {
-  await db.transaction('rw', db.activities, db.narrativeEdges, async () => {
+  await db.transaction('rw', db.activities, db.narrativeEdges, db.reflections, async () => {
     const nodeId = `activity:${id}`
     await db.narrativeEdges.where('sourceNodeId').equals(nodeId).delete()
     await db.narrativeEdges.where('targetNodeId').equals(nodeId).delete()
+    await db.reflections.where('activityId').equals(id).modify({ activityId: undefined })
     await db.activities.delete(id)
   })
 }
@@ -145,6 +146,22 @@ export async function listGraphNodeMeta(): Promise<GraphNodeMeta[]> {
 export async function saveGraphNodeMeta(nodeId: string, patch: Partial<Omit<GraphNodeMeta, 'nodeId'>>): Promise<void> {
   const existing = await db.graphNodeMeta.get(nodeId)
   await db.graphNodeMeta.put({ nodeId, ...existing, ...patch })
+}
+
+// ---- 反思 ----
+
+export async function listReflections(): Promise<Reflection[]> {
+  return db.reflections.orderBy('createdAt').reverse().toArray()
+}
+
+export async function addReflection(input: Omit<Reflection, 'id' | 'createdAt'>): Promise<Reflection> {
+  const reflection: Reflection = { ...input, id: newId(), createdAt: Date.now() }
+  await db.reflections.add(reflection)
+  return reflection
+}
+
+export async function deleteReflection(id: string): Promise<void> {
+  await db.reflections.delete(id)
 }
 
 // ---- 日期工具 ----
