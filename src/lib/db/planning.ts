@@ -160,6 +160,10 @@ export async function addReflection(input: Omit<Reflection, 'id' | 'createdAt'>)
   return reflection
 }
 
+export async function updateReflection(id: string, patch: Partial<Omit<Reflection, 'id'>>): Promise<void> {
+  await db.reflections.update(id, patch)
+}
+
 export async function deleteReflection(id: string): Promise<void> {
   await db.reflections.delete(id)
 }

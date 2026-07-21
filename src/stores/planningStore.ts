@@ -24,6 +24,7 @@ import {
   updateActivity,
   updateEvent,
   updateNarrativeEdge,
+  updateReflection,
   updateTask,
 } from '@/lib/db/planning'
 
@@ -61,6 +62,7 @@ interface PlanningState {
   setNodeMeta: (nodeId: string, patch: Partial<Omit<GraphNodeMeta, 'nodeId'>>) => Promise<void>
 
   createReflection: (input: Omit<Reflection, 'id' | 'createdAt'>) => Promise<Reflection>
+  editReflection: (id: string, patch: Partial<Omit<Reflection, 'id'>>) => Promise<void>
   removeReflection: (id: string) => Promise<void>
 }
 
@@ -180,6 +182,11 @@ export const usePlanningStore = create<PlanningState>((set, get) => ({
     const reflection = await addReflection(input)
     set({ reflections: await listReflections() })
     return reflection
+  },
+
+  editReflection: async (id, patch) => {
+    await updateReflection(id, patch)
+    set({ reflections: await listReflections() })
   },
 
   removeReflection: async (id) => {

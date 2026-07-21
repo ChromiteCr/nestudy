@@ -325,6 +325,11 @@ function TimelineCard({
   const activities = usePlanningStore((s) => s.activities)
   const events = usePlanningStore((s) => s.events)
   const tasks = usePlanningStore((s) => s.tasks)
+  const [closing, setClosing] = useState(false)
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(onClose, 140)
+  }
 
   let title = ''
   let rows: { k: string; v: string }[] = []
@@ -362,13 +367,15 @@ function TimelineCard({
 
   return (
     <div
-      className="absolute z-40 flex w-60 flex-col gap-1.5 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border"
+      className={`absolute z-40 flex w-60 flex-col gap-1.5 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg ring-1 ring-border ${
+        closing ? 'animate-[card-fade-out_140ms_ease-in]' : 'animate-[card-fade-in_150ms_ease-out]'
+      }`}
       style={{ left: selected.anchorX, top: selected.anchorY, transform: selected.growUp ? 'translateY(-100%)' : undefined }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium">{title}</p>
-        <button type="button" aria-label="关闭" className="text-muted-foreground" onClick={onClose}>
+        <button type="button" aria-label="关闭" className="text-muted-foreground" onClick={handleClose}>
           <X className="size-3.5" />
         </button>
       </div>

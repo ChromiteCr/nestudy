@@ -134,7 +134,13 @@
   50% { transform: translateY(-3px); }
 }
 
-@keyframes star-pop {
-  from { transform: scale(0.4); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+/** 悬浮长方形卡片（星点卡/全部事项面板/时间轴详情卡）的渐显渐隐 */
+@keyframes card-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes card-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
