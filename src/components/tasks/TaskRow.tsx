@@ -25,9 +25,13 @@ interface TaskRowProps {
   task: Task
   /** 显示关联事件标题（可选） */
   eventTitle?: string
+  /** 点击整行时触发（面板卡片用来跳转任务页并定位）；任务页内不传，行为退化为普通展示 */
+  onSelect?: () => void
+  /** 从别处跳转定位过来时短暂高亮 */
+  highlighted?: boolean
 }
 
-export function TaskRow({ task, eventTitle }: TaskRowProps) {
+export function TaskRow({ task, eventTitle, onSelect, highlighted }: TaskRowProps) {
   const toggleTask = usePlanningStore((s) => s.toggleTask)
   const removeTask = usePlanningStore((s) => s.removeTask)
   const completed = task.status === 'completed'
@@ -35,10 +39,19 @@ export function TaskRow({ task, eventTitle }: TaskRowProps) {
   const priority = PRIORITY_LABEL[task.priority]
 
   return (
-    <div className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50">
+    <div
+      data-task-id={task.id}
+      onClick={onSelect}
+      className={cn(
+        'group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50',
+        onSelect && 'cursor-pointer',
+        highlighted && 'bg-primary/10 ring-1 ring-primary/40',
+      )}
+    >
       <Checkbox
         checked={completed}
         onCheckedChange={() => void toggleTask(task.id)}
+        onClick={(e) => e.stopPropagation()}
         aria-label={completed ? '标记未完成' : '标记完成'}
       />
       <div className="min-w-0 flex-1">
@@ -58,7 +71,10 @@ export function TaskRow({ task, eventTitle }: TaskRowProps) {
         size="icon"
         className="size-6 shrink-0 opacity-0 group-hover:opacity-100"
         aria-label="删除任务"
-        onClick={() => void removeTask(task.id)}
+        onClick={(e) => {
+          e.stopPropagation()
+          void removeTask(task.id)
+        }}
       >
         <Trash2 className="size-3.5" />
       </Button>

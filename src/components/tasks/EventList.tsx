@@ -28,7 +28,14 @@ export function formatCountdown(isoDate: string): string {
   return `还有 ${diff} 天`
 }
 
-export function EventList() {
+interface EventListProps {
+  /** 点击某一行时触发（面板卡片跳转定位用） */
+  onSelectEvent?: (id: string) => void
+  /** 从别处跳转定位过来时短暂高亮的事件 id */
+  highlightId?: string | null
+}
+
+export function EventList({ onSelectEvent, highlightId }: EventListProps = {}) {
   const events = usePlanningStore((s) => s.events)
   const tasks = usePlanningStore((s) => s.tasks)
   const removeEvent = usePlanningStore((s) => s.removeEvent)
@@ -77,7 +84,16 @@ export function EventList() {
           const linkedCount = tasks.filter((t) => t.parentEventId === e.id).length
           const overdue = daysUntil(e.date) < 0
           return (
-            <div key={e.id} className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50">
+            <div
+              key={e.id}
+              data-event-id={e.id}
+              onClick={() => onSelectEvent?.(e.id)}
+              className={cn(
+                'group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50',
+                onSelectEvent && 'cursor-pointer',
+                highlightId === e.id && 'bg-primary/10 ring-1 ring-primary/40',
+              )}
+            >
               <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{e.title}</p>
@@ -97,7 +113,10 @@ export function EventList() {
                 size="icon"
                 className="size-6 shrink-0 opacity-0 group-hover:opacity-100"
                 aria-label="删除事件"
-                onClick={() => void removeEvent(e.id)}
+                onClick={(ev) => {
+                  ev.stopPropagation()
+                  void removeEvent(e.id)
+                }}
               >
                 <Trash2 className="size-3.5" />
               </Button>

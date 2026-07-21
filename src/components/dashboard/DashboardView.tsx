@@ -26,6 +26,7 @@ import { useReflectionUiStore } from '@/stores/reflectionUiStore'
 import { useReminderStore } from '@/stores/reminderStore'
 import { useSkillStore } from '@/stores/skillStore'
 import { getSkill } from '@/lib/skills/registry'
+import { useTaskUiStore } from '@/stores/taskUiStore'
 import { daysUntil } from '@/lib/db/planning'
 import { TaskRow } from '@/components/tasks/TaskRow'
 import { formatCountdown } from '@/components/tasks/EventList'
@@ -223,7 +224,15 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
                   <ListTodo className="size-4" />
                   今日任务
                 </span>
-                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('tasks')}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => {
+                    useTaskUiStore.getState().setPendingTab('all')
+                    onNavigate('tasks')
+                  }}
+                >
                   全部
                   <ArrowRight className="size-3" />
                 </Button>
@@ -231,7 +240,15 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
             </CardHeader>
             <CardContent className="flex flex-col gap-0.5">
               {todayTasks.slice(0, 5).map((t) => (
-                <TaskRow key={t.id} task={t} />
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  onSelect={() => {
+                    useTaskUiStore.getState().setPendingTab('today')
+                    useTaskUiStore.getState().setPendingFocusId(t.id)
+                    onNavigate('tasks')
+                  }}
+                />
               ))}
               {todayTasks.length > 5 && (
                 <p className="px-2 pt-1 text-xs text-muted-foreground">
@@ -252,7 +269,15 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
                   <CalendarClock className="size-4" />
                   近期 DDL
                 </span>
-                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" onClick={() => onNavigate('tasks')}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => {
+                    useTaskUiStore.getState().setPendingTab('ddl')
+                    onNavigate('tasks')
+                  }}
+                >
                   管理
                   <ArrowRight className="size-3" />
                 </Button>
@@ -262,7 +287,15 @@ export function DashboardView({ onNavigate, onOpenSettings }: DashboardViewProps
               {upcomingEvents.map((e) => {
                 const urgent = daysUntil(e.date) <= 7
                 return (
-                  <div key={e.id} className="flex items-center justify-between gap-2">
+                  <div
+                    key={e.id}
+                    className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-1 py-0.5 hover:bg-muted/50"
+                    onClick={() => {
+                      useTaskUiStore.getState().setPendingTab('ddl')
+                      useTaskUiStore.getState().setPendingFocusId(e.id)
+                      onNavigate('tasks')
+                    }}
+                  >
                     <span className="min-w-0 flex-1 truncate text-sm">{e.title}</span>
                     <span className={cn('shrink-0 text-xs', urgent ? 'font-medium text-destructive' : 'text-muted-foreground')}>
                       {formatCountdown(e.date)}

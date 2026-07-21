@@ -42,6 +42,8 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S5a2 | 2026-07-21 | 修复面板点击具体任务/DDL 不跳转到对应内容：任务页 Tabs 原来是无状态、每次挂载都重置成「今日」页；新增 taskUiStore 预置目标 tab + 定位 id，面板点击任务行/DDL 行会跳转任务页、切到正确 tab 并滚动高亮 | fix |
+| S5a1 | 2026-07-21 | 修复 GitHub Pages 部署空白页：仓库 Pages Source 一直是"Deploy from a branch"（旧式），导致线上服务未构建的原始 index.html；在 deploy.yml 标注该前置条件，指导切到"GitHub Actions"后部署恢复正常 | fix |
 | S5a | 2026-07-21 | Skill 系统骨架：声明式 JSON skill 定义 + 引擎（system prompt 注入人设 + 收窄工具面），落地首个官方 skill「招生官读档」；聊天页手动选择入口 + 规则引擎 R6（活动数达标且从未用过时主动建议）双触发打通全流程 | feat |
 | S4d2 | 2026-07-20 | 修复星图节点卡片按钮点击无响应：卡片容器只挡了 pointerDown 冒泡，pointerUp 仍会冒泡到画布触发命中测试并把卡片关掉，抢在按钮 onClick 之前关闭；编辑改为弹出对话框（更大，长文字不挤爆小卡片） | fix |
 | S4d1 | 2026-07-20 | 修复反思卫星节点导致的 React Hooks 顺序崩溃（星图所有编辑操作因此失效）；反思不再计入"全部事项"的"尚未连接"分组，改为独立"反思"分组；反思卡片新增手动编辑/删除；星图/全部事项/时间轴的悬浮长方形卡片统一渐显渐隐动画 | fix |
