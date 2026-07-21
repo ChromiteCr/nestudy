@@ -31,6 +31,7 @@ export function GraphView({ onNavigate }: GraphViewProps) {
   const profile = usePlanningStore((s) => s.profile)
   const narrativeEdges = usePlanningStore((s) => s.narrativeEdges)
   const graphMeta = usePlanningStore((s) => s.graphMeta)
+  const reflections = usePlanningStore((s) => s.reflections)
   const updateProfile = usePlanningStore((s) => s.updateProfile)
   const setNodeMeta = usePlanningStore((s) => s.setNodeMeta)
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
@@ -40,7 +41,10 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     for (const [id, m] of Object.entries(graphMeta)) if (m.shell !== undefined) o[id] = m.shell
     return o
   }, [graphMeta])
-  const nodes = useMemo(() => buildSphereNodes(activities, profile, shellOverride), [activities, profile, shellOverride])
+  const nodes = useMemo(
+    () => buildSphereNodes(activities, profile, shellOverride, reflections),
+    [activities, profile, shellOverride, reflections],
+  )
   const isEmpty = nodes.length === 0
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -171,7 +175,7 @@ export function GraphView({ onNavigate }: GraphViewProps) {
     setLayouting(true)
     try {
       const items = nodes
-        .filter((n) => n.kind !== 'major')
+        .filter((n) => n.kind !== 'major' && n.kind !== 'reflection')
         .map((n) => ({ id: n.id, label: n.label, kind: n.kind }))
       const byLabel = await suggestShells(
         items.map((it) => ({ label: it.label, kind: it.kind })),
@@ -321,7 +325,7 @@ export function GraphView({ onNavigate }: GraphViewProps) {
               style={{ left: clamp(selectedNode.sx + 16, 8, size.w - 256), top: clamp(selectedNode.sy - 20, 8, size.h - 160) }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <NodeCard node={selectedNode} onClose={() => setSelected(null)} />
+              <NodeCard node={selectedNode} onClose={() => setSelected(null)} onNavigate={onNavigate} />
             </div>
           )}
           {/* 选中边卡片 */}

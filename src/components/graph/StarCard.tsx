@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, Pencil, Sparkles, Trash2, X } from 'lucide-react'
+import { Loader2, NotebookPen, Pencil, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlanningStore } from '@/stores/planningStore'
+import { useReflectionUiStore } from '@/stores/reflectionUiStore'
 import { regenerateEdgeReason, regenerateNodeBlurb } from '@/lib/ai/graph-ai'
 import { effectiveMajors } from './sphere-model'
-import type { NarrativeEdge } from '@/types'
+import type { AppView, NarrativeEdge } from '@/types'
 import type { ProjectedNode } from './sphere-model'
 
 const SHELL_CHIPS: { shell: number; label: string }[] = [
@@ -16,12 +17,48 @@ const SHELL_CHIPS: { shell: number; label: string }[] = [
 ]
 
 /** 星点卡片：圆形点击后变形为圆角卡，展示名称+详情，支持手动编辑 / AI 重新生成 */
-export function NodeCard({ node, onClose }: { node: ProjectedNode; onClose: () => void }) {
+export function NodeCard({
+  node,
+  onClose,
+  onNavigate,
+}: {
+  node: ProjectedNode
+  onClose: () => void
+  onNavigate: (view: AppView) => void
+}) {
   const activities = usePlanningStore((s) => s.activities)
   const profile = usePlanningStore((s) => s.profile)
+  const reflections = usePlanningStore((s) => s.reflections)
   const graphMeta = usePlanningStore((s) => s.graphMeta)
   const setNodeMeta = usePlanningStore((s) => s.setNodeMeta)
   const updateProfile = usePlanningStore((s) => s.updateProfile)
+  const setPendingOpenId = useReflectionUiStore((s) => s.setPendingOpenId)
+
+  if (node.kind === 'reflection') {
+    const reflection = reflections.find((r) => `reflection:${r.id}` === node.id)
+    return (
+      <CardFrame onClose={onClose}>
+        <div className="flex items-center gap-1.5">
+          <span className="size-2.5 shrink-0 rounded-full" style={{ background: node.color }} />
+          <span className="font-medium">{node.label}</span>
+        </div>
+        <p className="line-clamp-4 text-xs text-muted-foreground">{reflection?.summary || '（反思内容缺失）'}</p>
+        <div className="flex items-center gap-1 border-t pt-2">
+          <Button
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => {
+              if (reflection) setPendingOpenId(reflection.id)
+              onNavigate('reflection')
+            }}
+          >
+            <NotebookPen className="size-3" />
+            查看完整反思
+          </Button>
+        </div>
+      </CardFrame>
+    )
+  }
 
   const meta = graphMeta[node.id]
   const derived = derivedDetail(node, activities, profile)

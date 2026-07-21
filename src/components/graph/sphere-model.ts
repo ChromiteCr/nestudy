@@ -1,6 +1,6 @@
-import type { Activity, ActivityCategory, StudentProfile } from '@/types'
+import type { Activity, ActivityCategory, Reflection, StudentProfile } from '@/types'
 
-export type SphereNodeKind = 'major' | 'activity' | 'course'
+export type SphereNodeKind = 'major' | 'activity' | 'course' | 'reflection'
 
 export interface SphereNode {
   id: string
@@ -38,6 +38,9 @@ export const CATEGORY_HEX: Record<ActivityCategory, string> = {
   other: '#64748b',
 }
 const COURSE_HEX = '#94a3b8'
+const REFLECTION_HEX = '#8890b5'
+/** 反思卫星绕父活动的偏移半径（同一 XZ 平面内的小环，与父活动同一层，不参与轨道分层系统） */
+const SATELLITE_RADIUS = 34
 
 const SHELL_RADIUS = [0, 120, 210, 290]
 /** 轨道系默认俯视倾角（弧度）：让轨道环呈椭圆，减少 3D 眩晕 */
@@ -73,6 +76,7 @@ export function buildSphereNodes(
   activities: Activity[],
   profile: StudentProfile | null,
   shellOverride: Record<string, number> = {},
+  reflections: Reflection[] = [],
 ): SphereNode[] {
   const majors = effectiveMajors(profile)
   const raw: Omit<SphereNode, 'base'>[] = []
@@ -103,6 +107,17 @@ export function buildSphereNodes(
       color: COURSE_HEX,
     })
   }
+  // 未关联活动的反思：并入外层未分类区，走标准分层（建立关联后会被下面的卫星逻辑接管）
+  for (const r of reflections.filter((x) => !x.activityId)) {
+    const id = `reflection:${r.id}`
+    raw.push({
+      id,
+      kind: 'reflection',
+      label: r.title,
+      shell: shellOverride[id] ?? 3,
+      color: REFLECTION_HEX,
+    })
+  }
 
   // 按层分组后分配球面坐标
   const byShell = new Map<number, Omit<SphereNode, 'base'>[]>()
@@ -123,6 +138,31 @@ export function buildSphereNodes(
       nodes.push({ ...n, base })
     })
   }
+
+  // 关联到活动的反思：作为卫星，基准坐标 = 父活动坐标 + 小半径偏移，复用同一套旋转/投影管线
+  const linkedByActivity = new Map<string, Reflection[]>()
+  for (const r of reflections) {
+    if (!r.activityId) continue
+    const list = linkedByActivity.get(r.activityId) ?? []
+    list.push(r)
+    linkedByActivity.set(r.activityId, list)
+  }
+  for (const [activityId, list] of linkedByActivity) {
+    const parent = nodes.find((n) => n.id === `activity:${activityId}`)
+    if (!parent) continue
+    list.forEach((r, i) => {
+      const [ox, oy, oz] = ringPoint(i, list.length, SATELLITE_RADIUS, 0.3)
+      nodes.push({
+        id: `reflection:${r.id}`,
+        kind: 'reflection',
+        label: r.title,
+        shell: -1,
+        color: REFLECTION_HEX,
+        base: [parent.base[0] + ox, parent.base[1] + oy, parent.base[2] + oz],
+      })
+    })
+  }
+
   return nodes
 }
 
@@ -165,10 +205,12 @@ export function projectNodes(
     const y2 = y * cosX - z1 * sinX
     const z2 = y * sinX + z1 * cosX
     const t = (z2 + maxR) / (2 * maxR) // 0..1
-    const baseR = n.shell === 0 ? 24 : n.shell === 1 ? 16 : n.shell === 2 ? 12 : 9
-    // 中心专业方向恒定最大最亮；其余按深度渐变
     const isCenter = n.shell === 0
+    const isReflection = n.kind === 'reflection'
+    // 反思卫星视觉上更小更暗，避免抢主星的视觉重量
+    const baseR = isReflection ? 6 : n.shell === 0 ? 24 : n.shell === 1 ? 16 : n.shell === 2 ? 12 : 9
     const depthScale = isCenter ? 1.1 : 0.62 + t * 0.6
+    const dim = isReflection ? 0.7 : 1
     return {
       ...n,
       sx: cx + x1 * zoom,
@@ -176,7 +218,7 @@ export function projectNodes(
       depth: isCenter ? maxR + 1 : z2, // 中心始终渲染在最前
       t,
       radius: baseR * depthScale * zoom,
-      opacity: isCenter ? 1 : 0.45 + t * 0.55,
+      opacity: (isCenter ? 1 : 0.45 + t * 0.55) * dim,
     }
   })
   // 后到前渲染
