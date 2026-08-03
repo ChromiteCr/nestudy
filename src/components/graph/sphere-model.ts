@@ -85,7 +85,7 @@ export function buildSphereNodes(
     raw.push({ id: `major:${i}`, kind: 'major', label: m, shell: 0, color: 'var(--primary)' }),
   )
   for (const a of activities) {
-    const id = `activity:${a.id}`
+    const id = `event:${a.id}`
     raw.push({
       id,
       kind: 'activity',
@@ -148,7 +148,7 @@ export function buildSphereNodes(
     linkedByActivity.set(r.activityId, list)
   }
   for (const [activityId, list] of linkedByActivity) {
-    const parent = nodes.find((n) => n.id === `activity:${activityId}`)
+    const parent = nodes.find((n) => n.id === `event:${activityId}`)
     if (!parent) continue
     list.forEach((r, i) => {
       const [ox, oy, oz] = ringPoint(i, list.length, SATELLITE_RADIUS, 0.3)

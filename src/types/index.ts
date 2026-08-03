@@ -47,11 +47,12 @@ export function isProfileEmpty(p: StudentProfile): boolean {
   )
 }
 
-// ---- 日程与任务（分表：DDL 是"事实"，任务是"行动"） ----
+// ---- 日程与任务（S6 前的分表模型；现为 GrowthEvent 的兼容投影，S7 删除） ----
 
 export type EventType = 'exam' | 'deadline' | 'activity'
 export type DataSource = 'manual' | 'import' | 'ai'
 
+/** @deprecated S6 起由 GrowthEvent 投影而来，仅供旧视图使用 */
 export interface EventItem {
   id: string
   title: string
@@ -94,6 +95,7 @@ export const ACTIVITY_LEVEL_LABEL: Record<ActivityLevel, string> = {
   international: '国际级',
 }
 
+/** @deprecated S6 起由 GrowthEvent(kind='long') 投影而来，仅供旧视图使用 */
 export interface Activity {
   id: string
   title: string
@@ -111,11 +113,114 @@ export interface Activity {
   createdAt: number
 }
 
+// ---- 统一事项 GrowthEvent（S6：任务 / DDL / 考试 / 活动合并为一张表） ----
+
+/** 短期 = 一个时间点上的事（任务、DDL、考试）；长期 = 一段跨度（活动、项目） */
+export type EventKind = 'short' | 'long'
+
+/** 短期事项的类别 */
+export type ShortEventCategory = 'task' | 'deadline' | 'exam' | 'application' | 'other'
+
+/** 长期事项复用活动类别，两者合并为事项类别全集 */
+export type EventCategory = ShortEventCategory | ActivityCategory
+
+export type EventStatus = 'pending' | 'done' | 'ongoing' | 'archived'
+
+export const EVENT_CATEGORY_LABEL: Record<EventCategory, string> = {
+  ...ACTIVITY_CATEGORY_LABEL,
+  task: '任务',
+  deadline: '截止',
+  exam: '考试',
+  application: '申请',
+}
+
+/**
+ * 统一事项。短期与长期共用一张表，用 kind 区分：
+ * - 短期：startDate 即截止/发生日，endDate 恒为 null
+ * - 长期：startDate 为开始日，endDate 为 null 表示进行中
+ */
+export interface GrowthEvent {
+  id: string
+  kind: EventKind
+  title: string
+  category: EventCategory
+  /** ISO 日期字符串（yyyy-mm-dd） */
+  startDate: string
+  endDate: string | null
+  status: EventStatus
+  /** 短期专属 */
+  priority?: TaskPriority
+  /** 短期事项挂靠的长期事项 id */
+  parentId?: string
+  /** 以下为长期专属 */
+  role?: string
+  organization?: string
+  description?: string
+  achievements?: string[]
+  level?: ActivityLevel
+  source: DataSource
+  createdAt: number
+}
+
+// ---- 学习资产 Artifact（S6：skill 产物的统一落点，接管原 reflections） ----
+
+export type ArtifactKind = 'reflection' | 'document' | 'cheatsheet' | 'plan' | 'review' | 'essay' | 'code'
+
+export type ArtifactFormat = 'markdown' | 'latex' | 'json' | 'text'
+
+export interface Artifact {
+  id: string
+  kind: ArtifactKind
+  title: string
+  format: ArtifactFormat
+  content: string
+  /** 反思保留结构化问答，不压成纯文本 */
+  qa?: ReflectionQA[]
+  /** 产出它的 skill 名（S8 起写入） */
+  skillName?: string
+  runId?: string
+  /** 关联的画板节点 id */
+  linkedNodeIds: string[]
+  attachments: ReflectionAttachment[]
+  /** 为文书素材检索预留 */
+  tags: string[]
+  createdAt: number
+}
+
+// ---- 画板（S6：替代 3D 星图的 graphNodeMeta / narrativeEdges） ----
+
+export interface CanvasNode {
+  /** 与 GraphNodeId 同一命名空间：event:<id> / course:<id> / school:<id> / reflection:<id> */
+  id: GraphNodeId
+  x: number
+  y: number
+  w?: number
+  h?: number
+  color?: string
+  /** 节点卡片上的一句话注解 */
+  blurb?: string
+}
+
+export interface CanvasEdge {
+  id: string
+  sourceNodeId: GraphNodeId
+  targetNodeId: GraphNodeId
+  /** 为什么连（叙事说明） */
+  label: string
+  /** 连接强度 1-5，决定线的粗细；缺省按 3 */
+  strength?: number
+  /** 绑定的反思/文档 artifact；绑定关系可后补、可解绑 */
+  artifactId?: string
+  source: 'ai' | 'manual'
+  createdAt: number
+}
+
 // ---- 叙事线（成果网络图的边；跨实体稳定引用节点） ----
 
-/** 节点 id 带类型前缀：activity:<id> / course:<id> / school:<id> / (S4) reflection:<id> */
+/** 节点 id 带类型前缀：event:<id> / course:<id> / school:<id> / reflection:<id>（S6 前活动节点为 activity:<id>） */
 export type GraphNodeId = string
 
+/** @deprecated S6 起由 CanvasEdge 投影而来，仅供旧视图使用 */
 export interface NarrativeEdge {
   id: string
   sourceNodeId: GraphNodeId
@@ -128,7 +233,10 @@ export interface NarrativeEdge {
   createdAt: number
 }
 
-/** 星图节点的叠加元数据：分层覆盖 + 星图专属注解（不改动底层活动/课程实体） */
+/**
+ * 星图节点的叠加元数据。
+ * @deprecated S6 起 blurb 落在 CanvasNode 上，shell/pinned 随 3D 星图一起在 S7 移除
+ */
 export interface GraphNodeMeta {
   nodeId: GraphNodeId
   /** 手动/AI 分层覆盖默认层 */
@@ -156,6 +264,7 @@ export interface ReflectionAttachment {
   ref: string
 }
 
+/** @deprecated S6 起由 Artifact(kind='reflection') 投影而来，仅供旧视图使用 */
 export interface Reflection {
   id: string
   title: string
@@ -184,6 +293,7 @@ export interface ReflectionProposedEdge {
 export type TaskPriority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'pending' | 'completed'
 
+/** @deprecated S6 起由 GrowthEvent(kind='short', category='task') 投影而来，仅供旧视图使用 */
 export interface Task {
   id: string
   title: string
@@ -327,6 +437,7 @@ export interface ExportBundle {
   messages: Message[]
   /** v2 起包含；旧备份导入时按空处理 */
   profile?: StudentProfile
+  /** v2–v5 的分表字段。v6 起不再导出，但导入时仍需读取并迁移 */
   events?: EventItem[]
   tasks?: Task[]
   /** v3 起包含 */
@@ -336,6 +447,11 @@ export interface ExportBundle {
   graphNodeMeta?: GraphNodeMeta[]
   /** v5 起包含 */
   reflections?: Reflection[]
+  /** v6 起包含：统一后的事项 / 资产 / 画板 */
+  growthEvents?: GrowthEvent[]
+  artifacts?: Artifact[]
+  canvasNodes?: CanvasNode[]
+  canvasEdges?: CanvasEdge[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

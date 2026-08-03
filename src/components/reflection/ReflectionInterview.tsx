@@ -58,7 +58,7 @@ export function ReflectionInterview({ initialActivityId, onDone, onCancel }: Ref
     setStep({ kind: 'summarizing' })
     try {
       const nodes = buildSphereNodes(activities, profile)
-      const otherLabels = nodes.filter((n) => n.id !== `activity:${activityId}`).map((n) => n.label)
+      const otherLabels = nodes.filter((n) => n.id !== `event:${activityId}`).map((n) => n.label)
       const result = await generateReflectionSummary({
         qa: finalQa,
         activityTitle: activity?.title,

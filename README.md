@@ -42,6 +42,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S6 | 2026-08-02 | 数据层统一：任务/日程/活动合并为 growthEvents（短期+长期），反思并入 artifacts，星图元数据换成 canvasNodes/canvasEdges；Dexie v6 首个 upgrade 函数（含 activity: → event: 节点 id 前缀改写），导出升级到 v6 且导入兼容 v5 旧备份；旧视图经兼容层零改动继续运行 | milestone |
 | S5b | 2026-08-02 | 前端迁移到自有域名 app.nestudy.cn：新增 public/CNAME，vite base 由 '/studynest/' 改为 '/' | feat |
 | S5a2 | 2026-07-21 | 修复面板点击具体任务/DDL 不跳转到对应内容：任务页 Tabs 原来是无状态、每次挂载都重置成「今日」页；新增 taskUiStore 预置目标 tab + 定位 id，面板点击任务行/DDL 行会跳转任务页、切到正确 tab 并滚动高亮 | fix |
 | S5a1 | 2026-07-21 | 修复 GitHub Pages 部署空白页：仓库 Pages Source 一直是"Deploy from a branch"（旧式），导致线上服务未构建的原始 index.html；在 deploy.yml 标注该前置条件，指导切到"GitHub Actions"后部署恢复正常 | fix |

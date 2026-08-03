@@ -341,7 +341,7 @@ function derivedDetail(
 ): string {
   if (node.kind === 'major') return '你申请的专业方向'
   if (node.kind === 'activity') {
-    const a = activities.find((x) => `activity:${x.id}` === node.id)
+    const a = activities.find((x) => `event:${x.id}` === node.id)
     if (!a) return ''
     return a.description || a.achievements.join('、') || [a.role, a.organization].filter(Boolean).join(' · ')
   }
