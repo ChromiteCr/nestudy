@@ -3,13 +3,8 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatView } from '@/components/chat/ChatView'
-import { DashboardView } from '@/components/dashboard/DashboardView'
-import { SettingsDialog, type SettingsCategory } from '@/components/settings/SettingsDialog'
-import { TasksView } from '@/components/tasks/TasksView'
-import { ActivitiesView } from '@/components/activities/ActivitiesView'
-import { TimelineView } from '@/components/timeline/TimelineView'
-import { GraphView } from '@/components/graph/GraphView'
-import { ReflectionStudioView } from '@/components/reflection/ReflectionStudioView'
+import { CanvasView } from '@/components/canvas/CanvasView'
+import { SettingsView } from '@/components/settings/SettingsView'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useReminderStore } from '@/stores/reminderStore'
@@ -17,22 +12,15 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import type { AppView } from '@/types'
 
 export default function App() {
-  const [view, setView] = useState<AppView>('dashboard')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>('model')
+  const [view, setView] = useState<AppView>('chat')
   const settingsLoaded = useSettingsStore((s) => s.loaded)
-
-  const openSettings = (category: SettingsCategory = 'model') => {
-    setSettingsCategory(category)
-    setSettingsOpen(true)
-  }
 
   useEffect(() => {
     // 申请持久化存储资格，降低浏览器在磁盘紧张时自动清除 IndexedDB/OPFS 的风险
     void navigator.storage?.persist?.()
     void useSettingsStore.getState().load()
     void useChatStore.getState().init()
-    // 规则引擎依赖档案/任务/事件，等 planning 加载完再算提醒
+    // 规则引擎依赖档案/事项，等 planning 加载完再算提醒
     void usePlanningStore
       .getState()
       .load()
@@ -44,21 +32,11 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-dvh bg-background text-foreground">
-        <Sidebar view={view} onViewChange={setView} onOpenSettings={() => openSettings()} />
-        {view === 'dashboard' && <DashboardView onNavigate={setView} onOpenSettings={openSettings} />}
-        {view === 'chat' && <ChatView onOpenSettings={() => openSettings('model')} />}
-        {view === 'tasks' && <TasksView />}
-        {view === 'activities' && <ActivitiesView onNavigate={setView} />}
-        {view === 'timeline' && <TimelineView onNavigate={setView} />}
-        {view === 'graph' && <GraphView onNavigate={setView} />}
-        {view === 'reflection' && <ReflectionStudioView onNavigate={setView} />}
+        <Sidebar view={view} onViewChange={setView} />
+        {view === 'chat' && <ChatView onOpenSettings={() => setView('settings')} />}
+        {view === 'canvas' && <CanvasView />}
+        {view === 'settings' && <SettingsView />}
       </div>
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        category={settingsCategory}
-        onCategoryChange={setSettingsCategory}
-      />
       <Toaster position="top-center" />
     </TooltipProvider>
   )

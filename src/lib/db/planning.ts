@@ -64,7 +64,7 @@ export async function saveProfile(patch: Partial<Omit<StudentProfile, 'id'>>): P
 
 // ---- 事项 ↔ 旧形状 ----
 
-function toTask(e: GrowthEvent): Task {
+export function toTask(e: GrowthEvent): Task {
   return {
     id: e.id,
     title: e.title,
@@ -77,7 +77,7 @@ function toTask(e: GrowthEvent): Task {
   }
 }
 
-function toEventItem(e: GrowthEvent): EventItem {
+export function toEventItem(e: GrowthEvent): EventItem {
   return {
     id: e.id,
     title: e.title,
@@ -89,7 +89,7 @@ function toEventItem(e: GrowthEvent): EventItem {
   }
 }
 
-function toActivity(e: GrowthEvent): Activity {
+export function toActivity(e: GrowthEvent): Activity {
   return {
     id: e.id,
     title: e.title,
@@ -106,8 +106,8 @@ function toActivity(e: GrowthEvent): Activity {
   }
 }
 
-const isTaskEvent = (e: GrowthEvent) => e.kind === 'short' && e.category === 'task'
-const isScheduleEvent = (e: GrowthEvent) => e.kind === 'short' && e.category !== 'task'
+export const isTaskEvent = (e: GrowthEvent) => e.kind === 'short' && e.category === 'task'
+export const isScheduleEvent = (e: GrowthEvent) => e.kind === 'short' && e.category !== 'task'
 
 // ---- 日程事件 ----
 
@@ -252,7 +252,7 @@ export async function deleteActivity(id: string): Promise<void> {
 
 // ---- 叙事线 → 画板的边 ----
 
-function toNarrativeEdge(e: CanvasEdge): NarrativeEdge {
+export function toNarrativeEdge(e: CanvasEdge): NarrativeEdge {
   return {
     id: e.id,
     sourceNodeId: e.sourceNodeId,
@@ -299,7 +299,7 @@ export async function saveGraphNodeMeta(
 
 // ---- 反思 → 资产 ----
 
-function toReflection(a: Artifact): Reflection {
+export function toReflection(a: Artifact): Reflection {
   const activityNode = a.linkedNodeIds.find((n) => n.startsWith('event:'))
   return {
     id: a.id,

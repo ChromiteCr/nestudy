@@ -1,7 +1,12 @@
 // ---- 界面 ----
 
-/** 主界面视图。后续阶段追加：skills(S5) */
-export type AppView = 'dashboard' | 'chat' | 'tasks' | 'activities' | 'timeline' | 'graph' | 'reflection'
+/**
+ * 主界面视图。S7 起收敛为三项：
+ * - chat：唯一的操作入口（含主动提醒与 skill 会话）
+ * - canvas：唯一的数据视图（事项是节点，反思是边）
+ * - settings：配置
+ */
+export type AppView = 'chat' | 'canvas' | 'settings'
 
 // ---- 学生档案 ----
 

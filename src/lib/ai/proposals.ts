@@ -1,6 +1,6 @@
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
-import { buildSphereNodes, resolveLabelToNodeId } from '@/components/graph/sphere-model'
+import { listNodeLabels, resolveLabelToNodeId } from '@/components/canvas/canvas-model'
 import type {
   ActivityCategory,
   ActivityLevel,
@@ -207,8 +207,8 @@ export function parseNarrativeArgs(rawArgs: string): ProposedEdge[] {
   const args = JSON.parse(rawArgs) as {
     edges?: { source?: string; target?: string; reason?: string; strength?: number }[]
   }
-  const { activities, profile } = usePlanningStore.getState()
-  const nodes = buildSphereNodes(activities, profile)
+  const { growthEvents, profile } = usePlanningStore.getState()
+  const nodes = listNodeLabels(growthEvents, profile)
   return (args.edges ?? [])
     .filter((e) => e.source?.trim() && e.target?.trim())
     .map((e) => ({
@@ -240,22 +240,6 @@ export async function applyNarrativeProposal(edges: ProposedEdge[]): Promise<str
   return `已连接 ${count} 条叙事线`
 }
 
-/** 解析反思总结生成结果中的建议边为可编辑提案（按当前节点标题解析到 node id） */
-export function parseReflectionEdges(result: {
-  edges: { targetLabel: string; reason: string; strength: number }[]
-}): ReflectionProposedEdge[] {
-  const { activities, profile } = usePlanningStore.getState()
-  const nodes = buildSphereNodes(activities, profile)
-  return result.edges.map((e) => ({
-    include: true,
-    targetLabel: e.targetLabel,
-    reason: e.reason,
-    strength: e.strength,
-    targetNodeId: resolveLabelToNodeId(e.targetLabel, nodes),
-  }))
-}
-
-/** 用户确认反思草稿：写入反思条目，再写入勾选的叙事线（source 固定为这条反思本身） */
 export async function applyReflectionDraft(input: {
   title: string
   trigger: ReflectionTrigger

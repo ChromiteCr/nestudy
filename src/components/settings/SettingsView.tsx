@@ -1,18 +1,12 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Upload, X } from 'lucide-react'
+import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Mono } from '@/components/ui/mono'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useChatStore } from '@/stores/chatStore'
+import { usePlanningStore } from '@/stores/planningStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
@@ -27,63 +21,48 @@ const CATEGORIES: { key: SettingsCategory; label: string; icon: typeof Cpu }[] =
   { key: 'data', label: '数据', icon: Database },
 ]
 
-interface SettingsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  category: SettingsCategory
-  onCategoryChange: (category: SettingsCategory) => void
+interface SettingsViewProps {
+  initialCategory?: SettingsCategory
 }
 
-/** 设置中心：仿主界面的侧栏分类布局；窄屏时分类横排 */
-export function SettingsDialog({ open, onOpenChange, category, onCategoryChange }: SettingsDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="flex h-[80dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
-      >
-        {/* 自渲染关闭按钮放在标题行内，与标题严格同轴，避免默认绝对定位的 X 压过分隔线 */}
-        <DialogHeader className="min-h-12 flex-row items-center justify-between border-b px-4 py-0">
-          <DialogTitle>设置</DialogTitle>
-          <DialogDescription className="sr-only">学栖设置中心</DialogDescription>
-          <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="size-7" aria-label="关闭设置">
-              <X className="size-4" />
-            </Button>
-          </DialogClose>
-        </DialogHeader>
-        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          {/* 分类侧栏（窄屏横排） */}
-          <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-sidebar p-2 sm:w-36 sm:flex-col sm:border-b-0 sm:border-r">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => onCategoryChange(c.key)}
-                className={cn(
-                  'flex shrink-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-medium',
-                  category === c.key
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent/50',
-                )}
-              >
-                <c.icon className="size-4" />
-                {c.label}
-              </button>
-            ))}
-          </nav>
+/** 设置是三导航之一的独立视图，不再套 Dialog——对话框里再开对话框是上一版的结构债 */
+export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
+  const [category, setCategory] = useState<SettingsCategory>(initialCategory)
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {category === 'model' && <ModelPanel />}
-            {category === 'profile' && (
-              <ProfileForm onSaved={() => toast.success('档案已保存')} />
-            )}
-            {category === 'appearance' && <AppearancePanel />}
-            {category === 'data' && <DataPanel onImported={() => onOpenChange(false)} />}
-          </div>
+  return (
+    <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <header className="flex h-14 shrink-0 items-center border-b px-6">
+        <h1 className="text-lg font-semibold">设置</h1>
+      </header>
+
+      <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+        <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b p-3 sm:w-40 sm:flex-col sm:border-b-0 sm:border-r">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setCategory(c.key)}
+              className={cn(
+                'flex shrink-0 items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
+                category === c.key
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
+              <c.icon className="size-4" />
+              {c.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {category === 'model' && <ModelPanel />}
+          {category === 'profile' && <ProfileForm onSaved={() => toast.success('档案已保存')} />}
+          {category === 'appearance' && <AppearancePanel />}
+          {category === 'data' && <DataPanel />}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </main>
   )
 }
 
@@ -102,6 +81,7 @@ function ModelPanel() {
           type="password"
           value={modelConfig.apiKey}
           placeholder="sk-…"
+          className="font-mono"
           onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
         />
         <span className="text-xs text-muted-foreground">
@@ -110,19 +90,31 @@ function ModelPanel() {
       </label>
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="font-medium">模型</span>
-        <Input value={modelConfig.model} onChange={(e) => void updateModelConfig({ model: e.target.value })} />
+        <Input
+          value={modelConfig.model}
+          className="font-mono"
+          onChange={(e) => void updateModelConfig({ model: e.target.value })}
+        />
       </label>
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="font-medium">API Base URL</span>
-        <Input value={modelConfig.baseURL} onChange={(e) => void updateModelConfig({ baseURL: e.target.value })} />
+        <Input
+          value={modelConfig.baseURL}
+          className="font-mono"
+          onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
+        />
         <span className="text-xs text-muted-foreground">兼容任意 OpenAI 格式的服务商</span>
       </label>
     </div>
   )
 }
 
-function DataPanel({ onImported }: { onImported: () => void }) {
+function DataPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const events = usePlanningStore((s) => s.events)
+  const tasks = usePlanningStore((s) => s.tasks)
+  const activities = usePlanningStore((s) => s.activities)
+  const reflections = usePlanningStore((s) => s.reflections)
 
   const handleExport = async () => {
     downloadJson(await exportAll())
@@ -133,19 +125,23 @@ function DataPanel({ onImported }: { onImported: () => void }) {
     try {
       const bundle = JSON.parse(await file.text())
       await importAll(bundle)
-      await useChatStore.getState().init()
+      await Promise.all([useChatStore.getState().init(), usePlanningStore.getState().load()])
       toast.success('备份已导入')
-      onImported()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '导入失败，请检查文件')
     }
   }
 
   return (
-    <div className="flex max-w-md flex-col gap-3">
+    <div className="flex max-w-md flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         所有数据只存于本机浏览器，建议定期导出备份；导入会覆盖现有数据。
       </p>
+      <dl className="flex flex-col gap-1 border-y py-3 text-sm">
+        <CountRow label="短期事项" value={events.length + tasks.length} />
+        <CountRow label="长期事项" value={activities.length} />
+        <CountRow label="学习资产" value={reflections.length} />
+      </dl>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => void handleExport()}>
           <Download className="size-3.5" />
@@ -167,6 +163,17 @@ function DataPanel({ onImported }: { onImported: () => void }) {
           }}
         />
       </div>
+    </div>
+  )
+}
+
+function CountRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd>
+        <Mono>{value}</Mono>
+      </dd>
     </div>
   )
 }

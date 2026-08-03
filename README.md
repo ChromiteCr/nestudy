@@ -3,14 +3,14 @@
 开源、**本地优先**的 AI Agent，帮助国际部（IB / AP / A-Level）学生做学习规划、背景提升与时间管理。
 
 - 🔒 **数据 100% 本地**：所有数据存于浏览器 IndexedDB，永不上传服务器；支持 JSON 一键导出/导入备份
-- 📊 **面板主界面**：今日任务、近期 DDL 倒计时、档案摘要、主动提醒，打开即见全景
+- 🪶 **极简三导航**：聊天 / 画板 / 设置。聊天是唯一的操作入口，画板是唯一的数据视图
+- 🕸️ **成长画板**：无限画布，事项是节点、关系是边；**反思以「连接两件事的边」呈现**——绑了反思的边加粗带标题，没绑的是发丝虚线，一眼看出你在哪些连接上真正想过
 - 📥 **粘贴即导入**：微信群通知/邮件文字直接粘贴，AI 解析成日程与任务，确认后入库
-- 🤖 **主动式 Agent**：DDL 临近没安排、任务积压、档案缺失——学栖主动开口提醒
+- 🤖 **主动式 Agent**：DDL 临近没安排、任务积压、档案缺失——学栖在对话里主动开口
 - ✅ **提案确认制**：AI 不直接写数据，所有安排以卡片提案，你确认才生效
-- 🏆 **活动档案 + 时间轴**：记录竞赛/社团/科研/成果，学期鸟瞰横向时间轴聚合活动、考试与 DDL
-- 🌌 **成长星图**：倾斜轨道系（同心轨道环 + 节点在环上），中心为专业方向，向外为核心/次要活动与课程；活动都连向专业方向，叙事线粗细随强度；点击星点/边变形为卡片，可手动编辑或 AI 重新生成，AI 一键分层
+- ✍️ **机器声 / 人声**：系统说的话用等宽，你写下的一切用衬线——AI 参与到哪一步，排版上看得见
 - 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
-- 🧩 **Skill 体系**：声明式 JSON skill + 引擎（人设注入/工具收窄），首个官方 skill「招生官读档」；开源 skill 市场规划中
+- 🧩 **Skill 体系**：声明式 skill + 引擎（人设注入/工具收窄），首个官方 skill「招生官读档」；开源 skill 市场规划中
 
 ## 快速开始
 
@@ -23,7 +23,7 @@ npm run dev
 
 ## 技术栈
 
-Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dexie.js (IndexedDB) · @xyflow/react (React Flow) · OpenAI SDK（兼容通道）
+Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dexie.js (IndexedDB) · @xyflow/react（画板）· OpenAI SDK（兼容通道）
 
 ## 路线图
 
@@ -33,15 +33,22 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 | S2 | Profile + 任务 + 主动式 Agent + 粘贴即导入 |
 | S3 | 活动档案 + 时间轴 + 成果网络图 |
 | S4 | Reflection Studio（AI 采访式反思 + 多媒体） |
-| S5 | Skill 系统 |
-| S6 | Skill 市场 |
-| S7 | 文书素材库 + 本地记忆层 + 导出增强 |
+| S5 | Skill 系统 + 迁移到自有域名 app.nestudy.cn |
+| S6 | 数据层统一（事项 / 资产 / 画板三张表） |
+| S7 | 极简界面重构（三导航 + 无边记式画板 + 反思即边） |
+| S8 | Skill Runtime 内核（SKILL.md 加载器 + 开放 Capability 注册表 + 多轮 session） |
+| S9 | 国际申请能力层（申请数据模型 + 参考数据集 + 确定性 tool） |
+| S10 | 首批 P0 skills |
+| S11 | 后端：登录 + AI 转发 + 用量计数 |
+| S12 | Skill 商店 |
+| S13 | Plugin 系统（系统 plugin + 时间轴回归） |
 | 专项 | 模型安全与质量评测（红队 + eval，公开推广前完成） |
 
 ## 版本记录
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S7 | 2026-08-02 | 极简界面重构：左侧导航收敛为聊天/画板/设置三项（56px 图标导轨）；成长星图从 3D 球体重做为「无边记」式无限画板，反思以「连接两件事的边」呈现（绑定的边加粗带标题，未绑定的是发丝虚线）；面板/任务/活动/时间轴/反思工作室五个视图删除，主动提醒迁入聊天；设计系统换为衬线正文（Source Serif 4 + 思源宋体）+ 等宽机器声，界面无彩、只有画板数据有颜色 | milestone |
 | S6 | 2026-08-02 | 数据层统一：任务/日程/活动合并为 growthEvents（短期+长期），反思并入 artifacts，星图元数据换成 canvasNodes/canvasEdges；Dexie v6 首个 upgrade 函数（含 activity: → event: 节点 id 前缀改写），导出升级到 v6 且导入兼容 v5 旧备份；旧视图经兼容层零改动继续运行 | milestone |
 | S5b | 2026-08-02 | 前端迁移到自有域名 app.nestudy.cn：新增 public/CNAME，vite base 由 '/studynest/' 改为 '/' | feat |
 | S5a2 | 2026-07-21 | 修复面板点击具体任务/DDL 不跳转到对应内容：任务页 Tabs 原来是无状态、每次挂载都重置成「今日」页；新增 taskUiStore 预置目标 tab + 定位 id，面板点击任务行/DDL 行会跳转任务页、切到正确 tab 并滚动高亮 | fix |

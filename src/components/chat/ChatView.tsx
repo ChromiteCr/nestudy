@@ -3,8 +3,10 @@ import { RotateCcw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
+import { ReminderStrip } from './ReminderStrip'
 import { SkillBar } from './SkillBar'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
@@ -39,16 +41,18 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
+      <ChatHeader />
+      <ReminderStrip />
       <SkillBar />
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
+        <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
           {messages.length === 0 && (
             <div className="flex flex-col items-center gap-3 py-20 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Sparkles className="size-6 text-primary" />
+              <div className="flex size-12 items-center justify-center rounded-sm bg-accent">
+                <Sparkles className="size-5 text-muted-foreground" />
               </div>
-              <h2 className="font-heading text-lg font-semibold">你好，我是学栖</h2>
-              <p className="max-w-md text-sm text-muted-foreground">
+              <h2 className="text-lg font-semibold">你好，我是学栖</h2>
+              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
                 我帮国际部学生做学习规划、背景提升和时间管理。
                 {hasKey ? '说说你现在最想解决的事？' : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
               </p>

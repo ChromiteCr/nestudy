@@ -1,182 +1,81 @@
-import {
-  CalendarRange,
-  LayoutDashboard,
-  ListTodo,
-  MessageSquare,
-  MessageSquarePlus,
-  Network,
-  NotebookPen,
-  Settings,
-  Trash2,
-  Trophy,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { useChatStore } from '@/stores/chatStore'
+import { MessageSquare, Settings, Waypoints } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
 
 interface SidebarProps {
   view: AppView
   onViewChange: (view: AppView) => void
-  onOpenSettings: () => void
 }
 
-export function Sidebar({ view, onViewChange, onOpenSettings }: SidebarProps) {
-  const conversations = useChatStore((s) => s.conversations)
-  const activeId = useChatStore((s) => s.activeId)
-  const selectConversation = useChatStore((s) => s.selectConversation)
-  const newConversation = useChatStore((s) => s.newConversation)
-  const removeConversation = useChatStore((s) => s.removeConversation)
-
+/**
+ * 56px 图标导轨。不做 240px 带文字的侧栏——画板要最大宽度，
+ * 而三个目标少到不需要常驻文字标签。
+ */
+export function Sidebar({ view, onViewChange }: SidebarProps) {
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2 px-4 py-3">
-        <div className="flex size-7 items-center justify-center rounded-md bg-primary font-heading text-sm font-bold text-primary-foreground">
-          栖
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="font-heading text-sm font-semibold">学栖</span>
-          <span className="text-[10px] text-muted-foreground">StudyNest</span>
-        </div>
+    <aside className="flex h-full w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
+      <div className="flex size-8 items-center justify-center rounded-sm bg-primary text-sm font-semibold text-primary-foreground">
+        栖
       </div>
 
-      {/* 主导航 */}
-      <nav className="flex flex-col gap-0.5 px-3 pb-2">
-        <NavItem
-          icon={LayoutDashboard}
-          label="面板"
-          active={view === 'dashboard'}
-          onClick={() => onViewChange('dashboard')}
-        />
-        <NavItem
+      <nav className="mt-6 flex flex-col gap-1">
+        <RailItem
           icon={MessageSquare}
-          label="对话"
+          label="聊天"
           active={view === 'chat'}
           onClick={() => onViewChange('chat')}
         />
-        <NavItem
-          icon={ListTodo}
-          label="任务"
-          active={view === 'tasks'}
-          onClick={() => onViewChange('tasks')}
-        />
-        <NavItem
-          icon={Trophy}
-          label="活动"
-          active={view === 'activities'}
-          onClick={() => onViewChange('activities')}
-        />
-        <NavItem
-          icon={CalendarRange}
-          label="时间轴"
-          active={view === 'timeline'}
-          onClick={() => onViewChange('timeline')}
-        />
-        <NavItem
-          icon={Network}
-          label="成果网络"
-          active={view === 'graph'}
-          onClick={() => onViewChange('graph')}
-        />
-        <NavItem
-          icon={NotebookPen}
-          label="反思"
-          active={view === 'reflection'}
-          onClick={() => onViewChange('reflection')}
+        <RailItem
+          icon={Waypoints}
+          label="画板"
+          active={view === 'canvas'}
+          onClick={() => onViewChange('canvas')}
         />
       </nav>
 
-      <Separator />
+      <div className="flex-1" />
 
-      {/* 对话视图下显示会话列表 */}
-      {view === 'chat' ? (
-        <>
-          <div className="px-3 pb-2 pt-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              size="sm"
-              onClick={() => void newConversation()}
-            >
-              <MessageSquarePlus className="size-4" />
-              新会话
-            </Button>
-          </div>
-          <ScrollArea className="min-h-0 flex-1 px-3">
-            <div className="flex flex-col gap-0.5 pb-2">
-              {conversations.map((c) => (
-                <div
-                  key={c.id}
-                  className={cn(
-                    'group flex items-center gap-1 rounded-md text-sm',
-                    c.id === activeId
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'hover:bg-sidebar-accent/50',
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 truncate px-2 py-1.5 text-left"
-                    onClick={() => void selectConversation(c.id)}
-                  >
-                    {c.title}
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-6 shrink-0 opacity-0 group-hover:opacity-100"
-                    aria-label="删除会话"
-                    onClick={() => void removeConversation(c.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
-              {conversations.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">还没有会话</p>
-              )}
-            </div>
-          </ScrollArea>
-        </>
-      ) : (
-        <div className="min-h-0 flex-1" />
-      )}
-
-      <Separator />
-
-      <div className="px-3 py-2">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2" onClick={onOpenSettings}>
-          <Settings className="size-4" />
-          设置
-        </Button>
-      </div>
+      <RailItem
+        icon={Settings}
+        label="设置"
+        active={view === 'settings'}
+        onClick={() => onViewChange('settings')}
+      />
     </aside>
   )
 }
 
-interface NavItemProps {
-  icon: typeof LayoutDashboard
+interface RailItemProps {
+  icon: typeof MessageSquare
   label: string
   active: boolean
   onClick: () => void
 }
 
-function NavItem({ icon: Icon, label, active, onClick }: NavItemProps) {
+function RailItem({ icon: Icon, label, active, onClick }: RailItemProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium',
-        active
-          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-          : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-      )}
-    >
-      <Icon className="size-4" />
-      {label}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={label}
+          aria-current={active ? 'page' : undefined}
+          className={cn(
+            'flex size-9 items-center justify-center rounded-sm transition-colors',
+            active
+              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+              : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground',
+          )}
+        >
+          <Icon className="size-[18px]" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        <Mono>{label}</Mono>
+      </TooltipContent>
+    </Tooltip>
   )
 }
