@@ -5,8 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub Pages 子路径部署（需与仓库名一致）；备案后迁移北京服务器时改为 '/'
-  base: '/studynest/',
+  // 自定义域根路径部署（public/CNAME → app.nestudy.cn）。
+  // 若日后退回 <user>.github.io/studynest/ 子路径，改回 '/studynest/' 并删掉 public/CNAME。
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
