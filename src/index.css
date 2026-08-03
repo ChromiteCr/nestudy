@@ -73,92 +73,94 @@
  * 饱和色只出现在画板节点与焦点态，signature 是学生自选的画板签名色。
  */
 :root {
-    --background: oklch(0.985 0.003 160);
-    --foreground: oklch(0.16 0.008 160);
-    --card: oklch(1 0.002 160);
-    --card-foreground: oklch(0.16 0.008 160);
-    --popover: oklch(1 0.002 160);
-    --popover-foreground: oklch(0.16 0.008 160);
-    --primary: oklch(0.16 0.008 160);
-    --primary-foreground: oklch(0.985 0.003 160);
-    --secondary: oklch(0.955 0.004 160);
-    --secondary-foreground: oklch(0.16 0.008 160);
-    --muted: oklch(0.955 0.004 160);
-    --muted-foreground: oklch(0.55 0.006 160);
+    /* 底色不取纯白、正文不取近黑：长时间看画板和长文，两端拉满会发涩 */
+    --background: oklch(0.972 0.004 160);
+    --foreground: oklch(0.27 0.011 160);
+    --card: oklch(0.992 0.003 160);
+    --card-foreground: oklch(0.27 0.011 160);
+    --popover: oklch(0.992 0.003 160);
+    --popover-foreground: oklch(0.27 0.011 160);
+    --primary: oklch(0.32 0.013 160);
+    --primary-foreground: oklch(0.98 0.003 160);
+    --secondary: oklch(0.945 0.005 160);
+    --secondary-foreground: oklch(0.27 0.011 160);
+    --muted: oklch(0.945 0.005 160);
+    --muted-foreground: oklch(0.56 0.007 160);
     /* shadcn 的 accent 是 hover 底色，不是品牌色——保持中性，别把全站 hover 染绿 */
-    --accent: oklch(0.945 0.005 160);
-    --accent-foreground: oklch(0.16 0.008 160);
-    --destructive: oklch(0.55 0.19 25);
-    --border: oklch(0.90 0.005 160);
-    --input: oklch(0.90 0.005 160);
+    --accent: oklch(0.935 0.006 160);
+    --accent-foreground: oklch(0.27 0.011 160);
+    --destructive: oklch(0.58 0.145 25);
+    --border: oklch(0.905 0.006 160);
+    --input: oklch(0.905 0.006 160);
     /* 学生自选的签名色：只用于画板与焦点态（lib/theme.ts 覆写这一条） */
-    --signature: oklch(0.55 0.12 165);
+    --signature: oklch(0.60 0.085 165);
     --ring: var(--signature);
     --chart-1: oklch(0.87 0.004 160);
     --chart-2: oklch(0.556 0.006 160);
     --chart-3: oklch(0.439 0.006 160);
     --chart-4: oklch(0.371 0.007 160);
     --chart-5: oklch(0.269 0.008 160);
-    --radius: 0.25rem;
-    --sidebar: oklch(0.965 0.004 160);
-    --sidebar-foreground: oklch(0.16 0.008 160);
-    --sidebar-primary: oklch(0.16 0.008 160);
-    --sidebar-primary-foreground: oklch(0.985 0.003 160);
-    --sidebar-accent: oklch(0.93 0.006 160);
-    --sidebar-accent-foreground: oklch(0.16 0.008 160);
-    --sidebar-border: oklch(0.90 0.005 160);
+    --radius: 0.5rem;
+    --sidebar: oklch(0.952 0.005 160);
+    --sidebar-foreground: oklch(0.27 0.011 160);
+    --sidebar-primary: oklch(0.32 0.013 160);
+    --sidebar-primary-foreground: oklch(0.98 0.003 160);
+    --sidebar-accent: oklch(0.918 0.007 160);
+    --sidebar-accent-foreground: oklch(0.27 0.011 160);
+    --sidebar-border: oklch(0.905 0.006 160);
     --sidebar-ring: var(--signature);
 
     /* 画板类别色：6 个色相取在同一 L/C 上，保证节点视觉权重相等，
-       不会因为配色让某一类事项显得比别的重要 */
-    --canvas-1: oklch(0.62 0.11 250);
-    --canvas-2: oklch(0.62 0.11 25);
-    --canvas-3: oklch(0.62 0.11 160);
-    --canvas-4: oklch(0.62 0.11 305);
-    --canvas-5: oklch(0.62 0.11 200);
-    --canvas-6: oklch(0.62 0.11 75);
+       不会因为配色让某一类事项显得比别的重要。彩度压低，避免小色条太扎眼 */
+    --canvas-1: oklch(0.655 0.085 250);
+    --canvas-2: oklch(0.655 0.085 25);
+    --canvas-3: oklch(0.655 0.085 160);
+    --canvas-4: oklch(0.655 0.085 305);
+    --canvas-5: oklch(0.655 0.085 200);
+    --canvas-6: oklch(0.655 0.085 75);
 }
 
 .dark {
-    --background: oklch(0.15 0.006 160);
-    --foreground: oklch(0.965 0.003 160);
-    --card: oklch(0.195 0.007 160);
-    --card-foreground: oklch(0.965 0.003 160);
-    --popover: oklch(0.195 0.007 160);
-    --popover-foreground: oklch(0.965 0.003 160);
-    --primary: oklch(0.92 0.004 160);
-    --primary-foreground: oklch(0.18 0.007 160);
-    --secondary: oklch(0.255 0.007 160);
-    --secondary-foreground: oklch(0.965 0.003 160);
-    --muted: oklch(0.255 0.007 160);
-    --muted-foreground: oklch(0.68 0.006 160);
-    --accent: oklch(0.27 0.008 160);
-    --accent-foreground: oklch(0.965 0.003 160);
-    --destructive: oklch(0.68 0.17 25);
-    --border: oklch(1 0 0 / 12%);
-    --input: oklch(1 0 0 / 16%);
-    --signature: oklch(0.70 0.13 165);
+    /* 底色抬离纯黑、正文压离纯白：暗色下的极端对比比亮色更刺眼 */
+    --background: oklch(0.205 0.008 160);
+    --foreground: oklch(0.915 0.005 160);
+    --card: oklch(0.245 0.009 160);
+    --card-foreground: oklch(0.915 0.005 160);
+    --popover: oklch(0.245 0.009 160);
+    --popover-foreground: oklch(0.915 0.005 160);
+    --primary: oklch(0.875 0.006 160);
+    --primary-foreground: oklch(0.235 0.009 160);
+    --secondary: oklch(0.295 0.009 160);
+    --secondary-foreground: oklch(0.915 0.005 160);
+    --muted: oklch(0.295 0.009 160);
+    --muted-foreground: oklch(0.705 0.007 160);
+    --accent: oklch(0.315 0.010 160);
+    --accent-foreground: oklch(0.915 0.005 160);
+    --destructive: oklch(0.66 0.135 25);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 13%);
+    --signature: oklch(0.735 0.095 165);
     --ring: var(--signature);
     --chart-1: oklch(0.87 0.004 160);
     --chart-2: oklch(0.556 0.006 160);
     --chart-3: oklch(0.439 0.006 160);
     --chart-4: oklch(0.371 0.007 160);
     --chart-5: oklch(0.269 0.008 160);
-    --sidebar: oklch(0.18 0.007 160);
-    --sidebar-foreground: oklch(0.965 0.003 160);
-    --sidebar-primary: oklch(0.92 0.004 160);
-    --sidebar-primary-foreground: oklch(0.18 0.007 160);
-    --sidebar-accent: oklch(0.26 0.008 160);
-    --sidebar-accent-foreground: oklch(0.965 0.003 160);
-    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar: oklch(0.235 0.009 160);
+    --sidebar-foreground: oklch(0.915 0.005 160);
+    --sidebar-primary: oklch(0.875 0.006 160);
+    --sidebar-primary-foreground: oklch(0.235 0.009 160);
+    --sidebar-accent: oklch(0.315 0.010 160);
+    --sidebar-accent-foreground: oklch(0.915 0.005 160);
+    --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: var(--signature);
 
-    --canvas-1: oklch(0.70 0.12 250);
-    --canvas-2: oklch(0.70 0.12 25);
-    --canvas-3: oklch(0.70 0.12 160);
-    --canvas-4: oklch(0.70 0.12 305);
-    --canvas-5: oklch(0.70 0.12 200);
-    --canvas-6: oklch(0.70 0.12 75);
+    --canvas-1: oklch(0.735 0.095 250);
+    --canvas-2: oklch(0.735 0.095 25);
+    --canvas-3: oklch(0.735 0.095 160);
+    --canvas-4: oklch(0.735 0.095 305);
+    --canvas-5: oklch(0.735 0.095 200);
+    --canvas-6: oklch(0.735 0.095 75);
 }
 
 @layer base {
@@ -187,10 +189,18 @@
 
 /* React Flow 自带控件的配色是写死的浅色，深色模式下会糊成一片。
    它的样式表在 index.css 之后注入，所以这里要靠选择器权重压过去。 */
+.react-flow .react-flow__controls {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
 .react-flow .react-flow__controls-button {
   background: var(--card);
   border-bottom: 1px solid var(--border);
   color: var(--foreground);
+}
+.react-flow .react-flow__controls-button:last-child {
+  border-bottom: none;
 }
 .react-flow .react-flow__controls-button:hover {
   background: var(--accent);

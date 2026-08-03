@@ -10,7 +10,7 @@ const CHANNELS: { key: keyof ThemeColor; label: string; trackClass: string }[] =
   { key: 'b', label: 'B', trackClass: 'accent-blue-500' },
 ]
 
-/** 界面主色选择：RGB 三通道拖动条 + 实时预览 */
+/** 画板签名色：RGB 三通道拖动条 + 实时预览。界面本身是无彩的，颜色留给学生的数据 */
 export function AppearancePanel() {
   const themeColor = useSettingsStore((s) => s.themeColor)
   const updateThemeColor = useSettingsStore((s) => s.updateThemeColor)
@@ -20,7 +20,7 @@ export function AppearancePanel() {
   return (
     <div className="flex max-w-md flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        拖动 RGB 滑条选择界面主色（按钮、高亮、选中态），实时生效并保存在本机。
+        拖动 RGB 滑条选择你的画板签名色（画板节点强调与焦点态），实时生效并保存在本机。界面其余部分保持无彩，让画板上的内容成为唯一有颜色的东西。
       </p>
 
       <div className="flex items-center gap-3">
@@ -28,7 +28,7 @@ export function AppearancePanel() {
         <div className="flex flex-col">
           <span className="font-mono text-sm">{rgb}</span>
           <span className="text-xs text-muted-foreground">
-            {themeColor ? '自定义主色' : '当前为主题默认色（未启用自定义）'}
+            {themeColor ? '自定义签名色' : '当前为默认签名色（未启用自定义）'}
           </span>
         </div>
       </div>

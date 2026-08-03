@@ -32,12 +32,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     )
   }
 
+  // 助手的话不套容器：有容器的是学生自己写下的内容，那才是这里要留存的东西
   return (
     <div className="flex justify-start">
       <div
         className={cn(
-          'prose prose-sm dark:prose-invert max-w-[85%] rounded-2xl rounded-bl-sm bg-muted px-4 py-2.5',
-          'prose-pre:bg-background prose-pre:text-foreground',
+          'prose prose-sm dark:prose-invert max-w-none',
+          'prose-pre:rounded-md prose-pre:bg-muted prose-pre:text-foreground',
+          'prose-code:font-mono prose-code:text-[0.85em]',
         )}
       >
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
