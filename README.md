@@ -10,7 +10,7 @@
 - ✅ **提案确认制**：AI 不直接写数据，所有安排以卡片提案，你确认才生效
 - ✍️ **机器声 / 人声**：系统说的话用等宽，你写下的一切用衬线——AI 参与到哪一步，排版上看得见
 - 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
-- 🧩 **Skill 体系**：声明式 skill + 引擎（人设注入/工具收窄），首个官方 skill「招生官读档」；开源 skill 市场规划中
+- 🧩 **Skill Runtime**：直接运行 [Skills 仓库](https://github.com/ChromiteCr/Skills)的 `SKILL.md`——同一份文件在 Claude Code 里也能跑，不是另立格式。skill 是纯文本、无可执行代码，能碰什么由**能力白名单**决定，写库一律要你在卡片上确认
 
 ## 快速开始
 
@@ -20,6 +20,12 @@ npm run dev
 ```
 
 打开设置填入 [DeepSeek API Key](https://platform.deepseek.com)，即可开始对话。
+
+内置 skill 由 `src/generated/skills.json` 提供，已提交进仓库，构建不依赖外部仓库。改动 [Skills 仓库](https://github.com/ChromiteCr/Skills)后重新采集：
+
+```bash
+npm run skills:sync            # 默认找 ../Skills，也可 --from <path> 或设 $STUDYNEST_SKILLS_REPO
+```
 
 ## 技术栈
 
@@ -48,6 +54,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S8 | 2026-08-03 | Skill Runtime 内核：直接加载 Skills 仓库的 SKILL.md（构建期采集为 src/generated/skills.json，运行时解析，内置与日后商店安装共用一个解析器），招生官读档从内置 JSON 迁为标准 SKILL.md；工具层重做为**开放 Capability 注册表**（9 个旧工具收敛为 get_profile/get_events/get_artifacts/propose_events/propose_profile_update/propose_canvas/propose_artifact，owner 字段给 S13 plugin 留口），propose_canvas 改用稳定 node id 取代标题匹配；agent loop 抽到 lib/runtime/executor.ts，轮数上限按 skill 可配（默认 8）+ 工具输出预算兜底，skill 激活态随会话持久化、刷新不再丢；Dexie v7 新增 skillRuns 取代 settings.usedSkillIds 并删除六张 v5 遗留表，导出升至 v7；删除 S6 兼容层与 planningStore 的派生旧数组 | milestone |
 | S7a2 | 2026-08-03 | 聊天页新增可折叠的对话抽屉（新对话按钮 + 对话列表，与画板抽屉同一套结构：宽屏并排、窄屏浮层覆盖），会话切换不再挤在头部下拉里；字号整体上调一档（衬线在相同像素下比无衬线显小，原来照搬 Tailwind 默认在宋体上偏挤）；随之修掉窄屏提醒卡被按钮挤到换行、输入框占位文字被撑出半行两处 | fix |
 | S7a1 | 2026-08-02 | UI 柔化：圆角统一放大一档（--radius 0.25→0.5rem，画板控件一并接入），深浅两套配色整体降对比——浅色底不取纯白、正文不取近黑，深色底抬离纯黑、正文压离纯白，画板类别色彩度压低；补上 S7 漏改的两处：助手消息去掉灰底气泡（有容器的只应是学生自己写下的内容）、自选主色改为只作用于画板签名色与焦点态而非全站刷 --primary | fix |
 | S7 | 2026-08-02 | 极简界面重构：左侧导航收敛为聊天/画板/设置三项（56px 图标导轨）；成长星图从 3D 球体重做为「无边记」式无限画板，反思以「连接两件事的边」呈现（绑定的边加粗带标题，未绑定的是发丝虚线）；面板/任务/活动/时间轴/反思工作室五个视图删除，主动提醒迁入聊天；设计系统换为衬线正文（Source Serif 4 + 思源宋体）+ 等宽机器声，界面无彩、只有画板数据有颜色 | milestone |

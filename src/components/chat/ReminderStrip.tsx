@@ -2,10 +2,9 @@ import { Bell, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
-import { usePlanningStore } from '@/stores/planningStore'
 import { useReminderStore } from '@/stores/reminderStore'
 import { useSkillStore } from '@/stores/skillStore'
-import { getSkill } from '@/lib/skills/registry'
+import { getSkill } from '@/lib/skills'
 
 /**
  * 主动式 Agent 的提醒从面板搬到了聊天顶部——面板视图已删，
@@ -15,19 +14,14 @@ export function ReminderStrip() {
   const reminders = useReminderStore((s) => s.reminders)
   const dismiss = useReminderStore((s) => s.dismiss)
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
-  const activities = usePlanningStore((s) => s.activities)
 
   if (reminders.length === 0) return null
 
   const handle = (r: (typeof reminders)[number]) => {
-    if (r.suggestSkillId) {
-      useSkillStore.getState().setActiveSkill(r.suggestSkillId)
-      const skill = getSkill(r.suggestSkillId)
-      setPendingPrompt(`帮我用「${skill?.name ?? '这个 skill'}」分析一下`)
-    } else if (r.reflectActivityId) {
-      // 反思工作室已删除，反思改由对话完成（S10 会换成 reflection-interviewer skill）
-      const activity = activities.find((a) => a.id === r.reflectActivityId)
-      setPendingPrompt(`带我反思一下「${activity?.title ?? '这个活动'}」，一次问我一个问题。`)
+    if (r.suggestSkillName) {
+      const skill = getSkill(r.suggestSkillName)
+      useSkillStore.getState().setActiveSkill(r.suggestSkillName)
+      setPendingPrompt(`帮我用「${skill?.manifest.displayName ?? '这个 skill'}」分析一下`)
     } else if (r.prompt) {
       setPendingPrompt(r.prompt)
     }

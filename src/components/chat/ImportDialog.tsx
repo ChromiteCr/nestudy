@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarClock, Check, ListTodo, Loader2, Sparkles } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Check, Loader2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -11,14 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { parseImportText } from '@/lib/ai/import'
-import { applyImportProposal } from '@/lib/ai/proposals'
-import type { ProposedEvent, ProposedTask } from '@/types'
-
-const EVENT_TYPE_LABEL = { exam: '考试', deadline: '截止', activity: '活动' } as const
-const PRIORITY_LABEL = { high: '高', medium: '中', low: '低' } as const
+import { applyProposal } from '@/lib/capabilities'
+import { ProposedEventRow } from './ProposedEventRow'
+import type { ProposedGrowthEvent } from '@/types'
 
 interface ImportDialogProps {
   open: boolean
@@ -29,7 +24,7 @@ interface ImportDialogProps {
 export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const [text, setText] = useState('')
   const [parsing, setParsing] = useState(false)
-  const [preview, setPreview] = useState<{ events: ProposedEvent[]; tasks: ProposedTask[] } | null>(null)
+  const [preview, setPreview] = useState<ProposedGrowthEvent[] | null>(null)
 
   const reset = () => {
     setText('')
@@ -40,12 +35,9 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const handleParse = async () => {
     setParsing(true)
     try {
-      const result = await parseImportText(text)
-      if (result.events.length === 0 && result.tasks.length === 0) {
-        toast.info('没有识别出带日期的事项，试试补充日期信息')
-      } else {
-        setPreview(result)
-      }
+      const events = await parseImportText(text)
+      if (events.length === 0) toast.info('没有识别出带日期的事项，试试补充日期信息')
+      else setPreview(events)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '解析失败，请重试')
     } finally {
@@ -55,16 +47,14 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
   const handleConfirm = async () => {
     if (!preview) return
-    const note = await applyImportProposal(preview.events, preview.tasks)
+    const note = await applyProposal({ kind: 'events', events: preview, status: 'pending' })
     toast.success(note)
     reset()
     onOpenChange(false)
   }
 
-  const patchEvent = (i: number, patch: Partial<ProposedEvent>) =>
-    setPreview((p) => p && { ...p, events: p.events.map((e, idx) => (idx === i ? { ...e, ...patch } : e)) })
-  const patchTask = (i: number, patch: Partial<ProposedTask>) =>
-    setPreview((p) => p && { ...p, tasks: p.tasks.map((t, idx) => (idx === i ? { ...t, ...patch } : t)) })
+  const patch = (i: number, next: Partial<ProposedGrowthEvent>) =>
+    setPreview((prev) => prev && prev.map((e, idx) => (idx === i ? { ...e, ...next } : e)))
 
   return (
     <Dialog
@@ -78,7 +68,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         <DialogHeader>
           <DialogTitle>粘贴即导入</DialogTitle>
           <DialogDescription>
-            把微信群通知、邮件、考试安排直接粘贴进来，学栖帮你解析成日程和任务。
+            把微信群通知、邮件、考试安排直接粘贴进来，学栖帮你解析成事项。
           </DialogDescription>
         </DialogHeader>
 
@@ -97,28 +87,9 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
-              {preview.events.map((e, i) => (
-                <div key={`e${i}`} className="flex items-center gap-2">
-                  <Checkbox checked={e.include} onCheckedChange={(v) => patchEvent(i, { include: v === true })} />
-                  <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />
-                  <Badge variant="outline" className="shrink-0 text-[10px]">
-                    {EVENT_TYPE_LABEL[e.type]}
-                  </Badge>
-                  <Input value={e.title} onChange={(ev) => patchEvent(i, { title: ev.target.value })} className="h-7 flex-1 text-sm" />
-                  <Input type="date" value={e.date} onChange={(ev) => patchEvent(i, { date: ev.target.value })} className="h-7 w-34" />
-                </div>
-              ))}
-              {preview.tasks.map((t, i) => (
-                <div key={`t${i}`} className="flex items-center gap-2">
-                  <Checkbox checked={t.include} onCheckedChange={(v) => patchTask(i, { include: v === true })} />
-                  <ListTodo className="size-3.5 shrink-0 text-muted-foreground" />
-                  <Badge variant="outline" className="shrink-0 text-[10px]">
-                    {PRIORITY_LABEL[t.priority]}
-                  </Badge>
-                  <Input value={t.title} onChange={(ev) => patchTask(i, { title: ev.target.value })} className="h-7 flex-1 text-sm" />
-                  <Input type="date" value={t.dueDate} onChange={(ev) => patchTask(i, { dueDate: ev.target.value })} className="h-7 w-34" />
-                </div>
+            <div className="flex max-h-80 flex-col gap-2.5 overflow-y-auto">
+              {preview.map((e, i) => (
+                <ProposedEventRow key={i} event={e} editable onChange={(next) => patch(i, next)} />
               ))}
             </div>
             <div className="flex gap-2">

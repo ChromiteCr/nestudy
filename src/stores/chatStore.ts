@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Message, Proposal } from '@/types'
+import type { Conversation, Message, Proposal, SkillRunStatus } from '@/types'
 import {
   addMessage,
   createConversation,
@@ -9,28 +9,17 @@ import {
   listMessages,
   newId,
   renameConversation,
+  setConversationSkill,
   updateMessageProposal,
 } from '@/lib/db/repositories'
+import { recordSkillRun } from '@/lib/db/skill-runs'
 import { resolveProvider, type ChatTurn } from '@/lib/ai'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
-import { AGENT_TOOLS, executeReadTool, isProposeTool, isReadTool } from '@/lib/ai/tools'
-import { getSkill } from '@/lib/skills/registry'
+import { applyProposal, resolveForSkill } from '@/lib/capabilities'
+import { DEFAULT_MAX_ROUNDS, getSkill } from '@/lib/skills'
+import { runAgentLoop, type RunHandlers } from '@/lib/runtime/executor'
 import { useSkillStore } from './skillStore'
-import {
-  applyActivitiesProposal,
-  applyImportProposal,
-  applyNarrativeProposal,
-  applyProfileProposal,
-  parseActivitiesArgs,
-  parseImportArgs,
-  parseNarrativeArgs,
-  parseProfileArgs,
-} from '@/lib/ai/proposals'
 import { useSettingsStore } from './settingsStore'
-import type { Conversation } from '@/types'
-
-/** agent loop 轮数上限（每轮=一次模型调用） */
-const MAX_ROUNDS = 4
 
 interface ChatState {
   conversations: Conversation[]
@@ -74,7 +63,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   selectConversation: async (id) => {
     const messages = await listMessages(id)
+    const conversation = get().conversations.find((c) => c.id === id)
     set({ activeId: id, messages, error: null })
+    useSkillStore.getState().hydrate(id, conversation?.skillName ?? null)
   },
 
   newConversation: async () => {
@@ -85,6 +76,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [],
       error: null,
     }))
+    // 新会话不继承上一个会话的 skill：换个话题就该是干净的学栖本体
+    useSkillStore.getState().hydrate(conversation.id, null)
   },
 
   removeConversation: async (id) => {
@@ -96,6 +89,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         await get().selectConversation(conversations[0].id)
       } else {
         set({ activeId: null, messages: [] })
+        useSkillStore.getState().hydrate(null, null)
       }
     }
   },
@@ -113,6 +107,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeId: conversation.id,
         messages: [],
       }))
+      // 用户可能先选了 skill 再说第一句话，这时会话才刚建出来，补写激活态
+      const { activeSkillName } = useSkillStore.getState()
+      useSkillStore.getState().hydrate(conversation.id, activeSkillName)
+      if (activeSkillName) await setConversationSkill(conversation.id, activeSkillName)
     }
 
     const userMessage: Message = {
@@ -133,7 +131,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }))
     }
 
-    await runAgentLoop(conversationId, set, get)
+    await runConversation(conversationId, set, get)
   },
 
   stopStreaming: () => {
@@ -148,7 +146,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await deleteMessage(last.id)
       set((s) => ({ messages: s.messages.slice(0, -1) }))
     }
-    await runAgentLoop(activeId, set, get)
+    await runConversation(activeId, set, get)
   },
 
   setPendingPrompt: (prompt) => set({ pendingPrompt: prompt }),
@@ -158,16 +156,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const stored = message?.proposal
     if (!message || !stored || stored.status !== 'pending') return
     const proposal = edited ?? stored
-    let resultNote: string
-    if (proposal.kind === 'import') {
-      resultNote = await applyImportProposal(proposal.events, proposal.tasks)
-    } else if (proposal.kind === 'activities') {
-      resultNote = await applyActivitiesProposal(proposal.activities)
-    } else if (proposal.kind === 'narrative') {
-      resultNote = await applyNarrativeProposal(proposal.edges)
-    } else {
-      resultNote = await applyProfileProposal(proposal.patch)
-    }
+    const conversation = get().conversations.find((c) => c.id === message.conversationId)
+    const resultNote = await applyProposal(proposal, { skillName: conversation?.skillName })
     const updated: Proposal = { ...proposal, status: 'confirmed', resultNote }
     await updateMessageProposal(messageId, updated)
     set((s) => ({
@@ -191,30 +181,28 @@ type Set = (fn: (s: ChatState) => Partial<ChatState>) => void
 type Get = () => ChatState
 
 /**
- * Agent loop：流式调用模型；读工具自动执行后继续下一轮；
- * 提案工具生成确认卡消息；纯文本回复结束循环。
+ * 把一次对话交给 runtime 执行：本 store 只负责消息的落库与渲染，
+ * 轮次控制、工具白名单、提案解析都在 `lib/runtime/executor.ts` 里。
  */
-async function runAgentLoop(conversationId: string, set: Set, get: Get) {
+async function runConversation(conversationId: string, set: Set, get: Get) {
   const { modelConfig } = useSettingsStore.getState()
   if (modelConfig.tier === 'custom' && !modelConfig.apiKey) {
     set(() => ({ error: '请先在设置中填写 API Key' }))
     return
   }
 
-  // 激活的 skill（若有）追加人设并收窄工具面，不允许的工具连 schema 都不下发给模型
-  const activeSkill = useSkillStore.getState().activeSkillId
-  const skill = activeSkill ? getSkill(activeSkill) : undefined
-  const systemPrompt = skill ? `${buildSystemPrompt()}\n\n---\n${skill.personaPrompt}` : buildSystemPrompt()
-  const tools = skill ? AGENT_TOOLS.filter((t) => skill.allowedTools.includes(t.name)) : AGENT_TOOLS
-  const allowedToolNames = new Set(tools.map((t) => t.name))
+  const skillName = useSkillStore.getState().activeSkillName
+  const skill = skillName ? getSkill(skillName) : undefined
+  const { granted, missing } = resolveForSkill(skill?.manifest ?? null)
+  if (skill && missing.length > 0) {
+    set(() => ({ error: `「${skill.manifest.displayName}」需要的能力当前不可用：${missing.join('、')}` }))
+    return
+  }
 
   // 历史只带 user/assistant 文本（工具轮次为回合内临时上下文）
-  const convo: ChatTurn[] = [
-    { role: 'system', content: systemPrompt },
-    ...get()
-      .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-  ]
+  const history: ChatTurn[] = get()
+    .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
   const abortController = new AbortController()
   set(() => ({ streaming: true, abortController, error: null }))
@@ -222,130 +210,79 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
   // 当前正在流式累积的 assistant 消息（UI 占位）。
   // 用对象持有引用：闭包内赋值不会被 TS 控制流收窄误判。
   const msgRef: { current: Message | null } = { current: null }
-  const ensureCurrentMessage = () => {
-    if (msgRef.current) return
-    const msg: Message = {
-      id: newId(),
-      conversationId,
-      role: 'assistant',
-      content: '',
-      createdAt: Date.now(),
-    }
-    msgRef.current = msg
-    set((s) => ({ messages: [...s.messages, msg] }))
-  }
-  const updateCurrentContent = (content: string) => {
-    const msg = msgRef.current
-    if (!msg) return
-    set((s) => ({
-      messages: s.messages.map((m) => (m.id === msg.id ? { ...m, content } : m)),
-    }))
-  }
-
-  try {
-    const provider = resolveProvider(modelConfig)
-
-    for (let round = 0; round < MAX_ROUNDS; round++) {
-      let text = ''
-      let toolCalls: Awaited<ReturnType<typeof collectRound>>['toolCalls'] = []
-
-      const result = await collectRound(
-        provider.streamChat(convo, { signal: abortController.signal, tools }),
-        (delta) => {
-          text += delta
-          ensureCurrentMessage()
-          updateCurrentContent(text)
-        },
-      )
-      toolCalls = result.toolCalls
-
-      if (toolCalls.length === 0) {
-        // 纯文本回复：落库收尾
-        if (msgRef.current && text) {
-          await addMessage({ ...msgRef.current, content: text })
+  const handlers: RunHandlers = {
+    onTextDelta: (full) => {
+      if (!msgRef.current) {
+        const msg: Message = {
+          id: newId(),
+          conversationId,
+          role: 'assistant',
+          content: full,
+          createdAt: Date.now(),
         }
+        msgRef.current = msg
+        set((s) => ({ messages: [...s.messages, msg] }))
         return
       }
-
-      // 有工具调用：本轮文本（若有）先落库定格
-      if (msgRef.current && text) {
-        await addMessage({ ...msgRef.current, content: text })
-      }
+      const id = msgRef.current.id
+      set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, content: full } : m)) }))
+    },
+    onTextEnd: async (full) => {
+      if (!msgRef.current) return
+      await addMessage({ ...msgRef.current, content: full })
       msgRef.current = null
-
-      convo.push({ role: 'assistant', content: text, toolCalls })
-
-      for (const call of toolCalls) {
-        if (!allowedToolNames.has(call.name)) {
-          convo.push({ role: 'tool', toolCallId: call.id, content: '该工具在当前 skill 下不可用' })
-          continue
-        }
-        if (isReadTool(call.name)) {
-          const result = await executeReadTool(call.name)
-          convo.push({ role: 'tool', toolCallId: call.id, content: result })
-        } else if (isProposeTool(call.name)) {
-          let proposal: Proposal | null = null
-          try {
-            if (call.name === 'propose_import') {
-              proposal = { kind: 'import', ...parseImportArgs(call.arguments), status: 'pending' }
-            } else if (call.name === 'propose_activities') {
-              proposal = { kind: 'activities', activities: parseActivitiesArgs(call.arguments), status: 'pending' }
-            } else if (call.name === 'propose_narrative') {
-              proposal = { kind: 'narrative', edges: parseNarrativeArgs(call.arguments), status: 'pending' }
-            } else {
-              proposal = { kind: 'profile', patch: parseProfileArgs(call.arguments), status: 'pending' }
-            }
-          } catch {
-            convo.push({ role: 'tool', toolCallId: call.id, content: '参数 JSON 解析失败，请修正后重试' })
-            continue
-          }
-          const isEmpty =
-            proposal.kind === 'import'
-              ? proposal.events.length === 0 && proposal.tasks.length === 0
-              : proposal.kind === 'activities'
-                ? proposal.activities.length === 0
-                : proposal.kind === 'narrative'
-                  ? proposal.edges.length === 0
-                  : Object.keys(proposal.patch).length === 0
-          if (isEmpty) {
-            convo.push({ role: 'tool', toolCallId: call.id, content: '提案为空，未展示。请确认解析内容后重试或直接告知用户。' })
-            continue
-          }
-          const proposalMessage: Message = {
-            id: newId(),
-            conversationId,
-            role: 'assistant',
-            content: '',
-            createdAt: Date.now(),
-            proposal,
-          }
-          await addMessage(proposalMessage)
-          set((s) => ({ messages: [...s.messages, proposalMessage] }))
-          convo.push({
-            role: 'tool',
-            toolCallId: call.id,
-            content: '提案卡已展示给用户，等待用户在卡片上确认或编辑。不要重复调用，也不要声称已保存。',
-          })
-        } else {
-          convo.push({ role: 'tool', toolCallId: call.id, content: `未知工具：${call.name}` })
-        }
+    },
+    onProposal: async (proposal) => {
+      const proposalMessage: Message = {
+        id: newId(),
+        conversationId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        proposal,
       }
-    }
+      await addMessage(proposalMessage)
+      set((s) => ({ messages: [...s.messages, proposalMessage] }))
+    },
+  }
 
-    // 轮数用尽：礼貌收尾
-    const fallback: Message = {
-      id: newId(),
-      conversationId,
-      role: 'assistant',
-      content: '这一轮我调用了较多工具，先停在这里。你可以继续追问或确认上面的卡片。',
-      createdAt: Date.now(),
+  const startedAt = Date.now()
+  let runStatus: SkillRunStatus = 'done'
+  let rounds = 0
+  let proposals = 0
+
+  try {
+    const result = await runAgentLoop({
+      provider: resolveProvider(modelConfig),
+      systemPrompt: buildSystemPrompt(granted, skill),
+      history,
+      capabilities: granted,
+      maxRounds: skill?.manifest.maxRounds ?? DEFAULT_MAX_ROUNDS,
+      signal: abortController.signal,
+      handlers,
+    })
+    rounds = result.rounds
+    proposals = result.proposals
+
+    if (result.stop !== 'text') {
+      const fallback: Message = {
+        id: newId(),
+        conversationId,
+        role: 'assistant',
+        content:
+          result.stop === 'budget'
+            ? '这一轮读取的数据比较多，先停在这里。你可以继续追问或确认上面的卡片。'
+            : '这一轮我调用了较多工具，先停在这里。你可以继续追问或确认上面的卡片。',
+        createdAt: Date.now(),
+      }
+      await addMessage(fallback)
+      set((s) => ({ messages: [...s.messages, fallback] }))
     }
-    await addMessage(fallback)
-    set((s) => ({ messages: [...s.messages, fallback] }))
   } catch (err) {
     const aborted = abortController.signal.aborted
+    runStatus = aborted ? 'aborted' : 'error'
     const msg = msgRef.current
-    const partial = msg ? get().messages.find((m) => m.id === msg.id)?.content ?? '' : ''
+    const partial = msg ? (get().messages.find((m) => m.id === msg.id)?.content ?? '') : ''
     if (aborted && msg && partial) {
       await addMessage({ ...msg, content: partial })
     } else if (msg) {
@@ -358,17 +295,16 @@ async function runAgentLoop(conversationId: string, set: Set, get: Get) {
     }
   } finally {
     set(() => ({ streaming: false, abortController: null }))
+    if (skill) {
+      await recordSkillRun({
+        skillName: skill.manifest.name,
+        conversationId,
+        startedAt,
+        finishedAt: Date.now(),
+        rounds,
+        proposals,
+        status: runStatus,
+      })
+    }
   }
-}
-
-async function collectRound(
-  stream: AsyncIterable<import('@/lib/ai').StreamEvent>,
-  onText: (delta: string) => void,
-) {
-  const toolCalls: import('@/lib/ai').ToolCallRequest[] = []
-  for await (const event of stream) {
-    if (event.type === 'text') onText(event.text)
-    else toolCalls.push(...event.calls)
-  }
-  return { toolCalls }
 }

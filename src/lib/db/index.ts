@@ -1,19 +1,14 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type {
-  Activity,
   Artifact,
   CanvasEdge,
   CanvasNode,
   Conversation,
-  EventItem,
-  GraphNodeMeta,
   GrowthEvent,
   Message,
-  NarrativeEdge,
-  Reflection,
   Settings,
+  SkillRun,
   StudentProfile,
-  Task,
 } from '@/types'
 import { migrateLegacyTables } from './migrate-v6'
 
@@ -28,13 +23,8 @@ export const db = new Dexie('studynest') as Dexie & {
   artifacts: EntityTable<Artifact, 'id'>
   canvasNodes: EntityTable<CanvasNode, 'id'>
   canvasEdges: EntityTable<CanvasEdge, 'id'>
-  /** 以下六张为 v5 遗留表，v6 迁移后不再写入，v7 删除 */
-  events: EntityTable<EventItem, 'id'>
-  tasks: EntityTable<Task, 'id'>
-  activities: EntityTable<Activity, 'id'>
-  narrativeEdges: EntityTable<NarrativeEdge, 'id'>
-  graphNodeMeta: EntityTable<GraphNodeMeta, 'nodeId'>
-  reflections: EntityTable<Reflection, 'id'>
+  /** S8 起的 skill 运行记录 */
+  skillRuns: EntityTable<SkillRun, 'id'>
 }
 
 db.version(1).stores({
@@ -127,4 +117,54 @@ db.version(6)
       tx.table('canvasNodes').bulkAdd(migrated.canvasNodes),
       tx.table('canvasEdges').bulkAdd(migrated.canvasEdges),
     ])
+  })
+
+/**
+ * v7：新增 skillRuns（取代 settings.usedSkillIds），并**删除六张 v5 遗留表**。
+ *
+ * 删得起是因为 v6 的迁移已经在真实数据上验过，而且 Dexie 按版本顺序跑升级——
+ * 停在 v5 的浏览器打开时会先跑完 v6 的迁移，再进到这里删表，不会丢数据。
+ */
+db.version(7)
+  .stores({
+    conversations: 'id, updatedAt',
+    messages: 'id, conversationId, createdAt',
+    settings: 'id',
+    profile: 'id',
+    growthEvents: 'id, kind, category, startDate, status, parentId',
+    artifacts: 'id, kind, createdAt',
+    canvasNodes: 'id',
+    canvasEdges: 'id, sourceNodeId, targetNodeId, artifactId',
+    skillRuns: 'id, skillName, conversationId, startedAt',
+    events: null,
+    tasks: null,
+    activities: null,
+    narrativeEdges: null,
+    graphNodeMeta: null,
+    reflections: null,
+  })
+  .upgrade(async (tx) => {
+    const settings = await tx.table('settings').get('app')
+    const used: string[] = Array.isArray(settings?.usedSkillIds) ? settings.usedSkillIds : []
+    if (used.length > 0) {
+      // 旧字段只记了"用过"，没有时间与轮数——补成一条最小运行记录，
+      // 让"从未用过"这条判据在升级前后保持一致，而不是把历史清零。
+      const now = Date.now()
+      await tx.table('skillRuns').bulkAdd(
+        used.map((skillName) => ({
+          id: crypto.randomUUID(),
+          skillName,
+          conversationId: '',
+          startedAt: now,
+          finishedAt: now,
+          rounds: 0,
+          proposals: 0,
+          status: 'done',
+        })),
+      )
+    }
+    if (settings) {
+      const { usedSkillIds: _dropped, ...rest } = settings
+      await tx.table('settings').put(rest)
+    }
   })

@@ -30,6 +30,11 @@ export async function renameConversation(id: string, title: string): Promise<voi
   await db.conversations.update(id, { title, updatedAt: Date.now() })
 }
 
+/** skill 激活态随会话持久化，刷新页面不丢 */
+export async function setConversationSkill(id: string, skillName: string | null): Promise<void> {
+  await db.conversations.update(id, { skillName: skillName ?? undefined })
+}
+
 export async function touchConversation(id: string): Promise<void> {
   await db.conversations.update(id, { updatedAt: Date.now() })
 }

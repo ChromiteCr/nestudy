@@ -1,24 +1,30 @@
 import { create } from 'zustand'
-import { getSettings, patchSettings } from '@/lib/db/repositories'
+import { setConversationSkill } from '@/lib/db/repositories'
 
-/** 当前激活的 skill（chatStore 的 agent loop 据此注入人设 prompt + 收窄工具面） */
+/**
+ * 当前激活的 skill。
+ *
+ * S8 起激活态**随会话持久化**（`conversations.skillName`）——以前只存在内存里，
+ * 刷新一次就回到通用助手，用户以为还在 skill 里、模型其实已经不是那个人设了。
+ * 切换会话会跟着切 skill：一个会话就是一次 skill run 的容器。
+ */
 interface SkillState {
-  activeSkillId: string | null
-  setActiveSkill: (id: string | null) => void
+  activeSkillName: string | null
+  /** 激活态归属的会话；null 表示会话还没建（首条消息发出时补写） */
+  conversationId: string | null
+  hydrate: (conversationId: string | null, skillName: string | null) => void
+  setActiveSkill: (name: string | null) => void
 }
 
-export const useSkillStore = create<SkillState>((set) => ({
-  activeSkillId: null,
-  setActiveSkill: (id) => {
-    set({ activeSkillId: id })
-    if (id) void markSkillUsed(id)
+export const useSkillStore = create<SkillState>((set, get) => ({
+  activeSkillName: null,
+  conversationId: null,
+
+  hydrate: (conversationId, skillName) => set({ conversationId, activeSkillName: skillName }),
+
+  setActiveSkill: (name) => {
+    set({ activeSkillName: name })
+    const { conversationId } = get()
+    if (conversationId) void setConversationSkill(conversationId, name)
   },
 }))
-
-async function markSkillUsed(id: string) {
-  const settings = await getSettings()
-  const used = new Set(settings.usedSkillIds ?? [])
-  if (used.has(id)) return
-  used.add(id)
-  await patchSettings({ usedSkillIds: [...used] })
-}

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { computeReminders, type Reminder } from '@/lib/engine/rules'
 import { getSettings, patchSettings } from '@/lib/db/repositories'
-import { isoToday } from '@/lib/db/planning'
+import { isoToday } from '@/lib/db/dates'
+import { listUsedSkillNames } from '@/lib/db/skill-runs'
 import { usePlanningStore } from './planningStore'
 
 interface ReminderState {
@@ -15,15 +16,13 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
   reminders: [],
 
   init: async () => {
-    const settings = await getSettings()
-    const { profile, tasks, events, activities, reflections } = usePlanningStore.getState()
+    const [settings, usedSkillNames] = await Promise.all([getSettings(), listUsedSkillNames()])
+    const { profile, growthEvents, artifacts } = usePlanningStore.getState()
     const all = computeReminders({
       profile,
-      tasks,
-      events,
-      activities,
-      reflections,
-      usedSkillIds: settings.usedSkillIds,
+      growthEvents,
+      artifacts,
+      usedSkillNames,
       lastActiveAt: settings.lastActiveAt,
     })
     // 当天已关闭的不再显示

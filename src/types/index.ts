@@ -284,15 +284,6 @@ export interface Reflection {
   createdAt: number
 }
 
-/** 反思草稿里 AI 建议的叙事线：source 固定为这条反思本身，只需给出 target */
-export interface ReflectionProposedEdge {
-  include: boolean
-  targetLabel: string
-  reason: string
-  strength: number
-  targetNodeId: string | null
-}
-
 // ---- 任务 ----
 
 export type TaskPriority = 'high' | 'medium' | 'low'
@@ -326,6 +317,27 @@ export interface Message {
   proposal?: Proposal
 }
 
+// ---- Skill 运行记录（S8：替代 settings.usedSkillIds） ----
+
+export type SkillRunStatus = 'done' | 'aborted' | 'error'
+
+/**
+ * 一次 skill 会话的运行记录。
+ * 既是"用过什么"的判据（规则引擎 R6、S12 商店），也是 artifact 的出处溯源。
+ */
+export interface SkillRun {
+  id: string
+  skillName: string
+  conversationId: string
+  startedAt: number
+  finishedAt: number
+  /** 实际跑了几轮模型调用 */
+  rounds: number
+  /** 本次运行产出的提案数（确认与否不计） */
+  proposals: number
+  status: SkillRunStatus
+}
+
 // ---- AI 提案（「AI 提案 → 卡片确认 → 入库」模式，AI 不直接写库） ----
 
 export interface ProposedEvent {
@@ -345,6 +357,67 @@ export interface ProposedTask {
 }
 
 export type ProposalStatus = 'pending' | 'confirmed' | 'dismissed'
+
+// ---- S8 提案（统一到 events / canvas / artifact / profile 四种） ----
+
+/** 统一事项提案：短期与长期共用一张卡，用 kind 区分 */
+export interface ProposedGrowthEvent {
+  include: boolean
+  kind: EventKind
+  title: string
+  category: EventCategory
+  startDate: string
+  endDate: string | null
+  priority?: TaskPriority
+  /** 挂靠到已存在的长期事项（来自 get_events 的稳定 id） */
+  parentId?: string
+  /** 挂靠到本次提案里新建的长期事项；parentId 优先 */
+  parentTitle?: string
+  role?: string
+  organization?: string
+  description?: string
+  achievements?: string[]
+  level?: ActivityLevel
+}
+
+/**
+ * 画板边提案。S8 起模型必须给稳定 node id（来自 get_events / get_profile），
+ * 不再按标题字符串匹配——旧版 propose_narrative 的标题匹配一失败就静默丢边，
+ * 而且同名事项会连错。label 只用于卡片展示。
+ */
+export interface ProposedCanvasEdge {
+  include: boolean
+  sourceNodeId: GraphNodeId
+  targetNodeId: GraphNodeId
+  sourceLabel: string
+  targetLabel: string
+  reason: string
+  /** 连接强度 1-5 */
+  strength: number
+  /** 两端 id 都在当前画板上；false 则不可入库 */
+  resolved: boolean
+}
+
+/** 画板节点注解提案（节点本身由事项/课程/目标校派生，AI 只提案它的一句话注解） */
+export interface ProposedNodeNote {
+  include: boolean
+  nodeId: GraphNodeId
+  label: string
+  blurb: string
+  resolved: boolean
+}
+
+/** 学习资产提案：skill 的文档类产出（含反思）落库前的确认形态 */
+export interface ProposedArtifact {
+  include: boolean
+  kind: ArtifactKind
+  title: string
+  format: ArtifactFormat
+  content: string
+  tags: string[]
+  linkedNodeIds: GraphNodeId[]
+  qa?: ReflectionQA[]
+}
 
 /** 档案补丁提案（S1d：Onboarding 用） */
 export interface ProfilePatchProposal {
@@ -381,17 +454,42 @@ export interface ProposedEdge {
   targetNodeId: string | null
 }
 
+/**
+ * 提案。前四种是 S8 的现行形态；后三种是 S7 及以前的旧提案，**只保留渲染**——
+ * 用户历史会话里躺着已确认的卡片，把类型删掉等于让那段历史渲染崩溃。
+ * 旧提案不再产生，也不再可确认（详见 ProposalCard 的 LegacyProposalCard）。
+ */
 export type Proposal =
-  | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
+  | { kind: 'events'; events: ProposedGrowthEvent[]; status: ProposalStatus; resultNote?: string }
   | { kind: 'profile'; patch: ProfilePatchProposal; status: ProposalStatus; resultNote?: string }
+  | {
+      kind: 'canvas'
+      edges: ProposedCanvasEdge[]
+      notes: ProposedNodeNote[]
+      status: ProposalStatus
+      resultNote?: string
+    }
+  | { kind: 'artifact'; artifacts: ProposedArtifact[]; status: ProposalStatus; resultNote?: string }
+  /** @deprecated S7 及以前 */
+  | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
+  /** @deprecated S7 及以前 */
   | { kind: 'activities'; activities: ProposedActivity[]; status: ProposalStatus; resultNote?: string }
+  /** @deprecated S7 及以前 */
   | { kind: 'narrative'; edges: ProposedEdge[]; status: ProposalStatus; resultNote?: string }
+
+export type LegacyProposalKind = 'import' | 'activities' | 'narrative'
+
+export function isLegacyProposal(p: Proposal): p is Extract<Proposal, { kind: LegacyProposalKind }> {
+  return p.kind === 'import' || p.kind === 'activities' || p.kind === 'narrative'
+}
 
 export interface Conversation {
   id: string
   title: string
   createdAt: number
   updatedAt: number
+  /** 该会话激活的 skill 名。S8 起 skill 激活态随会话持久化，刷新不再丢 */
+  skillName?: string
 }
 
 // ---- 模型配置 ----
@@ -427,7 +525,7 @@ export interface Settings {
   lastActiveAt?: number
   /** 已关闭的提醒：ruleKey → 关闭当天(yyyy-mm-dd)，当天内不再显示 */
   dismissedReminders?: Record<string, string>
-  /** 已使用过的 skill id（规则引擎"从未用过"类建议判据） */
+  /** @deprecated S8 起改由 skillRuns 表承载；v7 迁移后不再写入，仅供旧备份导入读取 */
   usedSkillIds?: string[]
   /** 用户自定义界面主色；null/缺省 = 主题默认 */
   themeColor?: { r: number; g: number; b: number } | null
@@ -457,6 +555,8 @@ export interface ExportBundle {
   artifacts?: Artifact[]
   canvasNodes?: CanvasNode[]
   canvasEdges?: CanvasEdge[]
+  /** v7 起包含：skill 运行记录 */
+  skillRuns?: SkillRun[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>
