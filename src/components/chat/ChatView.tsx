@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { RotateCcw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chatStore'
@@ -8,7 +8,6 @@ import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
 import { ReminderStrip } from './ReminderStrip'
-import { SkillBar } from './SkillBar'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 interface ChatViewProps {
@@ -23,6 +22,14 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const pendingPrompt = useChatStore((s) => s.pendingPrompt)
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 工具结果那一行要显示调用参数，参数存在发起它的 assistant 消息上
+  const argsByCallId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of messages) {
+      for (const call of m.toolCalls ?? []) map.set(call.id, call.arguments)
+    }
+    return map
+  }, [messages])
   // 与画板抽屉同一取舍：窄屏默认收起，展开时浮层覆盖而不是挤压正文
   const [drawerOpen, setDrawerOpen] = useState(() => window.innerWidth >= 768)
 
@@ -48,7 +55,6 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <ChatHeader drawerOpen={drawerOpen} onToggleDrawer={() => setDrawerOpen((v) => !v)} />
         <ReminderStrip />
-        <SkillBar />
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
             {messages.length === 0 && (
@@ -70,7 +76,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
             )}
 
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} />
+              <MessageBubble key={m.id} message={m} argsByCallId={argsByCallId} />
             ))}
 
             {/* 等待模型产出文本时（含工具轮次间隙）显示思考指示 */}

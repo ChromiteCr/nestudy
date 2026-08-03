@@ -54,27 +54,44 @@ export interface ResolvedCapabilities {
  * - 声明了：按声明给，注册表里没有的记进 missing
  */
 export function resolveForSkill(manifest: SkillManifest | null): ResolvedCapabilities {
-  const all = listCapabilities()
-  if (!manifest) return { granted: all, missing: [], missingOptional: [] }
-  if (manifest.readOnly) {
-    return { granted: all.filter((c) => c.kind === 'read'), missing: [], missingOptional: [] }
+  return narrowForSkill(listCapabilities(), manifest)
+}
+
+/**
+ * 在给定的能力面上按 skill 声明**收窄**。
+ *
+ * 只收窄，不放宽：结果永远是 base 的子集，所以一个 skill 拿不到用户本来就没有的能力，
+ * 连读多个 skill 也只会越收越紧。执行器每读进一个 skill 就在当前面上再收一次。
+ */
+export function narrowForSkill(base: Capability[], manifest: SkillManifest | null): ResolvedCapabilities {
+  const always = base.filter((c) => c.alwaysGranted)
+  const withAlways = (list: Capability[]) => {
+    const out = [...list]
+    for (const cap of always) if (!out.some((c) => c.name === cap.name)) out.push(cap)
+    return out
   }
 
+  if (!manifest) return { granted: base, missing: [], missingOptional: [] }
+  if (manifest.readOnly) {
+    return { granted: withAlways(base.filter((c) => c.kind === 'read')), missing: [], missingOptional: [] }
+  }
+
+  const available = new Map(base.map((c) => [c.name, c]))
   const granted: Capability[] = []
   const missing: string[] = []
   for (const name of manifest.capabilities) {
-    const cap = registry.get(name)
+    const cap = available.get(name)
     if (cap) granted.push(cap)
     else missing.push(name)
   }
   const missingOptional: string[] = []
   for (const name of manifest.optionalCapabilities) {
-    const cap = registry.get(name)
+    const cap = available.get(name)
     if (cap) {
       if (!granted.some((c) => c.name === cap.name)) granted.push(cap)
     } else {
       missingOptional.push(name)
     }
   }
-  return { granted, missing, missingOptional }
+  return { granted: withAlways(granted), missing, missingOptional }
 }

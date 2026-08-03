@@ -13,12 +13,18 @@ import {
   updateMessageProposal,
 } from '@/lib/db/repositories'
 import { recordSkillRun } from '@/lib/db/skill-runs'
-import { resolveProvider, type ChatTurn } from '@/lib/ai'
+import { resolveProvider } from '@/lib/ai'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
-import { applyProposal, resolveForSkill } from '@/lib/capabilities'
-import { DEFAULT_MAX_ROUNDS, getSkill } from '@/lib/skills'
-import { runAgentLoop, type RunHandlers } from '@/lib/runtime/executor'
-import { useSkillStore } from './skillStore'
+import { applyProposal, listCapabilities } from '@/lib/capabilities'
+import { DEFAULT_MAX_ROUNDS, listSkills, type LoadedSkill } from '@/lib/skills'
+import { summarizeForCompaction } from '@/lib/runtime/compaction'
+import { buildTurns, measureContext, MANUAL_KEEP_RECENT_TOKENS } from '@/lib/runtime/context'
+import {
+  loadedSkillsFromTurns,
+  narrowByLoadedSkills,
+  runAgentLoop,
+  type RunHandlers,
+} from '@/lib/runtime/executor'
 import { useSettingsStore } from './settingsStore'
 
 interface ChatState {
@@ -26,6 +32,8 @@ interface ChatState {
   activeId: string | null
   messages: Message[]
   streaming: boolean
+  /** 正在压缩上下文（与 streaming 分开，UI 说法不一样） */
+  compacting: boolean
   error: string | null
   abortController: AbortController | null
   /** 进入对话视图时预置的引导语（主动提醒卡跳转用） */
@@ -39,6 +47,8 @@ interface ChatState {
   stopStreaming: () => void
   retryLast: () => Promise<void>
   setPendingPrompt: (prompt: string | null) => void
+  /** 手动压缩当前会话上下文（/compact） */
+  compactContext: () => Promise<void>
   /** edited：卡片上用户编辑后的版本（勾选/改字段），缺省用原提案 */
   confirmProposal: (messageId: string, edited?: Proposal) => Promise<void>
   dismissProposal: (messageId: string) => Promise<void>
@@ -49,6 +59,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeId: null,
   messages: [],
   streaming: false,
+  compacting: false,
   error: null,
   abortController: null,
   pendingPrompt: null,
@@ -63,9 +74,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   selectConversation: async (id) => {
     const messages = await listMessages(id)
-    const conversation = get().conversations.find((c) => c.id === id)
     set({ activeId: id, messages, error: null })
-    useSkillStore.getState().hydrate(id, conversation?.skillName ?? null)
   },
 
   newConversation: async () => {
@@ -76,8 +85,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [],
       error: null,
     }))
-    // 新会话不继承上一个会话的 skill：换个话题就该是干净的学栖本体
-    useSkillStore.getState().hydrate(conversation.id, null)
   },
 
   removeConversation: async (id) => {
@@ -85,12 +92,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const conversations = get().conversations.filter((c) => c.id !== id)
     set({ conversations })
     if (get().activeId === id) {
-      if (conversations.length > 0) {
-        await get().selectConversation(conversations[0].id)
-      } else {
-        set({ activeId: null, messages: [] })
-        useSkillStore.getState().hydrate(null, null)
-      }
+      if (conversations.length > 0) await get().selectConversation(conversations[0].id)
+      else set({ activeId: null, messages: [] })
     }
   },
 
@@ -107,10 +110,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeId: conversation.id,
         messages: [],
       }))
-      // 用户可能先选了 skill 再说第一句话，这时会话才刚建出来，补写激活态
-      const { activeSkillName } = useSkillStore.getState()
-      useSkillStore.getState().hydrate(conversation.id, activeSkillName)
-      if (activeSkillName) await setConversationSkill(conversation.id, activeSkillName)
     }
 
     const userMessage: Message = {
@@ -123,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await addMessage(userMessage)
     set((s) => ({ messages: [...s.messages, userMessage], error: null }))
 
-    if (get().messages.length === 1) {
+    if (get().messages.filter((m) => m.role === 'user').length === 1) {
       const title = content.trim().slice(0, 24)
       await renameConversation(conversationId, title)
       set((s) => ({
@@ -142,7 +141,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { messages, activeId, streaming } = get()
     if (streaming || !activeId) return
     const last = messages[messages.length - 1]
-    if (last?.role === 'assistant' && !last.proposal) {
+    if (last?.role === 'assistant' && !last.proposal && !last.toolCalls?.length) {
       await deleteMessage(last.id)
       set((s) => ({ messages: s.messages.slice(0, -1) }))
     }
@@ -150,6 +149,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setPendingPrompt: (prompt) => set({ pendingPrompt: prompt }),
+
+  compactContext: async () => {
+    const { activeId, messages, streaming, compacting } = get()
+    if (!activeId || streaming || compacting) return
+    const { modelConfig } = useSettingsStore.getState()
+    if (modelConfig.tier === 'custom' && !modelConfig.apiKey) {
+      set({ error: '请先在设置中填写 API Key' })
+      return
+    }
+    set({ compacting: true, error: null })
+    try {
+      const record = await compact(activeId, messages, set, MANUAL_KEEP_RECENT_TOKENS)
+      if (!record) set({ error: '当前对话还不够长，没有可压缩的部分' })
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : '压缩失败，请重试' })
+    } finally {
+      set({ compacting: false })
+    }
+  },
 
   confirmProposal: async (messageId, edited) => {
     const message = get().messages.find((m) => m.id === messageId)
@@ -177,42 +195,76 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 }))
 
-type Set = (fn: (s: ChatState) => Partial<ChatState>) => void
+type Set = (patch: Partial<ChatState> | ((s: ChatState) => Partial<ChatState>)) => void
 type Get = () => ChatState
 
+/** 当前会话的上下文占用，输入框脚注展示用 */
+export function selectContextUsage(messages: Message[], contextWindow: number) {
+  // 用全量能力面估系统提示词，取上界——宁可显示得偏满，也别让用户以为还有余量
+  const system = buildSystemPrompt({ capabilities: listCapabilities(), skills: listSkills() })
+  return measureContext(system, messages, contextWindow)
+}
+
+/** 生成摘要并落库为一条压缩记录；返回 null 表示没什么可压的 */
+async function compact(
+  conversationId: string,
+  messages: Message[],
+  set: Set,
+  keepRecentTokens?: number,
+): Promise<Message | null> {
+  const { modelConfig } = useSettingsStore.getState()
+  const outcome = await summarizeForCompaction(resolveProvider(modelConfig), messages, { keepRecentTokens })
+  if (!outcome) return null
+
+  const record: Message = {
+    id: newId(),
+    conversationId,
+    role: 'system',
+    content: outcome.summary,
+    createdAt: Date.now(),
+    compaction: {
+      firstKeptMessageId: outcome.plan.firstKeptMessageId,
+      droppedCount: outcome.plan.dropped.length,
+      beforeTokens: outcome.beforeTokens,
+    },
+  }
+  await addMessage(record)
+  set((s) => ({ messages: [...s.messages, record] }))
+  return record
+}
+
 /**
- * 把一次对话交给 runtime 执行：本 store 只负责消息的落库与渲染，
- * 轮次控制、工具白名单、提案解析都在 `lib/runtime/executor.ts` 里。
+ * 把一次对话交给 runtime 执行。
+ * 本 store 只负责消息的落库与渲染，轮次控制、能力白名单、提案解析都在 lib/runtime 里。
  */
 async function runConversation(conversationId: string, set: Set, get: Get) {
   const { modelConfig } = useSettingsStore.getState()
   if (modelConfig.tier === 'custom' && !modelConfig.apiKey) {
-    set(() => ({ error: '请先在设置中填写 API Key' }))
+    set({ error: '请先在设置中填写 API Key' })
     return
   }
-
-  const skillName = useSkillStore.getState().activeSkillName
-  const skill = skillName ? getSkill(skillName) : undefined
-  const { granted, missing } = resolveForSkill(skill?.manifest ?? null)
-  if (skill && missing.length > 0) {
-    set(() => ({ error: `「${skill.manifest.displayName}」需要的能力当前不可用：${missing.join('、')}` }))
-    return
-  }
-
-  // 历史只带 user/assistant 文本（工具轮次为回合内临时上下文）
-  const history: ChatTurn[] = get()
-    .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content)
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
   const abortController = new AbortController()
-  set(() => ({ streaming: true, abortController, error: null }))
+  set({ streaming: true, abortController, error: null })
 
-  // 当前正在流式累积的 assistant 消息（UI 占位）。
-  // 用对象持有引用：闭包内赋值不会被 TS 控制流收窄误判。
-  const msgRef: { current: Message | null } = { current: null }
+  const startedAt = Date.now()
+  let runStatus: SkillRunStatus = 'done'
+  let rounds = 0
+  let proposals = 0
+  let loaded: LoadedSkill[] = []
+
+  // 流式累积中的 assistant 消息（UI 占位）。用对象持有引用：
+  // 闭包内赋值不会被 TS 控制流收窄误判。
+  const draft: { current: Message | null } = { current: null }
+
+  const persist = async (message: Message) => {
+    await addMessage(message)
+    set((s) => ({ messages: [...s.messages, message] }))
+  }
+
   const handlers: RunHandlers = {
     onTextDelta: (full) => {
-      if (!msgRef.current) {
+      if (!draft.current) {
         const msg: Message = {
           id: newId(),
           conversationId,
@@ -220,52 +272,103 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
           content: full,
           createdAt: Date.now(),
         }
-        msgRef.current = msg
+        draft.current = msg
         set((s) => ({ messages: [...s.messages, msg] }))
         return
       }
-      const id = msgRef.current.id
+      const id = draft.current.id
       set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, content: full } : m)) }))
     },
-    onTextEnd: async (full) => {
-      if (!msgRef.current) return
-      await addMessage({ ...msgRef.current, content: full })
-      msgRef.current = null
+    onAssistantTurn: async (content, toolCalls) => {
+      const existing = draft.current
+      draft.current = null
+      const message: Message = existing
+        ? { ...existing, content, toolCalls: toolCalls.length ? toolCalls : undefined }
+        : {
+            id: newId(),
+            conversationId,
+            role: 'assistant',
+            content,
+            createdAt: Date.now(),
+            toolCalls: toolCalls.length ? toolCalls : undefined,
+          }
+      await addMessage(message)
+      // 占位消息已经在列表里，就地替换；否则追加
+      set((s) => ({
+        messages: existing
+          ? s.messages.map((m) => (m.id === message.id ? message : m))
+          : [...s.messages, message],
+      }))
+    },
+    onToolResult: async (toolCallId, toolName, content) => {
+      await persist({
+        id: newId(),
+        conversationId,
+        role: 'tool',
+        content,
+        createdAt: Date.now(),
+        toolCallId,
+        toolName,
+      })
     },
     onProposal: async (proposal) => {
-      const proposalMessage: Message = {
+      await persist({
         id: newId(),
         conversationId,
         role: 'assistant',
         content: '',
         createdAt: Date.now(),
         proposal,
-      }
-      await addMessage(proposalMessage)
-      set((s) => ({ messages: [...s.messages, proposalMessage] }))
+      })
+    },
+    onSkillLoaded: (skill) => {
+      void setConversationSkill(conversationId, skill.manifest.name)
+      set((s) => ({
+        conversations: s.conversations.map((c) =>
+          c.id === conversationId ? { ...c, skillName: skill.manifest.name } : c,
+        ),
+      }))
     },
   }
 
-  const startedAt = Date.now()
-  let runStatus: SkillRunStatus = 'done'
-  let rounds = 0
-  let proposals = 0
-
   try {
+    // 装配前先看要不要压缩：撞上 400 再处理就晚了，那时整个会话都发不出去
+    const usage = selectContextUsage(get().messages, modelConfig.contextWindow)
+    if (usage.needsCompaction) {
+      set({ compacting: true })
+      try {
+        await compact(conversationId, get().messages, set)
+      } finally {
+        set({ compacting: false })
+      }
+    }
+
+    const history = buildTurns(get().messages)
+    // 会话里读过的 skill 从历史还原：刷新之后能力面不会重新放宽
+    const restored = loadedSkillsFromTurns(history)
+    const base = narrowByLoadedSkills(listCapabilities(), restored)
+    const maxRounds = restored.reduce((acc, s) => Math.max(acc, s.manifest.maxRounds), DEFAULT_MAX_ROUNDS)
+
     const result = await runAgentLoop({
       provider: resolveProvider(modelConfig),
-      systemPrompt: buildSystemPrompt(granted, skill),
+      buildSystemPrompt: (capabilities, loadedSkills) =>
+        buildSystemPrompt({
+          capabilities,
+          skills: listSkills(),
+          loadedSkills: [...restored, ...loadedSkills],
+        }),
       history,
-      capabilities: granted,
-      maxRounds: skill?.manifest.maxRounds ?? DEFAULT_MAX_ROUNDS,
+      capabilities: base,
+      maxRounds,
       signal: abortController.signal,
       handlers,
     })
     rounds = result.rounds
     proposals = result.proposals
+    loaded = [...restored, ...result.loadedSkills]
 
     if (result.stop !== 'text') {
-      const fallback: Message = {
+      await persist({
         id: newId(),
         conversationId,
         role: 'assistant',
@@ -274,28 +377,25 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
             ? '这一轮读取的数据比较多，先停在这里。你可以继续追问或确认上面的卡片。'
             : '这一轮我调用了较多工具，先停在这里。你可以继续追问或确认上面的卡片。',
         createdAt: Date.now(),
-      }
-      await addMessage(fallback)
-      set((s) => ({ messages: [...s.messages, fallback] }))
+      })
     }
   } catch (err) {
     const aborted = abortController.signal.aborted
     runStatus = aborted ? 'aborted' : 'error'
-    const msg = msgRef.current
+    const msg = draft.current
     const partial = msg ? (get().messages.find((m) => m.id === msg.id)?.content ?? '') : ''
     if (aborted && msg && partial) {
       await addMessage({ ...msg, content: partial })
     } else if (msg) {
       set((s) => ({ messages: s.messages.filter((m) => m.id !== msg.id) }))
-      if (!aborted) {
-        set(() => ({ error: err instanceof Error ? err.message : '请求失败，请重试' }))
-      }
+      if (!aborted) set({ error: err instanceof Error ? err.message : '请求失败，请重试' })
     } else if (!aborted) {
-      set(() => ({ error: err instanceof Error ? err.message : '请求失败，请重试' }))
+      set({ error: err instanceof Error ? err.message : '请求失败，请重试' })
     }
   } finally {
-    set(() => ({ streaming: false, abortController: null }))
-    if (skill) {
+    set({ streaming: false, abortController: null })
+    // 一次运行里读过 skill 才算一次 skill run
+    for (const skill of loaded) {
       await recordSkillRun({
         skillName: skill.manifest.name,
         conversationId,

@@ -74,7 +74,8 @@ export async function deleteMessage(id: string): Promise<void> {
 
 export async function getSettings(): Promise<Settings> {
   const existing = await db.settings.get(SETTINGS_ID)
-  if (existing) return existing
+  // modelConfig 会随版本长字段（S8a 的 contextWindow），旧记录补默认值再返回
+  if (existing) return { ...existing, modelConfig: { ...DEFAULT_MODEL_CONFIG, ...existing.modelConfig } }
   const fresh: Settings = { id: SETTINGS_ID, modelConfig: { ...DEFAULT_MODEL_CONFIG } }
   await db.settings.put(fresh)
   return fresh

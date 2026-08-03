@@ -2,6 +2,7 @@ import { listArtifacts } from '@/lib/db/artifacts'
 import { isoToday } from '@/lib/db/dates'
 import { listGrowthEvents } from '@/lib/db/events'
 import { getProfile } from '@/lib/db/profile'
+import { readSkillCapability } from './skills'
 import type { Capability } from '../types'
 import type { EventKind, GrowthEvent } from '@/types'
 
@@ -105,7 +106,10 @@ export const getEventsCapability: Capability = {
       properties: {
         kind: { type: 'string', enum: ['short', 'long'], description: '只要某一类；省略则两类都返回' },
         withinDays: { type: 'number', description: '只要 startDate 在今天起 N 天内的短期事项' },
-        includeDone: { type: 'boolean', description: '是否包含已完成/已归档的事项，默认 false' },
+        includeDone: {
+          type: 'boolean',
+          description: '是否包含已完成/已归档的**短期**事项，默认 false。长期事项无论是否已结束都会返回。',
+        },
         limit: { type: 'number', description: `最多返回多少条，默认 ${DEFAULT_LIMIT}` },
       },
       required: [],
@@ -121,7 +125,11 @@ export const getEventsCapability: Capability = {
 
     let events = await listGrowthEvents()
     if (kind) events = events.filter((e) => e.kind === kind)
-    if (!includeDone) events = events.filter((e) => e.status !== 'done' && e.status !== 'archived')
+    // includeDone 只作用于短期事项：做完的任务确实不用再看，
+    // 但长期事项的 done 表示「这段经历结束了」，那正是背景提升要读的东西，不能滤掉
+    if (!includeDone) {
+      events = events.filter((e) => e.kind === 'long' || (e.status !== 'done' && e.status !== 'archived'))
+    }
     if (withinDays !== undefined) {
       events = events.filter((e) => {
         if (e.kind !== 'short') return true
@@ -202,6 +210,7 @@ export const getArtifactsCapability: Capability = {
 }
 
 export const CORE_READ_CAPABILITIES: Capability[] = [
+  readSkillCapability,
   getProfileCapability,
   getEventsCapability,
   getArtifactsCapability,

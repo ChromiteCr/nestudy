@@ -307,6 +307,27 @@ export interface Task {
 /** 消息角色。`tool` 为 S5 skill 系统的 function-calling 预留 */
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
 
+/**
+ * 持久化的工具调用。形状与 `lib/ai/provider` 的 ToolCallRequest 一致，
+ * 单独定义是为了让 types 保持叶子模块（不反向依赖 lib）。
+ */
+export interface MessageToolCall {
+  id: string
+  name: string
+  /** 原始 JSON 字符串参数 */
+  arguments: string
+}
+
+/** 上下文压缩记录：把一段历史换成一段摘要，回放时用摘要顶替被压掉的部分 */
+export interface CompactionRecord {
+  /** 从这条消息开始保留原文；它之前的都被摘要顶替 */
+  firstKeptMessageId: string
+  /** 被压缩掉的消息条数，展示用 */
+  droppedCount: number
+  /** 压缩前的估算 token 数，展示用 */
+  beforeTokens: number
+}
+
 export interface Message {
   id: string
   conversationId: string
@@ -315,6 +336,18 @@ export interface Message {
   createdAt: number
   /** AI 提案（导入/档案更新），渲染为确认卡；随消息持久化 */
   proposal?: Proposal
+  /**
+   * assistant 本轮发起的工具调用。S8a 起工具轮次**落库**——
+   * 以前只存 user/assistant 文本，工具结果是回合内的临时上下文，
+   * 于是模型看不到上一轮读到过什么，刷新之后更是全丢。
+   */
+  toolCalls?: MessageToolCall[]
+  /** role==='tool'：这条结果对应哪次调用 */
+  toolCallId?: string
+  /** role==='tool'：哪个能力产出的，展示与回放都要用 */
+  toolName?: string
+  /** role==='system' 且是压缩记录时存在 */
+  compaction?: CompactionRecord
 }
 
 // ---- Skill 运行记录（S8：替代 settings.usedSkillIds） ----
@@ -506,6 +539,11 @@ export interface ModelConfig {
   baseURL: string
   apiKey: string
   model: string
+  /**
+   * 模型上下文窗口（token）。用来决定何时压缩历史——不同模型差一个数量级，
+   * 写死一个值就会要么早早开始压、要么压之前先撞上 400。
+   */
+  contextWindow: number
 }
 
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -513,6 +551,8 @@ export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   baseURL: 'https://api.deepseek.com',
   apiKey: '',
   model: 'deepseek-chat',
+  // deepseek-chat 当前是 64K
+  contextWindow: 64000,
 }
 
 // ---- 设置（settings 表单例） ----

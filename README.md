@@ -11,6 +11,9 @@
 - ✍️ **机器声 / 人声**：系统说的话用等宽，你写下的一切用衬线——AI 参与到哪一步，排版上看得见
 - 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
 - 🧩 **Skill Runtime**：直接运行 [Skills 仓库](https://github.com/ChromiteCr/Skills)的 `SKILL.md`——同一份文件在 Claude Code 里也能跑，不是另立格式。skill 是纯文本、无可执行代码，能碰什么由**能力白名单**决定，写库一律要你在卡片上确认
+- ⌨️ **斜杠命令**：输入框里敲 `/` 就出命令表，skill 与 `/compact`、`/new` 同一张表——用不用 skill 是说话的一部分，不是说话之前的一道手续
+- 🔍 **渐进式披露**：系统提示里只放每个 skill 的名字与用途，agent 判断对得上再调 `read_skill` 把正文读进来，读完能力面自动收窄到它声明的范围。装再多 skill 也不占上下文
+- 🧠 **上下文可见可控**：工具调用与结果全部落库并在对话里内联展示（可展开看原文），跨回合、跨刷新都还在；快满了自动压成摘要，也能手动 `/compact`，**原文始终留在本机**
 
 ## 快速开始
 
@@ -54,6 +57,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S8a | 2026-08-03 | 上下文机制与聊天 UI 全面重做，向 Claude Agent Skills / OpenClaw / Pi 的 agent 架构靠拢：**工具轮次落库**（Message 承载 toolCalls/toolCallId/toolName），历史每轮现装配为上下文，跨回合与刷新都保留，模型不再每个回合从零摸索；**渐进式披露**——系统提示只带 skill 的名字与用途，正文由模型自己调 read_skill 读入（新增该 capability），读入后运行时按其声明**动态收窄**后续轮次的能力面（只收窄不放宽，刷新后从历史还原）；新增上下文压缩（超阈值自动 + `/compact` 手动，摘要顶替旧段落、原文不删）与 token 估算，模型配置新增可调的上下文窗口；聊天 UI：删掉独立的 SkillBar，skill 并入输入框的斜杠命令菜单（空格+`/` 触发，含 `/compact`、`/new`），工具调用在消息流内联可展开，输入框脚注显示上下文占用；顺带修掉 get_events 把已结束的长期事项一并滤掉（那正是背景提升要读的内容）| feat |
 | S8 | 2026-08-03 | Skill Runtime 内核：直接加载 Skills 仓库的 SKILL.md（构建期采集为 src/generated/skills.json，运行时解析，内置与日后商店安装共用一个解析器），招生官读档从内置 JSON 迁为标准 SKILL.md；工具层重做为**开放 Capability 注册表**（9 个旧工具收敛为 get_profile/get_events/get_artifacts/propose_events/propose_profile_update/propose_canvas/propose_artifact，owner 字段给 S13 plugin 留口），propose_canvas 改用稳定 node id 取代标题匹配；agent loop 抽到 lib/runtime/executor.ts，轮数上限按 skill 可配（默认 8）+ 工具输出预算兜底，skill 激活态随会话持久化、刷新不再丢；Dexie v7 新增 skillRuns 取代 settings.usedSkillIds 并删除六张 v5 遗留表，导出升至 v7；删除 S6 兼容层与 planningStore 的派生旧数组 | milestone |
 | S7a2 | 2026-08-03 | 聊天页新增可折叠的对话抽屉（新对话按钮 + 对话列表，与画板抽屉同一套结构：宽屏并排、窄屏浮层覆盖），会话切换不再挤在头部下拉里；字号整体上调一档（衬线在相同像素下比无衬线显小，原来照搬 Tailwind 默认在宋体上偏挤）；随之修掉窄屏提醒卡被按钮挤到换行、输入框占位文字被撑出半行两处 | fix |
 | S7a1 | 2026-08-02 | UI 柔化：圆角统一放大一档（--radius 0.25→0.5rem，画板控件一并接入），深浅两套配色整体降对比——浅色底不取纯白、正文不取近黑，深色底抬离纯黑、正文压离纯白，画板类别色彩度压低；补上 S7 漏改的两处：助手消息去掉灰底气泡（有容器的只应是学生自己写下的内容）、自选主色改为只作用于画板签名色与焦点态而非全站刷 --primary | fix |

@@ -23,6 +23,12 @@ export interface Capability {
   summary: string
   schema: ToolDef
   owner: CapabilityOwner
+  /**
+   * 无论 skill 怎么收窄都保留。目前只有 read_skill：
+   * 它是发现机制本身，收掉它 agent 就再也读不到别的 skill 了。
+   * 只能给纯读、且读的内容本身就是公开文本的能力加这个标记。
+   */
+  alwaysGranted?: boolean
   /** kind === 'read'：执行并返回给模型的 JSON 字符串 */
   execute?: (rawArgs: string) => Promise<string>
   /** kind === 'propose'：解析模型参数为提案；返回 null 表示提案为空，不出卡 */

@@ -110,6 +110,20 @@ function ModelPanel() {
         />
         <span className="text-xs text-muted-foreground">兼容任意 OpenAI 格式的服务商</span>
       </label>
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-medium">上下文窗口（token）</span>
+        <Input
+          type="number"
+          min={4000}
+          step={1000}
+          value={modelConfig.contextWindow}
+          className="font-mono"
+          onChange={(e) => void updateModelConfig({ contextWindow: Number(e.target.value) || 0 })}
+        />
+        <span className="text-xs text-muted-foreground">
+          决定对话涨到多长时自动压缩成摘要。换模型时按它的窗口改，填小了会频繁压缩，填大了会撞上模型上限。
+        </span>
+      </label>
     </div>
   )
 }

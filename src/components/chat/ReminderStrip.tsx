@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
 import { useReminderStore } from '@/stores/reminderStore'
-import { useSkillStore } from '@/stores/skillStore'
 import { getSkill } from '@/lib/skills'
 
 /**
@@ -19,9 +18,10 @@ export function ReminderStrip() {
 
   const handle = (r: (typeof reminders)[number]) => {
     if (r.suggestSkillName) {
+      // 和用户自己敲 /<skill-name> 走同一条路：agent 自己去 read_skill，
+      // 不再有一个"已激活但还没读定义"的中间态
       const skill = getSkill(r.suggestSkillName)
-      useSkillStore.getState().setActiveSkill(r.suggestSkillName)
-      setPendingPrompt(`帮我用「${skill?.manifest.displayName ?? '这个 skill'}」分析一下`)
+      setPendingPrompt(`/${r.suggestSkillName} 帮我用「${skill?.manifest.displayName ?? '这个 skill'}」分析一下`)
     } else if (r.prompt) {
       setPendingPrompt(r.prompt)
     }
