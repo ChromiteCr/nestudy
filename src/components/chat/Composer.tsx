@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { ArrowUp, ClipboardPaste, Loader2, Sparkles, Square } from 'lucide-react'
+import { ArrowUp, ClipboardPaste, Loader2, Slash, Sparkles, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Mono } from '@/components/ui/mono'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -57,9 +57,38 @@ export function Composer() {
 
   const commands = useMemo(() => (query ? filterCommands(listSlashCommands(), query.term) : []), [query])
 
+  /**
+   * 同步命令上下文。**只在命令本身变了的时候**才把选中项拨回第一条——
+   * 无条件重置会让上下键失效：keydown 里刚把 activeIndex 挪一格，
+   * 紧接着的 keyup 又调到这里给拨回 0。
+   */
   const syncQuery = (next: string, cursor: number) => {
-    setQuery(detectSlashQuery(next, cursor))
+    const detected = detectSlashQuery(next, cursor)
+    if (detected?.start !== query?.start || detected?.term !== query?.term) setActiveIndex(0)
+    setQuery(detected)
+  }
+
+  /** 输入框左侧的 / 按钮：已开就收起，没开就在光标处插入 / 并唤出菜单 */
+  const toggleCommandPalette = () => {
+    const el = textareaRef.current
+    if (query) {
+      setQuery(null)
+      el?.focus()
+      return
+    }
+    const cursor = el?.selectionStart ?? value.length
+    const before = value.slice(0, cursor)
+    // 前面不是空白就补一个，否则不构成命令触发（普通斜杠不该弹菜单）
+    const insert = before.length > 0 && !/\s$/.test(before) ? ' /' : '/'
+    const next = `${before}${insert}${value.slice(cursor)}`
+    const caret = cursor + insert.length
+    setValue(next)
     setActiveIndex(0)
+    setQuery(detectSlashQuery(next, caret))
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(caret, caret)
+    })
   }
 
   const choose = (command: SlashCommand) => {
@@ -146,6 +175,24 @@ export function Composer() {
               </Button>
             </TooltipTrigger>
             <TooltipContent>粘贴通知/邮件，AI 解析为事项</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="唤出命令面板"
+                // onMouseDown 而不是 onClick：click 之前 textarea 已经失焦，
+                // 插入完光标就不在输入框里了
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  toggleCommandPalette()
+                }}
+              >
+                <Slash className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>命令与 skill（也可以直接敲 /）</TooltipContent>
           </Tooltip>
           <textarea
             ref={textareaRef}

@@ -32,9 +32,18 @@ export const OUTPUT_CAPABILITY: Record<SkillOutput, string | null> = {
   event: 'propose_events',
 }
 
-/** 轮数上限的缺省值。S5 的 4 轮太少——读三样数据再产出就已经用光了 */
-export const DEFAULT_MAX_ROUNDS = 8
-export const MAX_ALLOWED_ROUNDS = 20
+/**
+ * 轮数上限的缺省值。
+ *
+ * 一路从 S5 的 4 → S8 的 8 → 这里的 32。理由是渐进式披露之后一轮的含金量变低了：
+ * 读 skill 占一轮、读数据占一两轮，真正干活的轮次要从剩下的里出。
+ * 而且工具调用现在跨回合可见，一次多跑几轮不再是"黑箱里空转"。
+ *
+ * 真正兜底的不是这个数，是执行器里的工具输出预算和用户随时能按的停止键——
+ * 轮数上限只防死循环，不该用来省钱。
+ */
+export const DEFAULT_MAX_ROUNDS = 32
+export const MAX_ALLOWED_ROUNDS = 100
 
 export interface SkillManifest {
   /** kebab-case，等于 skill 目录名 */

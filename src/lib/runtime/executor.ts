@@ -17,8 +17,12 @@ import type { MessageToolCall, Proposal } from '@/types'
  * （渐进式披露）。读进来的那一刻，后续轮次的能力面按该 skill 的声明收窄。
  */
 
-/** 一轮里工具产出的字符预算。超了就停止再喂读工具，把结论逼出来 */
-const TOOL_OUTPUT_BUDGET = 32_000
+/**
+ * 一次运行里工具产出的字符预算。超了就停止再喂读工具，把结论逼出来。
+ * 轮数放宽之后这条才是真正的兜底：轮数管的是"别死循环"，
+ * 这条管的是"别把上下文读爆"。
+ */
+const TOOL_OUTPUT_BUDGET = 80_000
 
 export interface RunHandlers {
   /** 本轮文本流式增量（传累计全文，UI 直接渲染） */
