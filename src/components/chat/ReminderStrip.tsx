@@ -37,24 +37,31 @@ export function ReminderStrip() {
   return (
     <div className="flex flex-col gap-2 border-b px-4 py-3">
       {reminders.map((r) => (
-        <div key={r.key} className="flex items-start gap-3 rounded-sm border bg-card px-3 py-2">
-          <Bell className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <Mono className="block">{r.title}</Mono>
-            <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{r.body}</p>
+        <div
+          key={r.key}
+          className="flex flex-col gap-2 rounded-md border bg-card px-3 py-2 sm:flex-row sm:items-start sm:gap-3"
+        >
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <Bell className="mt-1 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <Mono className="block">{r.title}</Mono>
+              <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{r.body}</p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => handle(r)}>
-            去处理
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
-            aria-label="关闭提醒"
-            onClick={() => void dismiss(r.key)}
-          >
-            <X className="size-3.5" />
-          </Button>
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            <Button variant="outline" size="sm" className="h-7" onClick={() => handle(r)}>
+              去处理
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label="关闭提醒"
+              onClick={() => void dismiss(r.key)}
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
         </div>
       ))}
     </div>

@@ -20,6 +20,20 @@
     --font-serif: var(--font-sans);
     /* 机器声：系统说的话——时间、计数、代号、标签 */
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Noto Serif SC Variable', 'Songti SC', monospace;
+    /* 字号整体上调一档。衬线在相同像素下比无衬线显小，
+       原来照搬 Tailwind 默认（12/14/16）在宋体上偏挤 */
+    --text-xs: 0.8125rem;
+    --text-xs--line-height: 1.55;
+    --text-sm: 0.9375rem;
+    --text-sm--line-height: 1.65;
+    --text-base: 1.0625rem;
+    --text-base--line-height: 1.7;
+    --text-lg: 1.1875rem;
+    --text-lg--line-height: 1.55;
+    --text-xl: 1.375rem;
+    --text-xl--line-height: 1.45;
+    --text-2xl: 1.625rem;
+    --text-2xl--line-height: 1.35;
     --color-signature: var(--signature);
     --color-canvas-1: var(--canvas-1);
     --color-canvas-2: var(--canvas-2);

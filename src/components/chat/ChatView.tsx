@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { RotateCcw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { ChatDrawer } from './ChatDrawer'
 import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
@@ -22,6 +23,8 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const pendingPrompt = useChatStore((s) => s.pendingPrompt)
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 与画板抽屉同一取舍：窄屏默认收起，展开时浮层覆盖而不是挤压正文
+  const [drawerOpen, setDrawerOpen] = useState(() => window.innerWidth >= 768)
 
   // 新消息/思考指示出现时滚到底部
   useEffect(() => {
@@ -40,55 +43,58 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   }, [pendingPrompt, streaming])
 
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col">
-      <ChatHeader />
-      <ReminderStrip />
-      <SkillBar />
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-20 text-center">
-              <div className="flex size-12 items-center justify-center rounded-sm bg-accent">
-                <Sparkles className="size-5 text-muted-foreground" />
+    <div className="relative flex h-full min-w-0 flex-1">
+      {drawerOpen && <ChatDrawer />}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ChatHeader drawerOpen={drawerOpen} onToggleDrawer={() => setDrawerOpen((v) => !v)} />
+        <ReminderStrip />
+        <SkillBar />
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center gap-3 py-20 text-center">
+                <div className="flex size-12 items-center justify-center rounded-sm bg-accent">
+                  <Sparkles className="size-5 text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-semibold">你好，我是学栖</h2>
+                <p className="max-w-md leading-relaxed text-muted-foreground">
+                  我帮国际部学生做学习规划、背景提升和时间管理。
+                  {hasKey ? '说说你现在最想解决的事？' : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
+                </p>
+                {!hasKey && (
+                  <Button size="sm" onClick={onOpenSettings}>
+                    去设置 API Key
+                  </Button>
+                )}
               </div>
-              <h2 className="text-lg font-semibold">你好，我是学栖</h2>
-              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-                我帮国际部学生做学习规划、背景提升和时间管理。
-                {hasKey ? '说说你现在最想解决的事？' : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
-              </p>
-              {!hasKey && (
-                <Button size="sm" onClick={onOpenSettings}>
-                  去设置 API Key
+            )}
+
+            {messages.map((m) => (
+              <MessageBubble key={m.id} message={m} />
+            ))}
+
+            {/* 等待模型产出文本时（含工具轮次间隙）显示思考指示 */}
+            {streaming &&
+              !(
+                messages.length > 0 &&
+                messages[messages.length - 1].role === 'assistant' &&
+                messages[messages.length - 1].content &&
+                !messages[messages.length - 1].proposal
+              ) && <ThinkingIndicator />}
+
+            {error && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-destructive">
+                <span className="min-w-0 break-words">{error}</span>
+                <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => void retryLast()}>
+                  <RotateCcw className="size-3.5" />
+                  重试
                 </Button>
-              )}
-            </div>
-          )}
-
-          {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
-          ))}
-
-          {/* 等待模型产出文本时（含工具轮次间隙）显示思考指示 */}
-          {streaming &&
-            !(
-              messages.length > 0 &&
-              messages[messages.length - 1].role === 'assistant' &&
-              messages[messages.length - 1].content &&
-              !messages[messages.length - 1].proposal
-            ) && <ThinkingIndicator />}
-
-          {error && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5 text-sm text-destructive">
-              <span className="min-w-0 break-words">{error}</span>
-              <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => void retryLast()}>
-                <RotateCcw className="size-3.5" />
-                重试
-              </Button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
+        <Composer />
       </div>
-      <Composer />
     </div>
   )
 }

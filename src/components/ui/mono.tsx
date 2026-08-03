@@ -16,7 +16,7 @@ interface MonoProps {
  */
 export function Mono({ children, className, as: Tag = 'span' }: MonoProps) {
   return (
-    <Tag className={cn('font-mono text-[0.8125em] tracking-tight tabular-nums', className)}>
+    <Tag className={cn('font-mono text-[0.86em] tracking-tight tabular-nums', className)}>
       {children}
     </Tag>
   )

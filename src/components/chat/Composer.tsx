@@ -47,8 +47,8 @@ export function Composer() {
             }
           }}
           rows={1}
-          placeholder="问点什么…（Enter 发送，Shift+Enter 换行）"
-          className="max-h-[200px] min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+          placeholder="问点什么…"
+          className="max-h-[200px] min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 outline-none placeholder:text-muted-foreground"
         />
         {streaming ? (
           <Button size="icon" variant="secondary" aria-label="停止生成" onClick={stopStreaming}>
@@ -61,7 +61,7 @@ export function Composer() {
         )}
       </div>
       <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
-        数据 100% 存于本地浏览器 · 自带 Key 模式下请求直连模型服务商
+        Enter 发送 · Shift+Enter 换行 · 数据只存于本机浏览器
       </p>
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
