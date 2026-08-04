@@ -160,7 +160,9 @@ function SkillsPanel() {
                   <Mono>{s.manifest.status}</Mono>
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">{s.manifest.description}</p>
+              {/* 描述原本是这张卡里最响的一块（六行正文字号），可它是三者里最不重要的：
+                  这段话是写给模型的触发语。压到最小一档，让下面的授权范围成为视觉主角 */}
+              <p className="text-2xs text-muted-foreground">{s.manifest.description}</p>
               <dl className="mt-1 flex flex-col gap-1 text-sm">
                 <div className="flex gap-2">
                   <dt className="shrink-0 text-muted-foreground">能力</dt>

@@ -22,6 +22,10 @@
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Noto Serif SC Variable', 'Songti SC', monospace;
     /* 字号整体上调一档。衬线在相同像素下比无衬线显小，
        原来照搬 Tailwind 默认（12/14/16）在宋体上偏挤 */
+    /* 最小一档，只给「参考信息」用：skill 描述这类写给模型看、
+       用户偶尔核对一眼的文字。它不该和正文一样响 */
+    --text-2xs: 0.75rem;
+    --text-2xs--line-height: 1.5;
     --text-xs: 0.8125rem;
     --text-xs--line-height: 1.55;
     --text-sm: 0.9375rem;

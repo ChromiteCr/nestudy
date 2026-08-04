@@ -28,7 +28,7 @@ export function SlashCommandMenu({ commands, activeIndex, onHover, onSelect }: S
   return (
     <div
       ref={listRef}
-      className="mx-auto mb-2 flex max-h-64 w-full max-w-3xl flex-col overflow-y-auto rounded-xl border bg-popover p-1 shadow-md"
+      className="mx-auto mb-2 flex max-h-72 w-full max-w-3xl flex-col overflow-y-auto rounded-xl border bg-popover p-1 shadow-md"
     >
       {commands.map((command, i) => (
         <button
@@ -56,11 +56,17 @@ export function SlashCommandMenu({ commands, activeIndex, onHover, onSelect }: S
             <Terminal className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
           )}
           <div className="flex min-w-0 flex-col">
+            {/* 窄屏下要截也是截 kebab 名，不能截通俗名：学生是按「活动栏压缩」认的，
+                /activity-list-optimizer 只是选中后自动填进输入框的那串字。
+                原来反了——机器名换行占满两行，通俗名被压成「活动栏…」 */}
             <div className="flex items-baseline gap-2">
-              <Mono>/{command.name}</Mono>
-              <span className="truncate text-sm text-muted-foreground">{command.label}</span>
+              <Mono className="min-w-0 truncate">/{command.name}</Mono>
+              <span className="shrink-0 text-sm text-muted-foreground">{command.label}</span>
             </div>
-            <span className="line-clamp-2 text-sm text-muted-foreground">{command.description}</span>
+            {/* 描述是写给模型的触发语，长且啰嗦。在这里只起「确认没选错」的作用——
+                真正用来挑的是上面那行通俗名。压到最小一档并只留一行：
+                九条命令原本只露得出三条，翻页找 skill 比读清描述烦得多 */}
+            <span className="line-clamp-1 text-2xs text-muted-foreground">{command.description}</span>
           </div>
         </button>
       ))}
