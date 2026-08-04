@@ -65,7 +65,7 @@ function CardShell({
   return (
     <div
       className={cn(
-        'w-full max-w-[85%] rounded-xl border bg-card p-3 shadow-xs',
+        'w-full max-w-[85%] animate-[tool-appear_220ms_ease-out] rounded-xl border bg-card p-3 shadow-xs',
         status === 'dismissed' && 'opacity-60',
       )}
     >

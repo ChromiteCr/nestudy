@@ -19,6 +19,7 @@ import { applyProposal, listCapabilities } from '@/lib/capabilities'
 import { DEFAULT_MAX_ROUNDS, listSkills, type LoadedSkill } from '@/lib/skills'
 import { summarizeForCompaction } from '@/lib/runtime/compaction'
 import { buildTurns, measureContext, MANUAL_KEEP_RECENT_TOKENS } from '@/lib/runtime/context'
+import { generateConversationTitle } from '@/lib/runtime/title'
 import {
   loadedSkillsFromTurns,
   narrowByLoadedSkills,
@@ -122,15 +123,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await addMessage(userMessage)
     set((s) => ({ messages: [...s.messages, userMessage], error: null }))
 
-    if (get().messages.filter((m) => m.role === 'user').length === 1) {
-      const title = content.trim().slice(0, 24)
-      await renameConversation(conversationId, title)
-      set((s) => ({
-        conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, title } : c)),
-      }))
-    }
+    // 先用首句截断当占位标题，抽屉里立刻有个能认的名字；
+    // 首轮跑完再让模型换成像样的（见 maybeGenerateTitle）
+    const isFirstTurn = get().messages.filter((m) => m.role === 'user').length === 1
+    if (isFirstTurn) await applyTitle(conversationId, content.trim().slice(0, 24), set)
 
     await runConversation(conversationId, set, get)
+    if (isFirstTurn && !get().error) await maybeGenerateTitle(conversationId, set, get)
   },
 
   stopStreaming: () => {
@@ -197,6 +196,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
 type Set = (patch: Partial<ChatState> | ((s: ChatState) => Partial<ChatState>)) => void
 type Get = () => ChatState
+
+async function applyTitle(conversationId: string, title: string, set: Set) {
+  await renameConversation(conversationId, title)
+  set((s) => ({
+    conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, title } : c)),
+  }))
+}
+
+/**
+ * 首轮结束后让模型给会话起个标题。
+ *
+ * 多花一次模型调用，换的是抽屉里认得出哪个会话是哪个——首句截断在这个产品里
+ * 尤其不够用：带 /skill-name 的开头几条会话名字长得几乎一样。
+ * 失败就静默保留占位标题，不打扰用户，也不写进 error。
+ */
+async function maybeGenerateTitle(conversationId: string, set: Set, get: Get) {
+  const { modelConfig } = useSettingsStore.getState()
+  if (modelConfig.tier === 'custom' && !modelConfig.apiKey) return
+  try {
+    const title = await generateConversationTitle(resolveProvider(modelConfig), get().messages)
+    if (title) await applyTitle(conversationId, title, set)
+  } catch {
+    // 起标题失败不影响对话本身，占位标题继续用
+  }
+}
 
 /** 当前会话的上下文占用，输入框脚注展示用 */
 export function selectContextUsage(messages: Message[], contextWindow: number) {

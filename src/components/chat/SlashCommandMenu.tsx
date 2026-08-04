@@ -16,7 +16,11 @@ export function SlashCommandMenu({ commands, activeIndex, onHover, onSelect }: S
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+    const list = listRef.current
+    // 只在真的滚得动的时候才滚。列表没溢出时 scrollIntoView 会去动祖先滚动容器
+    // （聊天区），表现为按一下方向键整页闪一下
+    if (!list || list.scrollHeight <= list.clientHeight) return
+    list.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [activeIndex])
 
   if (commands.length === 0) return null
@@ -31,7 +35,11 @@ export function SlashCommandMenu({ commands, activeIndex, onHover, onSelect }: S
           key={`${command.kind}:${command.name}`}
           type="button"
           data-active={i === activeIndex}
-          onMouseEnter={() => onHover(i)}
+          // 必须是 mousemove 不能是 mouseenter：mouseenter 在「元素移动到静止的
+          // 指针底下」时也会触发。指针停在菜单上时，方向键改选中项 → 列表重排/滚动
+          // → 光标底下换了一个 item → mouseenter 把选中项抢回鼠标所在那条。
+          // 表现就是「闪一下又跳回第一个」。mousemove 只在指针真的动了才触发。
+          onMouseMove={() => i !== activeIndex && onHover(i)}
           // onMouseDown 而不是 onClick：click 之前 textarea 已经失焦，选完就没法接着打字了
           onMouseDown={(e) => {
             e.preventDefault()

@@ -36,7 +36,7 @@ export function ToolCallRow({ message, args }: ToolCallRowProps) {
   const preview = body.length > PREVIEW_CHARS ? `${body.slice(0, PREVIEW_CHARS)}\n…（其余省略）` : body
 
   return (
-    <div className="flex justify-start">
+    <div className="flex animate-[tool-appear_220ms_ease-out] justify-start">
       <div className="w-full max-w-[85%] overflow-hidden rounded-lg border bg-muted/40">
         <button
           type="button"

@@ -234,6 +234,16 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/**
+ * 工具行与确认卡出现时的渐显。
+ * agent 在做什么应该是"浮现"出来的——一轮里可能连出好几行，
+ * 啪地跳出来会让人以为界面闪了一下，看不清哪一行是新的。
+ */
+@keyframes tool-appear {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
