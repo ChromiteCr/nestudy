@@ -10,6 +10,7 @@ import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { listCapabilities, resolveForSkill } from '@/lib/capabilities'
+import { referenceStamp } from '@/lib/capabilities/application'
 import { listSkillLoadIssues, listSkills, OUTPUT_LABEL, SKILLS_SOURCE } from '@/lib/skills'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
@@ -199,9 +200,32 @@ function SkillsPanel() {
         </div>
       )}
 
-      <div className="flex flex-col gap-1 border-t pt-3 text-sm text-muted-foreground">
+      {/* S9 之后能力有十几项，一行 name 挤在一起谁也看不清。
+          按读 / 提案分开、带上通俗名字列出来，这一页才真的能用来核对授权范围 */}
+      <div className="flex flex-col gap-2 border-t pt-3">
+        <span className="text-sm text-muted-foreground">全部可用能力（{capabilities.length}）</span>
+        {(['read', 'propose'] as const).map((kind) => {
+          const group = capabilities.filter((c) => c.kind === kind)
+          if (group.length === 0) return null
+          return (
+            <div key={kind} className="flex gap-2 text-sm">
+              <Mono className="w-14 shrink-0 text-muted-foreground">{kind === 'read' ? '读取' : '提案'}</Mono>
+              <ul className="grid min-w-0 flex-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+                {/* 不截断：工具名是 SKILL.md 里要照抄的字符串，截了这一页就白列了 */}
+                {group.map((c) => (
+                  <li key={c.name} className="min-w-0" title={c.summary}>
+                    {c.label} <Mono className="break-all text-muted-foreground">{c.name}</Mono>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
         <span>
-          全部可用能力（{capabilities.length}）：<Mono>{capabilities.map((c) => c.name).join(' · ')}</Mono>
+          申请参考数据：<Mono>{referenceStamp()}</Mono>
         </span>
         <span>
           Skill 来源：<Mono>{SKILLS_SOURCE.repo}</Mono> @ <Mono>{SKILLS_SOURCE.commit}</Mono>（Library{' '}

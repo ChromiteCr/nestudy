@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type {
+  Application,
   Artifact,
   CanvasEdge,
   CanvasNode,
@@ -25,6 +26,8 @@ export const db = new Dexie('studynest') as Dexie & {
   canvasEdges: EntityTable<CanvasEdge, 'id'>
   /** S8 起的 skill 运行记录 */
   skillRuns: EntityTable<SkillRun, 'id'>
+  /** S9 起的申请清单 */
+  applications: EntityTable<Application, 'id'>
 }
 
 db.version(1).stores({
@@ -168,3 +171,23 @@ db.version(7)
       await tx.table('settings').put(rest)
     }
   })
+
+/**
+ * v8：新增 applications（S9 申请清单）。
+ *
+ * 纯加表，不需要 upgrade 回调——申请数据在此之前不存在，
+ * profile.targetSchools 里的目标校也不迁过来：那是「想去哪」，
+ * 申请清单是「已经在申请、材料到哪一步了」，两件事，硬迁只会造出一堆空壳。
+ */
+db.version(8).stores({
+  conversations: 'id, updatedAt',
+  messages: 'id, conversationId, createdAt',
+  settings: 'id',
+  profile: 'id',
+  growthEvents: 'id, kind, category, startDate, status, parentId',
+  artifacts: 'id, kind, createdAt',
+  canvasNodes: 'id',
+  canvasEdges: 'id, sourceNodeId, targetNodeId, artifactId',
+  skillRuns: 'id, skillName, conversationId, startedAt',
+  applications: 'id, schoolName, track, deadline',
+})

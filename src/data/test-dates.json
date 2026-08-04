@@ -1,0 +1,80 @@
+{
+  "version": "2026.08",
+  "updatedAt": "2026-08-04",
+  "disclaimer": "数据截至 2026 年 8 月，考试日期与报名截止每年变动，请以官网为准。",
+  "_howToUpdate": "每个 exam 的 dates 默认为空，需要时从 officialUrl 抄录当年的考试日 / 报名截止日后填入 { testDate, registrationDeadline, lateDeadline, scoreRelease, region }。**不要凭印象填**——一份带着「数据截至 X 月」印章的错误日期，比没有日期危险得多。窗口与提前量这类结构性信息年年稳定，已经填好，可以直接用。",
+  "exams": [
+    {
+      "id": "sat",
+      "name": "SAT",
+      "board": "College Board",
+      "officialUrl": "https://satsuite.collegeboard.org/sat/registration/dates-deadlines",
+      "annualWindow": "国际考场每学年约 6–7 场，集中在 3 / 5 / 6 / 8 / 10 / 11 / 12 月",
+      "registrationLead": "常规报名截止约在考试日前 2–3 周，之后是加价的 late registration",
+      "scoreRelease": "机考 SAT 一般考后约 2 周出分",
+      "notes": [
+        "机考版，考位随考场容量先到先得，热门考场（如香港、新加坡）要提前几个月抢",
+        "送分给学校另有截止时间，比考试日晚，但别拖到申请截止那几天"
+      ],
+      "dates": []
+    },
+    {
+      "id": "act",
+      "name": "ACT",
+      "board": "ACT Inc.",
+      "officialUrl": "https://www.act.org/content/act/en/products-and-services/the-act/registration.html",
+      "annualWindow": "国际考场每学年约 5–6 场，集中在 9 / 10 / 12 / 2 / 4 / 6 月",
+      "registrationLead": "常规报名截止约在考试日前 4–5 周",
+      "scoreRelease": "多数考生考后 2 周左右拿到选择题分数，写作分更晚",
+      "notes": ["国际考场部分场次为机考", "与 SAT 二选一即可，不必两个都刷"],
+      "dates": []
+    },
+    {
+      "id": "ap",
+      "name": "AP 考试",
+      "board": "College Board",
+      "officialUrl": "https://apstudents.collegeboard.org/exam-calendar",
+      "annualWindow": "每年 5 月前两个完整周，全球统一时间表",
+      "registrationLead": "秋季就要在学校完成报考（通常 11 月前后），逾期加收费用",
+      "scoreRelease": "当年 7 月出分",
+      "notes": [
+        "AP 考试分数（1–5）不是课程成绩，别拿来折算 GPA",
+        "中国大陆考生多数需要通过学校或指定考点报名"
+      ],
+      "dates": []
+    },
+    {
+      "id": "ib",
+      "name": "IB 大考",
+      "board": "International Baccalaureate",
+      "officialUrl": "https://www.ibo.org/",
+      "annualWindow": "5 月大考（北半球，约 4 月底至 5 月下旬）与 11 月大考（南半球）",
+      "registrationLead": "由学校统一报名，个人不自行报考",
+      "scoreRelease": "5 月大考一般 7 月初出分，11 月大考次年 1 月初",
+      "notes": ["IA / EE / TOK 的校内与提交截止由学校排，通常远早于大考"],
+      "dates": []
+    },
+    {
+      "id": "toefl",
+      "name": "TOEFL iBT",
+      "board": "ETS",
+      "officialUrl": "https://www.ets.org/toefl",
+      "annualWindow": "全年高频开考，多数月份每周都有场次",
+      "registrationLead": "常规报名截止约在考试日前 7 天",
+      "scoreRelease": "考后约 4–8 天出分",
+      "notes": ["高频开考不等于随时有位，热门城市周末场同样要早抢", "送分有免费额度，超出按份计费"],
+      "dates": []
+    },
+    {
+      "id": "ielts",
+      "name": "IELTS",
+      "board": "British Council / IDP",
+      "officialUrl": "https://www.ielts.org/",
+      "annualWindow": "全年高频开考，机考场次每周多场",
+      "registrationLead": "机考最晚可到考前几天，纸笔考更早",
+      "scoreRelease": "机考约 3–5 天，纸笔考约 13 天",
+      "notes": ["英国方向注意区分 IELTS Academic 与 UKVI"],
+      "dates": []
+    }
+  ]
+}

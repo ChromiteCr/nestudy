@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Archive, CalendarClock, Check, GraduationCap, History, Network, X } from 'lucide-react'
+import { Archive, CalendarClock, Check, GraduationCap, History, Network, Send, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,15 +9,19 @@ import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
 import { ProposedEventRow } from './ProposedEventRow'
 import {
+  APPLICATION_TRACK_LABEL,
+  MATERIAL_KIND_LABEL,
   isLegacyProposal,
   type LegacyProposalKind,
   type Message,
   type Proposal,
+  type ProposedApplication,
   type ProposedArtifact,
   type ProposedCanvasEdge,
   type ProposedGrowthEvent,
   type ProposedNodeNote,
 } from '@/types'
+import { resolveDeadline, type ResolvedDeadline } from '@/lib/capabilities/application'
 
 const ARTIFACT_KIND_LABEL: Record<ProposedArtifact['kind'], string> = {
   reflection: '反思',
@@ -40,6 +44,7 @@ export function ProposalCard({ message }: ProposalCardProps) {
   if (proposal.kind === 'events') return <EventsProposalCard message={message} proposal={proposal} />
   if (proposal.kind === 'canvas') return <CanvasProposalCard message={message} proposal={proposal} />
   if (proposal.kind === 'artifact') return <ArtifactProposalCard message={message} proposal={proposal} />
+  if (proposal.kind === 'application') return <ApplicationProposalCard message={message} proposal={proposal} />
   return <ProfileProposalCard message={message} proposal={proposal} />
 }
 
@@ -345,6 +350,97 @@ function ArtifactProposalCard({
             </div>
           </div>
         ))}
+      </div>
+    </CardShell>
+  )
+}
+
+const MATERIAL_STATUS_LABEL = { todo: '未开始', draft: '草稿中', done: '已完成' } as const
+
+function ApplicationProposalCard({
+  message,
+  proposal,
+}: {
+  message: Message
+  proposal: Extract<Proposal, { kind: 'application' }>
+}) {
+  const confirmProposal = useChatStore((s) => s.confirmProposal)
+  const dismissProposal = useChatStore((s) => s.dismissProposal)
+  const [applications, setApplications] = useState<ProposedApplication[]>(proposal.applications)
+  const editable = proposal.status === 'pending'
+
+  const patch = (i: number, next: Partial<ProposedApplication>) =>
+    setApplications((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...next } : a)))
+
+  // 卡片上直接给北京时间：截止写的是学校当地时间，学生要的是"我这边几点"。
+  // 换算不出来的（时区写坏了）就不可勾选——跟画板提案里连不上的边同一处理：
+  // 让用户看见模型写了什么、错在哪，但不让这种记录进库
+  const resolved = applications.map((a) =>
+    resolveDeadline({ date: a.deadline, time: a.deadlineTime, timeZone: a.deadlineTimeZone }),
+  )
+  const usable = (i: number) => !('error' in resolved[i])
+
+  return (
+    <CardShell
+      icon={<Send className="size-4 text-muted-foreground" />}
+      title={`申请提案 ${applications.length}`}
+      status={proposal.status}
+      resultNote={proposal.resultNote}
+      onConfirm={() =>
+        void confirmProposal(message.id, {
+          ...proposal,
+          applications: applications.map((a, i) => ({ ...a, include: a.include && usable(i) })),
+        })
+      }
+      onDismiss={() => void dismissProposal(message.id)}
+    >
+      <div className="flex flex-col gap-2">
+        {applications.map((a, i) => {
+          const included = a.include && usable(i)
+          return (
+            <div key={i} className="flex items-start gap-2 rounded-lg border bg-background/50 p-2">
+              {editable && (
+                <Checkbox
+                  className="mt-1.5"
+                  checked={included}
+                  disabled={!usable(i)}
+                  onCheckedChange={(v) => patch(i, { include: v === true })}
+                />
+              )}
+              <div className={cn('flex min-w-0 flex-1 flex-col gap-1', !included && 'opacity-50')}>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-medium">{a.schoolName}</span>
+                  <Badge variant="secondary">{APPLICATION_TRACK_LABEL[a.track]}</Badge>
+                  {a.id && <Badge variant="outline">更新已有记录</Badge>}
+                </div>
+                <Mono className="text-muted-foreground">
+                  {a.deadline} {a.deadlineTime} {a.deadlineTimeZone}
+                  {'error' in resolved[i] ? (
+                    <span className="ml-1 text-destructive">
+                      （{(resolved[i] as { error: string }).error}无法记录这一条）
+                    </span>
+                  ) : (
+                    <>
+                      {' '}
+                      · 北京时间 {(resolved[i] as ResolvedDeadline).beijing} ·{' '}
+                      {(resolved[i] as ResolvedDeadline).countdown}
+                    </>
+                  )}
+                </Mono>
+                {a.materials.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {a.materials.map((m, mi) => (
+                      <Badge key={mi} variant="outline" className="font-normal">
+                        {m.label || MATERIAL_KIND_LABEL[m.kind]} · {MATERIAL_STATUS_LABEL[m.status]}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {a.notes && <p className="text-sm text-muted-foreground">{a.notes}</p>}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </CardShell>
   )

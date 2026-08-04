@@ -18,7 +18,8 @@ import { Mono } from '@/components/ui/mono'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePlanningStore } from '@/stores/planningStore'
 import { daysUntil } from '@/lib/db/dates'
-import { EVENT_CATEGORY_LABEL, type EventCategory } from '@/types'
+import { resolveDeadline, referenceStamp } from '@/lib/capabilities/application'
+import { APPLICATION_TRACK_LABEL, EVENT_CATEGORY_LABEL, type EventCategory } from '@/types'
 import { cn } from '@/lib/utils'
 import { buildCanvas, type CanvasNodeData } from './canvas-model'
 import { CanvasNodeCard } from './CanvasNodeCard'
@@ -229,8 +230,9 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory 
   return (
     <aside className="absolute inset-y-0 left-0 z-10 flex w-72 shrink-0 flex-col border-r bg-sidebar md:relative md:z-auto">
       <Tabs defaultValue="list" className="flex min-h-0 flex-1 flex-col gap-0">
-        <TabsList className="m-2 grid grid-cols-3">
+        <TabsList className="m-2 grid grid-cols-4">
           <TabsTrigger value="list">清单</TabsTrigger>
+          <TabsTrigger value="applications">申请</TabsTrigger>
           <TabsTrigger value="pending">待连接</TabsTrigger>
           <TabsTrigger value="filter">筛选</TabsTrigger>
         </TabsList>
@@ -259,6 +261,10 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory 
               </Row>
             ))}
           </Section>
+        </TabsContent>
+
+        <TabsContent value="applications" className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+          <ApplicationList />
         </TabsContent>
 
         <TabsContent value="pending" className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
@@ -299,6 +305,76 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory 
         </TabsContent>
       </Tabs>
     </aside>
+  )
+}
+
+/**
+ * 申请清单。**S9 不新开视图**——申请落在这里，和别的 DDL 排在同一张画板上。
+ * 申请季真正的问题从来不是"申请列表长什么样"，是"这周先干哪件"。
+ *
+ * 倒计时一律走 resolve_deadline 的换算结果，不自己拿日历日减：
+ * 截止写的是学校当地的 11:59pm，夏令时一切，北京时间就差一小时。
+ */
+function ApplicationList() {
+  const applications = usePlanningStore((s) => s.applications)
+  const removeApplication = usePlanningStore((s) => s.removeApplication)
+
+  const rows = useMemo(
+    () =>
+      applications.map((a) => ({
+        application: a,
+        resolved: resolveDeadline({ date: a.deadline, time: a.deadlineTime, timeZone: a.deadlineTimeZone }),
+      })),
+    [applications],
+  )
+
+  if (rows.length === 0) {
+    return (
+      <p className="px-1 py-2 text-xs leading-relaxed text-muted-foreground">
+        还没有申请记录。在聊天里说说要申哪些学校，助手会整理成确认卡；确认后这里会出现倒计时，画板上也会多一个申请节点。
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2 py-1">
+      {rows.map(({ application: a, resolved }) => {
+        const done = a.materials.filter((m) => m.status === 'done').length
+        const past = 'past' in resolved && resolved.past
+        return (
+          <div key={a.id} className="group rounded-sm border bg-card/60 px-2 py-1.5">
+            <div className="flex items-baseline gap-1.5">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{a.schoolName}</span>
+              <Mono className="shrink-0 text-muted-foreground">{APPLICATION_TRACK_LABEL[a.track]}</Mono>
+              <button
+                type="button"
+                aria-label={`删除 ${a.schoolName} 的申请记录`}
+                className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                onClick={() => void removeApplication(a.id)}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+            {'error' in resolved ? (
+              <Mono className="text-destructive">{resolved.error}</Mono>
+            ) : (
+              <>
+                <Mono className={cn('block', past && 'text-destructive')}>{resolved.countdown}</Mono>
+                <Mono className="block text-muted-foreground">
+                  北京时间 {resolved.beijing}（当地 {a.deadlineTime} {resolved.localAbbr}）
+                </Mono>
+              </>
+            )}
+            {a.materials.length > 0 && (
+              <Mono className="block text-muted-foreground">
+                材料 {done}/{a.materials.length}
+              </Mono>
+            )}
+          </div>
+        )
+      })}
+      <p className="px-1 pt-1 text-xs leading-relaxed text-muted-foreground">{referenceStamp()}</p>
+    </div>
   )
 }
 

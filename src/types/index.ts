@@ -192,6 +192,72 @@ export interface Artifact {
   createdAt: number
 }
 
+// ---- 申请（S9：国际申请能力层） ----
+
+export type ApplicationTrack = 'ED' | 'ED2' | 'EA' | 'REA' | 'RD' | 'UCAS' | 'Rolling' | 'Other'
+
+export const APPLICATION_TRACK_LABEL: Record<ApplicationTrack, string> = {
+  ED: 'ED 早决',
+  ED2: 'ED2 早决二轮',
+  EA: 'EA 早申',
+  REA: 'REA 限制性早申',
+  RD: 'RD 常规',
+  UCAS: 'UCAS',
+  Rolling: '滚动录取',
+  Other: '其他',
+}
+
+export type MaterialKind =
+  | 'essay'
+  | 'supplement'
+  | 'recommendation'
+  | 'transcript'
+  | 'test-score'
+  | 'portfolio'
+  | 'interview'
+  | 'financial'
+
+export const MATERIAL_KIND_LABEL: Record<MaterialKind, string> = {
+  essay: '主文书',
+  supplement: '补充文书',
+  recommendation: '推荐信',
+  transcript: '成绩单',
+  'test-score': '标化送分',
+  portfolio: '作品集',
+  interview: '面试',
+  financial: '财力/资助',
+}
+
+export type MaterialStatus = 'todo' | 'draft' | 'done'
+
+export interface ApplicationMaterial {
+  kind: MaterialKind
+  label: string
+  status: MaterialStatus
+  /** 关联到已存的学习资产（文书草稿等） */
+  artifactId?: string
+}
+
+export interface Application {
+  id: string
+  schoolName: string
+  track: ApplicationTrack
+  /** ISO 日期（当地日历日） */
+  deadline: string
+  /**
+   * 当地时刻 HH:mm。申请截止几乎都写 11:59pm，而**没有时刻就没法换算时区**——
+   * 「11 月 1 日截止」在北京时间可能是 1 日也可能是 2 日，差的正是这一项。
+   */
+  deadlineTime: string
+  /** IANA 时区名，如 America/New_York */
+  deadlineTimeZone: string
+  materials: ApplicationMaterial[]
+  notes: string
+  /** 同步生成的 category:'application' 短期事项——申请的画板落点 */
+  eventId?: string
+  createdAt: number
+}
+
 // ---- 画板（S6：替代 3D 星图的 graphNodeMeta / narrativeEdges） ----
 
 export interface CanvasNode {
@@ -452,6 +518,23 @@ export interface ProposedArtifact {
   qa?: ReflectionQA[]
 }
 
+/**
+ * 申请提案。带 id 表示更新已有申请，不带表示新建——
+ * 学生一所学校会反复补材料状态，每次都新建一条就成了重复清单。
+ */
+export interface ProposedApplication {
+  include: boolean
+  /** 来自 get_applications 的 id；有则更新，无则新建 */
+  id?: string
+  schoolName: string
+  track: ApplicationTrack
+  deadline: string
+  deadlineTime: string
+  deadlineTimeZone: string
+  materials: ApplicationMaterial[]
+  notes: string
+}
+
 /** 档案补丁提案（S1d：Onboarding 用） */
 export interface ProfilePatchProposal {
   name?: string
@@ -503,6 +586,7 @@ export type Proposal =
       resultNote?: string
     }
   | { kind: 'artifact'; artifacts: ProposedArtifact[]; status: ProposalStatus; resultNote?: string }
+  | { kind: 'application'; applications: ProposedApplication[]; status: ProposalStatus; resultNote?: string }
   /** @deprecated S7 及以前 */
   | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
   /** @deprecated S7 及以前 */
@@ -597,6 +681,8 @@ export interface ExportBundle {
   canvasEdges?: CanvasEdge[]
   /** v7 起包含：skill 运行记录 */
   skillRuns?: SkillRun[]
+  /** v8 起包含：申请清单 */
+  applications?: Application[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

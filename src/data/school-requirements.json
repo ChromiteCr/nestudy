@@ -1,0 +1,102 @@
+{
+  "version": "2026.08",
+  "updatedAt": "2026-08-04",
+  "disclaimer": "数据截至 2026 年 8 月，申请要求每年会变，请以各平台与学校官网为准。",
+  "_howToUpdate": "platforms 是平台级规则（字数、字符限额、常见截止日），变动慢；schools 是逐校要求，变动快且必须逐条核对官网后填写。每条都要带 source 与 verifiedAt，宁可留空也不要填没核实过的值——被这份数据集背书的错误比没有数据更危险。",
+  "platforms": [
+    {
+      "id": "common-app",
+      "name": "Common Application",
+      "displayName": "Common App",
+      "region": "美国",
+      "officialUrl": "https://www.commonapp.org/",
+      "essays": [
+        {
+          "id": "ca-personal-essay",
+          "label": "Personal Essay（主文书）",
+          "wordLimit": 650,
+          "minWords": 250,
+          "note": "7 个题目里选 1 个，其中一个是 topic of your choice"
+        },
+        {
+          "id": "ca-additional-info",
+          "label": "Additional Information",
+          "wordLimit": 650,
+          "note": "选填。用来交代成绩异常、家庭变故这类正文塞不下的情况，不是第二篇主文书"
+        }
+      ],
+      "activityLimits": {
+        "maxActivities": 10,
+        "position": 50,
+        "organization": 100,
+        "description": 150,
+        "note": "字符数不是词数。表单按 UTF-16 计，emoji 一个多半占 2 格"
+      },
+      "honorLimits": {
+        "maxHonors": 5,
+        "title": 100
+      },
+      "recommendations": "通常 1 封 counselor + 1–2 封 teacher，逐校不同，以各校要求为准",
+      "commonDeadlines": [
+        { "track": "ED", "typical": "11-01", "note": "部分学校 11-15" },
+        { "track": "EA", "typical": "11-01", "note": "部分学校 11-15" },
+        { "track": "ED2", "typical": "01-01", "note": "部分学校 01-15" },
+        { "track": "RD", "typical": "01-01", "note": "常见还有 01-05 / 01-15" }
+      ],
+      "deadlineTimeNote": "多数学校写 11:59pm。按哪个时区算各校不同（申请人本地 / 学校所在地），拿不准就按更早的那个算——提前交没有代价，晚一小时就没了。"
+    },
+    {
+      "id": "uc",
+      "name": "University of California",
+      "displayName": "UC 系统",
+      "region": "美国·加州",
+      "officialUrl": "https://admission.universityofcalifornia.edu/",
+      "essays": [
+        {
+          "id": "uc-piq",
+          "label": "Personal Insight Questions",
+          "wordLimit": 350,
+          "count": 4,
+          "note": "8 题选 4 题，每题独立计 350 词上限"
+        }
+      ],
+      "activityLimits": {
+        "maxActivities": 20,
+        "description": 350,
+        "note": "Activities & Awards 合计最多 20 条，每条 350 字符"
+      },
+      "recommendations": "一般不收推荐信（个别校区的 augmented review 另行邀请时除外）",
+      "commonDeadlines": [{ "track": "RD", "typical": "11-30", "note": "只有一个申请窗口：11/1 开放提交，11/30 截止" }],
+      "testPolicy": "对 SAT/ACT 采取 test-free：分数不参与录取评估",
+      "deadlineTimeNote": "UC 的截止是太平洋时间，比 ET 晚 3 小时"
+    },
+    {
+      "id": "ucas",
+      "name": "UCAS",
+      "displayName": "UCAS（英国）",
+      "region": "英国",
+      "officialUrl": "https://www.ucas.com/",
+      "essays": [
+        {
+          "id": "ucas-personal-statement",
+          "label": "Personal Statement（三问式）",
+          "charLimit": 4000,
+          "count": 3,
+          "minCharsPerQuestion": 350,
+          "note": "2026 入学起由整篇自述改为三个问题，三题合计 4000 字符，每题不少于 350 字符"
+        }
+      ],
+      "choiceLimits": {
+        "maxChoices": 5,
+        "note": "医学 / 牙医 / 兽医最多 4 个该方向的选择"
+      },
+      "recommendations": "1 封学校出具的 academic reference",
+      "commonDeadlines": [
+        { "track": "UCAS", "typical": "10-15", "note": "牛津、剑桥及多数医学 / 牙医 / 兽医专业" },
+        { "track": "UCAS", "typical": "01-下旬", "note": "equal consideration 截止，近年为 1 月 29 日；具体日期每年公布" }
+      ],
+      "deadlineTimeNote": "UCAS 截止是英国时间 18:00（不是午夜），北京时间要早算 7–8 小时"
+    }
+  ],
+  "schools": []
+}

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { Artifact, CanvasEdge, CanvasNode, GraphNodeId, GrowthEvent, StudentProfile } from '@/types'
+import type { Application, Artifact, CanvasEdge, CanvasNode, GraphNodeId, GrowthEvent, StudentProfile } from '@/types'
+import { addApplication, deleteApplication, listApplications, updateApplication } from '@/lib/db/applications'
 import { addArtifact, deleteArtifact, listArtifacts, updateArtifact } from '@/lib/db/artifacts'
 import {
   addCanvasEdge,
@@ -24,6 +25,7 @@ interface PlanningState {
   artifacts: Artifact[]
   canvasNodes: CanvasNode[]
   canvasEdges: CanvasEdge[]
+  applications: Application[]
   loaded: boolean
 
   load: () => Promise<void>
@@ -39,6 +41,10 @@ interface PlanningState {
   editArtifact: (id: string, patch: Partial<Omit<Artifact, 'id'>>) => Promise<void>
   removeArtifact: (id: string) => Promise<void>
 
+  createApplication: (input: Omit<Application, 'id' | 'createdAt'>) => Promise<Application>
+  editApplication: (id: string, patch: Partial<Omit<Application, 'id'>>) => Promise<void>
+  removeApplication: (id: string) => Promise<void>
+
   moveCanvasNode: (id: GraphNodeId, x: number, y: number) => Promise<void>
   annotateCanvasNode: (id: GraphNodeId, blurb: string) => Promise<void>
   createCanvasEdge: (input: Omit<CanvasEdge, 'id' | 'createdAt'>) => Promise<void>
@@ -49,13 +55,14 @@ interface PlanningState {
 export const usePlanningStore = create<PlanningState>((set) => {
   /** 数据量是个人尺度（数百条），重读比增量维护更不容易出错 */
   const refresh = async () => {
-    const [growthEvents, artifacts, canvasNodes, canvasEdges] = await Promise.all([
+    const [growthEvents, artifacts, canvasNodes, canvasEdges, applications] = await Promise.all([
       listGrowthEvents(),
       listArtifacts(),
       listCanvasNodes(),
       listCanvasEdges(),
+      listApplications(),
     ])
-    set({ growthEvents, artifacts, canvasNodes, canvasEdges })
+    set({ growthEvents, artifacts, canvasNodes, canvasEdges, applications })
   }
 
   return {
@@ -64,6 +71,7 @@ export const usePlanningStore = create<PlanningState>((set) => {
     artifacts: [],
     canvasNodes: [],
     canvasEdges: [],
+    applications: [],
     loaded: false,
 
     load: async () => {
@@ -102,6 +110,20 @@ export const usePlanningStore = create<PlanningState>((set) => {
     },
     removeArtifact: async (id) => {
       await deleteArtifact(id)
+      await refresh()
+    },
+
+    createApplication: async (input) => {
+      const application = await addApplication(input)
+      await refresh()
+      return application
+    },
+    editApplication: async (id, patch) => {
+      await updateApplication(id, patch)
+      await refresh()
+    },
+    removeApplication: async (id) => {
+      await deleteApplication(id)
       await refresh()
     },
 

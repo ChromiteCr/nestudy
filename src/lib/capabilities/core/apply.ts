@@ -1,11 +1,14 @@
+import { addApplication, updateApplication } from '@/lib/db/applications'
 import { addArtifact } from '@/lib/db/artifacts'
 import { addCanvasEdge, saveCanvasNode } from '@/lib/db/canvas'
-import { addGrowthEvent } from '@/lib/db/events'
+import { addGrowthEvent, updateGrowthEvent } from '@/lib/db/events'
+import { resolveDeadline } from '../application'
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
 import type {
   ProfilePatchProposal,
   Proposal,
+  ProposedApplication,
   ProposedArtifact,
   ProposedCanvasEdge,
   ProposedGrowthEvent,
@@ -137,6 +140,93 @@ async function applyArtifacts(artifacts: ProposedArtifact[], skillName?: string,
   return count > 0 ? `已保存 ${count} 份学习资产` : '没有勾选任何资产'
 }
 
+/**
+ * 申请提案入库。
+ *
+ * 每条申请同时生成一条 `category:'application'` 的短期事项——**这就是申请的界面落点**。
+ * S9 不新开视图：申请是画板上的节点，倒计时在画板抽屉里，和别的 DDL 排在同一条时间线上。
+ * 申请季真正的问题从来不是"申请列表长什么样"，而是"这周先干哪件"。
+ */
+async function applyApplications(applications: ProposedApplication[]): Promise<string> {
+  const state = usePlanningStore.getState()
+  const existing = new Map(state.applications.map((a) => [a.id, a]))
+  const eventIds = new Set(state.growthEvents.map((e) => e.id))
+  let created = 0
+  let updated = 0
+
+  for (const a of applications.filter((x) => x.include)) {
+    const title = `${a.schoolName} ${a.track} 截止`
+    const prior = a.id ? existing.get(a.id) : undefined
+
+    const localDate = toLocalDeadlineDate(a)
+
+    if (prior) {
+      // 学生可能已经把那条截止事项删了——那就重建一条，而不是往一个死 id 上写
+      let eventId = prior.eventId && eventIds.has(prior.eventId) ? prior.eventId : undefined
+      if (eventId) await updateGrowthEvent(eventId, { title, startDate: localDate })
+      else eventId = (await createDeadlineEvent(title, localDate)).id
+      await updateApplication(prior.id, {
+        schoolName: a.schoolName,
+        track: a.track,
+        deadline: a.deadline,
+        deadlineTime: a.deadlineTime,
+        deadlineTimeZone: a.deadlineTimeZone,
+        materials: a.materials,
+        notes: a.notes,
+        eventId,
+      })
+      updated++
+    } else {
+      const event = await createDeadlineEvent(title, localDate)
+      await addApplication({
+        schoolName: a.schoolName,
+        track: a.track,
+        deadline: a.deadline,
+        deadlineTime: a.deadlineTime,
+        deadlineTimeZone: a.deadlineTimeZone,
+        materials: a.materials,
+        notes: a.notes,
+        eventId: event.id,
+      })
+      created++
+    }
+  }
+
+  const parts: string[] = []
+  if (created) parts.push(`新增 ${created} 所`)
+  if (updated) parts.push(`更新 ${updated} 所`)
+  return parts.length ? `申请清单已${parts.join('、')}` : '没有勾选任何申请'
+}
+
+/**
+ * 截止事项落在**北京日历的哪一天**。
+ *
+ * 学校写的是它当地的 11:59pm，北京要晚 12–16 小时，跨天是常态——
+ * Duke ED 的 11/1 23:59 EST，学生这边其实是 11/2 中午。事项若按 11/1 记，
+ * 画板抽屉的"89 天后"和申请页的"还有 90 天"就成了同一件事的两个答案。
+ *
+ * 锚在北京而不是浏览器本地时区：申请页那一行明写着"北京时间"，
+ * 两处必须同一个口径才对得上；学生出趟国也不该让整张 DDL 表跟着挪一天。
+ * 学校当地的那个时刻没有丢——它完整地存在 Application 上，申请页照原样显示。
+ */
+function toLocalDeadlineDate(a: ProposedApplication): string {
+  const resolved = resolveDeadline({ date: a.deadline, time: a.deadlineTime, timeZone: a.deadlineTimeZone })
+  return 'error' in resolved ? a.deadline : resolved.beijing.slice(0, 10)
+}
+
+function createDeadlineEvent(title: string, deadline: string) {
+  return addGrowthEvent({
+    kind: 'short',
+    title,
+    category: 'application',
+    startDate: deadline,
+    endDate: null,
+    status: 'pending',
+    priority: 'high',
+    source: 'ai',
+  })
+}
+
 /** 提案的出处，写进 artifact 便于溯源「这份东西是哪个 skill 产出的」 */
 export interface ApplyContext {
   skillName?: string
@@ -157,6 +247,9 @@ export async function applyProposal(proposal: Proposal, context: ApplyContext = 
       break
     case 'artifact':
       note = await applyArtifacts(proposal.artifacts, context.skillName, context.runId)
+      break
+    case 'application':
+      note = await applyApplications(proposal.applications)
       break
     default:
       // 旧提案不再可确认；ProposalCard 也不会给出确认按钮，这里是兜底
