@@ -50,9 +50,17 @@ interface Platform {
 }
 
 interface SchoolEntry {
+  id: string
   name: string
   aliases?: string[]
+  region?: string
+  platform?: string
   officialUrl?: string
+  requirementsUrl?: string
+  /** 只有核对过官网的才有值；没核过就整个字段缺席 */
+  deadlines?: { track: string; date: string; time?: string; timeZone?: string; note?: string }[]
+  notes?: string
+  verified: boolean
   source?: string
   verifiedAt?: string
   [key: string]: unknown
@@ -170,10 +178,20 @@ export const getSchoolRequirementsCapability: Capability = {
       disclaimer: SCHOOL_REFERENCE.disclaimer,
       platforms,
       schools: matched,
+      /**
+       * 未核对的学校**没有 deadlines 字段**。不明说的话，模型很容易把"字段缺席"
+       * 读成"这所学校没有早申"，那比查不到还糟。
+       */
+      unverifiedWarning: matched.some((s) => !s.verified)
+        ? `其中 ${matched
+            .filter((s) => !s.verified)
+            .map((s) => s.name)
+            .join('、')} 只收录了官网链接，截止日没有核对过，本地也**没有**存任何日期。回答时必须说清楚"截止日我这边没有核实过的数据"，把 requirementsUrl 给学生让他自己确认，绝对不要凭印象补一个日期。`
+        : undefined,
       schoolLookup: school
         ? matched.length > 0
           ? undefined
-          : `本地数据集没有收录「${args.school as string}」的逐校要求。逐校要求（截止日、标化政策、推荐信封数、补充文书题目）每年变动，不要凭印象作答——请学生去该校 admissions 官网核对，或把官网上的信息告诉你之后用 propose_application 记进申请清单。`
+          : `本地数据集没有收录「${args.school as string}」。逐校要求（截止日、标化政策、推荐信封数、补充文书题目）每年变动，不要凭印象作答——请学生去该校 admissions 官网核对，或把官网上的信息告诉你之后用 propose_application 记进申请清单。`
         : undefined,
     })
   },

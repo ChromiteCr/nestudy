@@ -2,7 +2,7 @@
   "version": "2026.08",
   "updatedAt": "2026-08-04",
   "disclaimer": "数据截至 2026 年 8 月，申请要求每年会变，请以各平台与学校官网为准。",
-  "_howToUpdate": "platforms 是平台级规则（字数、字符限额、常见截止日），变动慢；schools 是逐校要求，变动快且必须逐条核对官网后填写。每条都要带 source 与 verifiedAt，宁可留空也不要填没核实过的值——被这份数据集背书的错误比没有数据更危险。",
+  "_howToUpdate": "platforms 是平台级规则（字数、字符限额、常见截止日），变动慢；schools 是逐校要求，变动快且必须逐条核对官网后填写。**deadlines 只在 verified 为 true 时才允许有值**，且必须带 source（核对时读的那个 URL）与 verifiedAt。核不到就写 null——被这份数据集背书的错误比没有数据危险得多。2026-08-04 的实测：一份第三方整理的名校截止日清单里，6 条能核对的有 4 条与官网不符，所以这条规矩不是洁癖。",
   "platforms": [
     {
       "id": "common-app",
@@ -16,7 +16,16 @@
           "label": "Personal Essay（主文书）",
           "wordLimit": 650,
           "minWords": 250,
-          "note": "7 个题目里选 1 个，其中一个是 topic of your choice"
+          "note": "7 个题目里选 1 个，其中第 7 题是 topic of your choice。题目多年未变，但每年仍应对照官网确认",
+          "prompts": [
+            "Some students have a background, identity, interest, or talent that is so meaningful they believe their application would be incomplete without it. If this sounds like you, then please share your story.",
+            "The lessons we take from obstacles we encounter can be fundamental to later success. Recount a time when you faced a challenge, setback, or failure. How did it affect you, and what did you learn from the experience?",
+            "Reflect on a time when you questioned or challenged a belief or idea. What prompted your thinking? What was the outcome?",
+            "Reflect on something that someone has done for you that has made you happy or thankful in a surprising way. How has this gratitude affected or motivated you?",
+            "Discuss an accomplishment, event, or realization that sparked a period of personal growth and a new understanding of yourself or others.",
+            "Describe a topic, idea, or concept you find so engaging that it makes you lose all track of time. Why does it captivate you? What or who do you turn to when you want to learn more?",
+            "Share an essay on any topic of your choice. It can be one you've already written, one that responds to a different prompt, or one of your own design."
+          ]
         },
         {
           "id": "ca-additional-info",
@@ -92,11 +101,136 @@
       },
       "recommendations": "1 封学校出具的 academic reference",
       "commonDeadlines": [
-        { "track": "UCAS", "typical": "10-15", "note": "牛津、剑桥及多数医学 / 牙医 / 兽医专业" },
-        { "track": "UCAS", "typical": "01-下旬", "note": "equal consideration 截止，近年为 1 月 29 日；具体日期每年公布" }
+        { "track": "UCAS", "typical": "10-15", "note": "牛津、剑桥及多数医学 / 牙医 / 兽医专业，英国时间 18:00" },
+        {
+          "track": "UCAS",
+          "typical": "01-13",
+          "note": "equal consideration 截止（2027 入学为 2027-01-13 英国时间 18:00）。**这个日期每年变，不要按往年推**",
+          "source": "https://www.ucas.com/events/2027-entry-deadline-for-all-undergraduate-courses-except-those-with-a-15-october-deadline-475546",
+          "verifiedAt": "2026-08-04"
+        }
       ],
       "deadlineTimeNote": "UCAS 截止是英国时间 18:00（不是午夜），北京时间要早算 7–8 小时"
     }
   ],
-  "schools": []
+  "_schoolsNote": "名单与官网链接来自 2026-08-04 的外部整理（见 src/data/sources/），链接是稳定事实所以照收；截止日则逐条核对官网后才填。verified=false 的学校**没有 deadlines 字段**，不是遗漏，是刻意不填——去 requirementsUrl 查。",
+  "schools": [
+    {
+      "id": "harvard",
+      "name": "Harvard University",
+      "aliases": ["哈佛", "哈佛大学"],
+      "region": "美国",
+      "platform": "common-app",
+      "officialUrl": "https://college.harvard.edu/admissions",
+      "requirementsUrl": "https://college.harvard.edu/admissions/apply/application-requirements",
+      "deadlines": [
+        { "track": "REA", "date": "2026-11-01" },
+        { "track": "RD", "date": "2027-01-01" }
+      ],
+      "notes": "推荐信由 counselor 与老师提交，比学生本人的截止日多给一周",
+      "verified": true,
+      "source": "https://college.harvard.edu/admissions/apply/application-requirements",
+      "verifiedAt": "2026-08-04"
+    },
+    {
+      "id": "duke",
+      "name": "Duke University",
+      "aliases": ["杜克", "杜克大学"],
+      "region": "美国",
+      "platform": "common-app",
+      "officialUrl": "https://admissions.duke.edu",
+      "requirementsUrl": "https://admissions.duke.edu/apply/",
+      "deadlines": [
+        { "track": "ED", "date": "2026-11-02" },
+        { "track": "RD", "date": "2027-01-04" }
+      ],
+      "notes": "2026-27 周期。11 月 1 日是周日，ED 顺延到 11 月 2 日——别按往年的 11/1 记",
+      "verified": true,
+      "source": "https://admissions.duke.edu/apply/",
+      "verifiedAt": "2026-08-04"
+    },
+    {
+      "id": "northwestern",
+      "name": "Northwestern University",
+      "aliases": ["西北大学", "西北"],
+      "region": "美国",
+      "platform": "common-app",
+      "officialUrl": "https://admissions.northwestern.edu",
+      "requirementsUrl": "https://admissions.northwestern.edu/apply/",
+      "deadlines": [
+        { "track": "ED", "date": "2026-11-01" },
+        { "track": "RD", "date": "2027-01-04" }
+      ],
+      "verified": true,
+      "source": "https://admissions.northwestern.edu/apply/",
+      "verifiedAt": "2026-08-04"
+    },
+    {
+      "id": "uc",
+      "name": "University of California",
+      "aliases": ["UC", "加州大学", "UC 系统", "伯克利", "UCLA", "Berkeley"],
+      "region": "美国",
+      "platform": "uc",
+      "officialUrl": "https://admission.universityofcalifornia.edu",
+      "requirementsUrl": "https://admission.universityofcalifornia.edu/how-to-apply/applying-as-a-freshman/",
+      "campuses": ["Berkeley", "Los Angeles", "San Diego", "Santa Barbara", "Davis", "Irvine", "Santa Cruz", "Riverside", "Merced"],
+      "deadlines": [{ "track": "RD", "date": "2026-11-30", "note": "10/1 开放提交，11/30 截止；没有 EA/ED，一份申请勾选多个校区" }],
+      "notes": "写 4 篇 PIQ，每篇 350 词上限；不收推荐信；SAT/ACT 不参与录取评估",
+      "verified": true,
+      "source": "https://admission.universityofcalifornia.edu/how-to-apply/applying-as-a-freshman/",
+      "verifiedAt": "2026-08-04"
+    },
+    {
+      "id": "oxford",
+      "name": "University of Oxford",
+      "aliases": ["牛津", "牛津大学"],
+      "region": "英国",
+      "platform": "ucas",
+      "officialUrl": "https://www.ox.ac.uk/admissions/undergraduate/",
+      "requirementsUrl": "https://www.ox.ac.uk/admissions/undergraduate/applying-to-oxford",
+      "deadlines": [{ "track": "UCAS", "date": "2026-10-15", "time": "18:00", "timeZone": "Europe/London" }],
+      "notes": "多数专业要考入学测试（MAT / TSA / PAT / LNAT 等，因专业而异）并参加面试；不能同时申请剑桥",
+      "verified": true,
+      "source": "https://www.ucas.com/events/2027-entry-deadline-for-all-undergraduate-courses-except-those-with-a-15-october-deadline-475546",
+      "verifiedAt": "2026-08-04"
+    },
+    {
+      "id": "cambridge",
+      "name": "University of Cambridge",
+      "aliases": ["剑桥", "剑桥大学"],
+      "region": "英国",
+      "platform": "ucas",
+      "officialUrl": "https://www.undergraduate.study.cam.ac.uk",
+      "requirementsUrl": "https://www.undergraduate.study.cam.ac.uk/applying",
+      "deadlines": [{ "track": "UCAS", "date": "2026-10-15", "time": "18:00", "timeZone": "Europe/London" }],
+      "notes": "多数专业有笔试与面试；另需在 UCAS 之外提交学院的补充申请表；不能同时申请牛津",
+      "verified": true,
+      "source": "https://www.ucas.com/events/2027-entry-deadline-for-all-undergraduate-courses-except-those-with-a-15-october-deadline-475546",
+      "verifiedAt": "2026-08-04"
+    },
+
+    { "id": "stanford", "name": "Stanford University", "aliases": ["斯坦福", "斯坦福大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admission.stanford.edu", "requirementsUrl": "https://admission.stanford.edu/apply/", "verified": false },
+    { "id": "mit", "name": "Massachusetts Institute of Technology", "aliases": ["MIT", "麻省理工", "麻省理工学院"], "region": "美国", "platform": "mit", "officialUrl": "https://mitadmissions.org", "requirementsUrl": "https://mitadmissions.org/apply/firstyear/", "notes": "用 MIT 自己的申请系统，不走 Common App", "verified": false },
+    { "id": "princeton", "name": "Princeton University", "aliases": ["普林斯顿", "普林斯顿大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admission.princeton.edu", "requirementsUrl": "https://admission.princeton.edu/apply", "verified": false },
+    { "id": "yale", "name": "Yale University", "aliases": ["耶鲁", "耶鲁大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admissions.yale.edu", "requirementsUrl": "https://admissions.yale.edu/first-year-application", "verified": false },
+    { "id": "columbia", "name": "Columbia University", "aliases": ["哥大", "哥伦比亚大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://undergrad.admissions.columbia.edu", "requirementsUrl": "https://undergrad.admissions.columbia.edu/apply/first-year", "verified": false },
+    { "id": "uchicago", "name": "University of Chicago", "aliases": ["芝大", "芝加哥大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://collegeadmissions.uchicago.edu", "requirementsUrl": "https://collegeadmissions.uchicago.edu/apply", "notes": "同时提供 EA 与 ED I / ED II，规则较特殊，务必看官网", "verified": false },
+    { "id": "upenn", "name": "University of Pennsylvania", "aliases": ["宾大", "宾夕法尼亚大学", "UPenn"], "region": "美国", "platform": "common-app", "officialUrl": "https://admissions.upenn.edu", "requirementsUrl": "https://admissions.upenn.edu/apply", "verified": false },
+    { "id": "caltech", "name": "California Institute of Technology", "aliases": ["加州理工", "Caltech"], "region": "美国", "platform": "common-app", "officialUrl": "https://www.admissions.caltech.edu", "requirementsUrl": "https://www.admissions.caltech.edu/apply/first-year-freshman", "verified": false },
+    { "id": "jhu", "name": "Johns Hopkins University", "aliases": ["JHU", "霍普金斯", "约翰霍普金斯"], "region": "美国", "platform": "common-app", "officialUrl": "https://apply.jhu.edu", "requirementsUrl": "https://apply.jhu.edu/application-process/", "notes": "有 ED I 与 ED II", "verified": false },
+    { "id": "cornell", "name": "Cornell University", "aliases": ["康奈尔", "康奈尔大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admissions.cornell.edu", "requirementsUrl": "https://admissions.cornell.edu/how-to-apply/first-year-applicants", "notes": "按学院分别录取，各学院的补充要求不同", "verified": false },
+    { "id": "rice", "name": "Rice University", "aliases": ["莱斯", "莱斯大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admission.rice.edu", "requirementsUrl": "https://admission.rice.edu/apply", "notes": "有 ED I 与 ED II", "verified": false },
+    { "id": "dartmouth", "name": "Dartmouth College", "aliases": ["达特茅斯", "达特茅斯学院"], "region": "美国", "platform": "common-app", "officialUrl": "https://admissions.dartmouth.edu", "requirementsUrl": "https://admissions.dartmouth.edu/apply/application-requirements", "verified": false },
+    { "id": "brown", "name": "Brown University", "aliases": ["布朗", "布朗大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admission.brown.edu", "requirementsUrl": "https://admission.brown.edu/apply", "verified": false },
+    { "id": "vanderbilt", "name": "Vanderbilt University", "aliases": ["范德堡", "范德堡大学"], "region": "美国", "platform": "common-app", "officialUrl": "https://admissions.vanderbilt.edu", "requirementsUrl": "https://admissions.vanderbilt.edu/apply/", "notes": "有 ED I 与 ED II", "verified": false },
+    { "id": "cmu", "name": "Carnegie Mellon University", "aliases": ["CMU", "卡内基梅隆", "卡耐基梅隆"], "region": "美国", "platform": "common-app", "officialUrl": "https://admission.enrollment.cmu.edu", "requirementsUrl": "https://admission.enrollment.cmu.edu/pages/apply-to-cmu", "notes": "有 ED I 与 ED II；按学院申请", "verified": false },
+    { "id": "georgetown", "name": "Georgetown University", "aliases": ["乔治城", "乔治城大学"], "region": "美国", "platform": "georgetown", "officialUrl": "https://uadmissions.georgetown.edu", "requirementsUrl": "https://uadmissions.georgetown.edu/applying/", "notes": "**独立申请系统，不走 Common App**，另有自己的文书题目与面试安排", "verified": false },
+    { "id": "imperial", "name": "Imperial College London", "aliases": ["帝国理工", "IC"], "region": "英国", "platform": "ucas", "officialUrl": "https://www.imperial.ac.uk/study/apply/undergraduate/", "requirementsUrl": "https://www.imperial.ac.uk/study/apply/undergraduate/process/deadlines/", "notes": "多数专业走 UCAS equal consideration 截止；部分专业有入学测试与面试", "verified": false },
+    { "id": "ucl", "name": "University College London", "aliases": ["UCL", "伦敦大学学院"], "region": "英国", "platform": "ucas", "officialUrl": "https://www.ucl.ac.uk/prospective-students/undergraduate/", "requirementsUrl": "https://www.ucl.ac.uk/prospective-students/undergraduate/application-and-entry", "verified": false },
+    { "id": "lse", "name": "London School of Economics and Political Science", "aliases": ["LSE", "伦敦政经"], "region": "英国", "platform": "ucas", "officialUrl": "https://www.lse.ac.uk/study-at-lse/undergraduate", "requirementsUrl": "https://www.lse.ac.uk/study-at-lse/undergraduate/how-to-apply", "verified": false },
+    { "id": "hku", "name": "The University of Hong Kong", "aliases": ["港大", "香港大学", "HKU"], "region": "香港", "platform": "hku", "officialUrl": "https://admissions.hku.hk", "requirementsUrl": "https://admissions.hku.hk/apply/international-qualifications", "notes": "独立申请系统，滚动录取，早轮次录取率通常更高。**申请季与美英不同步，务必按入学年份看官网日程**", "verified": false },
+    { "id": "hkust", "name": "Hong Kong University of Science and Technology", "aliases": ["港科大", "香港科技大学", "HKUST"], "region": "香港", "platform": "hkust", "officialUrl": "https://join.hkust.edu.hk", "requirementsUrl": "https://join.hkust.edu.hk/apply", "notes": "独立申请系统，分早轮次 / 主轮次 / 滚动接受", "verified": false },
+    { "id": "nus", "name": "National University of Singapore", "aliases": ["新国立", "NUS", "新加坡国立大学"], "region": "新加坡", "platform": "nus", "officialUrl": "https://www.nus.edu.sg/oam", "requirementsUrl": "https://www.nus.edu.sg/oam/apply-to-nus/international-qualifications", "notes": "独立申请系统。**不同学历体系（IB / A-Level / 高考）截止日不同**，必须按自己的体系查", "verified": false },
+    { "id": "ntu", "name": "Nanyang Technological University", "aliases": ["南洋理工", "NTU", "南大"], "region": "新加坡", "platform": "ntu", "officialUrl": "https://www.ntu.edu.sg/admissions", "requirementsUrl": "https://www.ntu.edu.sg/admissions/undergraduate/admission-guide/international-qualifications", "notes": "独立申请系统；不同学历体系截止日不同；艺术与设计类专业需作品集", "verified": false }
+  ]
 }

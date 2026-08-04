@@ -1,0 +1,488 @@
+{
+  "meta": {
+    "season": "2026-2027",
+    "lastUpdated": "2026-08-04",
+    "note": "具体以各校官网最新信息为准"
+  },
+  "platforms": {
+    "commonApp": {
+      "name": "Common Application",
+      "url": "https://www.commonapp.org",
+      "mainEssay": {
+        "wordLimit": 650,
+        "wordMin": 250,
+        "promptCount": 7,
+        "prompts": [
+          "Some students have a background, identity, interest, or talent that is so meaningful they believe their application would be incomplete without it. If this sounds like you, then please share your story.",
+          "The lessons we take from obstacles we encounter can be fundamental to later success. Recount a time when you faced a challenge, setback, or failure. How did it affect you, and what did you learn from the experience?",
+          "Reflect on a time when you questioned or challenged a belief or idea. What prompted your thinking? What was the outcome?",
+          "Reflect on something that someone has done for you that has made you happy or thankful in a surprising way. How has this gratitude affected or motivated you?",
+          "Discuss an accomplishment, event, or realization that sparked a period of personal growth and a new understanding of yourself or others.",
+          "Describe a topic, idea, or concept you find so engaging that it makes you lose all track of time. Why does it captivate you? What or who do you turn to when you want to learn more?",
+          "Share an essay on any topic of your choice. It can be one you've already written, one that responds to a different prompt, or one of your own design."
+        ]
+      }
+    },
+    "ucas": {
+      "name": "UCAS",
+      "url": "https://www.ucas.com",
+      "personalStatement": {
+        "note": "2026年起改为结构化Personal Statement（固定问题模块），非传统自由文书",
+        "infoUrl": "https://www.ucas.com/undergraduate/applying-university/writing-personal-statement"
+      }
+    },
+    "ucSystem": {
+      "name": "University of California Application",
+      "url": "https://admission.universityofcalifornia.edu",
+      "essay": {
+        "type": "Personal Insight Questions (PIQ)",
+        "count": 4,
+        "wordLimit": 350,
+        "infoUrl": "https://admission.universityofcalifornia.edu/how-to-apply/applying-as-a-freshman/personal-insight-questions.html"
+      }
+    }
+  },
+  "universities": [
+    {
+      "id": "harvard",
+      "name": "Harvard University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://college.harvard.edu/admissions",
+      "supplementUrl": "https://college.harvard.edu/admissions/apply/application-requirements",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "REA" },
+        "regularDecision": { "date": "2027-01-01" }
+      }
+    },
+    {
+      "id": "stanford",
+      "name": "Stanford University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.stanford.edu",
+      "supplementUrl": "https://admission.stanford.edu/apply/freshman/essays.html",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "REA" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "mit",
+      "name": "Massachusetts Institute of Technology",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://mitadmissions.org",
+      "supplementUrl": "https://mitadmissions.org/apply/firstyear/essays-activities-academics/",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "EA" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "princeton",
+      "name": "Princeton University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.princeton.edu",
+      "supplementUrl": "https://admission.princeton.edu/apply/what-we-look-for",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "REA" },
+        "regularDecision": { "date": "2027-01-01" }
+      }
+    },
+    {
+      "id": "yale",
+      "name": "Yale University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.yale.edu",
+      "supplementUrl": "https://admissions.yale.edu/first-year-application",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "REA" },
+        "regularDecision": { "date": "2027-01-02" }
+      }
+    },
+    {
+      "id": "columbia",
+      "name": "Columbia University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://undergrad.admissions.columbia.edu",
+      "supplementUrl": "https://undergrad.admissions.columbia.edu/apply/first-year",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-01" }
+      }
+    },
+    {
+      "id": "uchicago",
+      "name": "University of Chicago",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://collegeadmissions.uchicago.edu",
+      "supplementUrl": "https://collegeadmissions.uchicago.edu/apply",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "EA" },
+        "earlyDecision": { "date": "2026-11-01", "type": "ED I" },
+        "earlyDecision2": { "date": "2027-01-05", "type": "ED II" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "upenn",
+      "name": "University of Pennsylvania",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.upenn.edu",
+      "supplementUrl": "https://admissions.upenn.edu/apply/first-year",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "caltech",
+      "name": "California Institute of Technology",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://www.admissions.caltech.edu",
+      "supplementUrl": "https://www.admissions.caltech.edu/apply/first-year-freshman",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "EA" },
+        "regularDecision": { "date": "2027-01-03" }
+      }
+    },
+    {
+      "id": "duke",
+      "name": "Duke University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.duke.edu",
+      "supplementUrl": "https://admissions.duke.edu/apply/",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-03", "type": "ED" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "northwestern",
+      "name": "Northwestern University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.northwestern.edu",
+      "supplementUrl": "https://admissions.northwestern.edu/apply/essay-prompts.html",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-02" }
+      }
+    },
+    {
+      "id": "jhu",
+      "name": "Johns Hopkins University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://apply.jhu.edu",
+      "supplementUrl": "https://apply.jhu.edu/application-process/",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED I" },
+        "earlyDecision2": { "date": "2027-01-02", "type": "ED II" },
+        "regularDecision": { "date": "2027-01-02" }
+      }
+    },
+    {
+      "id": "cornell",
+      "name": "Cornell University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.cornell.edu",
+      "supplementUrl": "https://admissions.cornell.edu/apply/first-year-applicants",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-02" }
+      }
+    },
+    {
+      "id": "rice",
+      "name": "Rice University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.rice.edu",
+      "supplementUrl": "https://admission.rice.edu/apply",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED I" },
+        "earlyDecision2": { "date": "2027-01-04", "type": "ED II" },
+        "regularDecision": { "date": "2027-01-04" }
+      }
+    },
+    {
+      "id": "dartmouth",
+      "name": "Dartmouth College",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.dartmouth.edu",
+      "supplementUrl": "https://admissions.dartmouth.edu/apply/application-requirements",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-01" }
+      }
+    },
+    {
+      "id": "brown",
+      "name": "Brown University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.brown.edu",
+      "supplementUrl": "https://admission.brown.edu/apply/first-year-applicants",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED" },
+        "regularDecision": { "date": "2027-01-05" }
+      }
+    },
+    {
+      "id": "vanderbilt",
+      "name": "Vanderbilt University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admissions.vanderbilt.edu",
+      "supplementUrl": "https://admissions.vanderbilt.edu/apply/",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED I" },
+        "earlyDecision2": { "date": "2027-01-01", "type": "ED II" },
+        "regularDecision": { "date": "2027-01-01" }
+      }
+    },
+    {
+      "id": "georgetown",
+      "name": "Georgetown University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://uadmissions.georgetown.edu",
+      "supplementUrl": "https://uadmissions.georgetown.edu/applying/essay/",
+      "platform": "georgetown",
+      "platformNote": "独立申请系统，非Common App",
+      "deadlines": {
+        "earlyAction": { "date": "2026-11-01", "type": "EA" },
+        "regularDecision": { "date": "2027-01-10" }
+      }
+    },
+    {
+      "id": "uc",
+      "name": "University of California (UC系统)",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.universityofcalifornia.edu",
+      "supplementUrl": "https://admission.universityofcalifornia.edu/how-to-apply/applying-as-a-freshman/personal-insight-questions.html",
+      "platform": "ucSystem",
+      "platformNote": "UC独立申请系统，需写4篇PIQ（每篇350词）",
+      "campuses": ["Berkeley", "UCLA", "San Diego", "Santa Barbara", "Davis", "Irvine", "Santa Cruz", "Riverside", "Merced"],
+      "deadlines": {
+        "regularDecision": { "date": "2026-12-01", "note": "统一截止，无EA/ED" }
+      }
+    },
+    {
+      "id": "cmu",
+      "name": "Carnegie Mellon University",
+      "country": "US",
+      "region": "美国",
+      "admissionsUrl": "https://admission.enrollment.cmu.edu",
+      "supplementUrl": "https://admission.enrollment.cmu.edu/pages/apply-to-cmu",
+      "platform": "commonApp",
+      "deadlines": {
+        "earlyDecision": { "date": "2026-11-01", "type": "ED I" },
+        "earlyDecision2": { "date": "2027-01-03", "type": "ED II" },
+        "regularDecision": { "date": "2027-01-03" }
+      }
+    },
+    {
+      "id": "oxford",
+      "name": "University of Oxford",
+      "country": "GB",
+      "region": "英国",
+      "admissionsUrl": "https://www.ox.ac.uk/admissions/undergraduate/",
+      "platform": "ucas",
+      "deadlines": {
+        "ucas": { "date": "2026-10-15", "note": "18:00 UK time" }
+      },
+      "requirements": {
+        "personalStatement": true,
+        "admissionsTests": ["MAT", "TSA", "PAT", "LNAT", "等（因专业而异）"],
+        "interview": true
+      }
+    },
+    {
+      "id": "cambridge",
+      "name": "University of Cambridge",
+      "country": "GB",
+      "region": "英国",
+      "admissionsUrl": "https://www.undergraduate.study.cam.ac.uk",
+      "platform": "ucas",
+      "deadlines": {
+        "ucas": { "date": "2026-10-15", "note": "18:00 UK time" }
+      },
+      "requirements": {
+        "personalStatement": true,
+        "writtenAssessment": true,
+        "interview": true
+      }
+    },
+    {
+      "id": "imperial",
+      "name": "Imperial College London",
+      "country": "GB",
+      "region": "英国",
+      "admissionsUrl": "https://www.imperial.ac.uk/study/apply/undergraduate/",
+      "platform": "ucas",
+      "deadlines": {
+        "ucas": { "date": "2027-01-14", "note": "多数专业" }
+      },
+      "requirements": {
+        "personalStatement": true,
+        "admissionsTests": ["部分专业有MAT/BMAT"],
+        "interview": "部分专业"
+      }
+    },
+    {
+      "id": "ucl",
+      "name": "University College London (UCL)",
+      "country": "GB",
+      "region": "英国",
+      "admissionsUrl": "https://www.ucl.ac.uk/prospective-students/undergraduate/",
+      "platform": "ucas",
+      "deadlines": {
+        "ucas": { "date": "2027-01-14" }
+      },
+      "requirements": {
+        "personalStatement": true
+      }
+    },
+    {
+      "id": "lse",
+      "name": "London School of Economics and Political Science (LSE)",
+      "country": "GB",
+      "region": "英国",
+      "admissionsUrl": "https://www.lse.ac.uk/study-at-lse/undergraduate",
+      "platform": "ucas",
+      "deadlines": {
+        "ucas": { "date": "2027-01-14" }
+      },
+      "requirements": {
+        "personalStatement": true
+      },
+      "stats": {
+        "acceptanceRate": "6.6%"
+      }
+    },
+    {
+      "id": "hku",
+      "name": "The University of Hong Kong (HKU)",
+      "country": "HK",
+      "region": "香港",
+      "admissionsUrl": "https://admissions.hku.hk/apply/international-qualifications",
+      "platform": "hku",
+      "platformNote": "独立申请系统",
+      "deadlines": {
+        "earlyRound": { "date": "2025-11-15", "note": "约" },
+        "mainRound": { "date": "2026-08-21", "note": "滚动录取，越早越好" }
+      },
+      "requirements": {
+        "personalStatement": true,
+        "interview": "部分专业"
+      }
+    },
+    {
+      "id": "hkust",
+      "name": "Hong Kong University of Science and Technology (HKUST)",
+      "country": "HK",
+      "region": "香港",
+      "admissionsUrl": "https://join.hkust.edu.hk/apply",
+      "platform": "hkust",
+      "platformNote": "独立申请系统",
+      "deadlines": {
+        "earlyRound": { "date": "2025-11-20" },
+        "mainRound": { "date": "2026-01-08" },
+        "lateRound": { "note": "滚动接受" }
+      },
+      "requirements": {
+        "personalStatement": true,
+        "recommendation": true
+      }
+    },
+    {
+      "id": "nus",
+      "name": "National University of Singapore (NUS)",
+      "country": "SG",
+      "region": "新加坡",
+      "admissionsUrl": "https://www.nus.edu.sg/oam/apply-to-nus/international-qualifications",
+      "platform": "nus",
+      "platformNote": "独立申请系统",
+      "deadlines": {
+        "applicationOpen": "2025-12-03",
+        "ib": { "date": "2026-02-23" },
+        "aLevel": { "date": "2026-03-19", "note": "新加坡A-Level" },
+        "note": "不同学历体系截止日期不同，详见官网"
+      },
+      "requirements": {
+        "interview": "部分专业",
+        "portfolio": "部分专业"
+      }
+    },
+    {
+      "id": "ntu",
+      "name": "Nanyang Technological University (NTU)",
+      "country": "SG",
+      "region": "新加坡",
+      "admissionsUrl": "https://www.ntu.edu.sg/admissions/undergraduate/admission-guide/international-qualifications",
+      "platform": "ntu",
+      "platformNote": "独立申请系统",
+      "deadlines": {
+        "applicationOpen": "2025-10-01",
+        "ib": { "date": "2026-02-28", "note": "约" },
+        "note": "不同学历体系截止日期不同，详见官网"
+      },
+      "requirements": {
+        "interview": "部分专业",
+        "portfolio": "部分专业（Art, Design等）"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "Top Tier Admissions - 各校文书题目合集",
+      "url": "https://toptieradmissions.com/resources/college-admissions-essay-prompts-top-tier-admissions"
+    },
+    {
+      "name": "Expert Admissions - 2026-27已发布补充文书",
+      "url": "https://expertadmissions.com/colleges-that-have-released-2026-2027-supplemental-essays"
+    },
+    {
+      "name": "Principia Education - 文书更新追踪",
+      "url": "https://www.principiaeducation.com/blog/2026-27-college-supplemental-essay-updates"
+    },
+    {
+      "name": "College Essay Advisors - RD截止日期总表",
+      "url": "https://www.collegeessayadvisors.com/regular-decision-deadlines"
+    },
+    {
+      "name": "BestColleges - 申请截止日期总表",
+      "url": "https://www.bestcolleges.com/blog/college-application-deadlines"
+    }
+  ]
+}
