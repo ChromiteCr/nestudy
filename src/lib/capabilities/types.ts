@@ -19,6 +19,17 @@ export interface Capability {
   /** 下发给模型的工具名，同时是 SKILL.md 里 capabilities 声明的名字 */
   name: string
   kind: CapabilityKind
+  /**
+   * 给学生看的名字，对话里就显示这个。
+   * `get_profile` 对开发者是精确的，对高中生是噪音——聊天流里该说「查看档案」。
+   * 原始工具名与参数不删，收进展开区，谁想核对随时能看。
+   */
+  label: string
+  /**
+   * 按本次调用的参数细化 label，例如 get_events(kind=long) → 「查看长期经历」。
+   * 返回 undefined 就用 label。
+   */
+  describeCall?: (rawArgs: string) => string | undefined
   /** 一句话说明会读什么 / 会提案什么，展示在 skill 卡片上让用户判断要不要授权 */
   summary: string
   schema: ToolDef

@@ -60,6 +60,7 @@ function serializeEvent(e: GrowthEvent) {
 export const getProfileCapability: Capability = {
   name: 'get_profile',
   kind: 'read',
+  label: '查看档案',
   summary: '读取学生档案：年级、课程体系、在读课程、目标学校',
   owner: 'core',
   schema: {
@@ -95,6 +96,13 @@ export const getProfileCapability: Capability = {
 export const getEventsCapability: Capability = {
   name: 'get_events',
   kind: 'read',
+  label: '查看事项',
+  describeCall: (rawArgs) => {
+    const args = parseArgs(rawArgs)
+    if (args.kind === 'long') return '查看长期经历'
+    if (args.kind === 'short') return typeof args.withinDays === 'number' ? `查看近 ${args.withinDays} 天的事项` : '查看短期事项'
+    return undefined
+  },
   summary: '读取全部事项：短期（任务/截止/考试）与长期（活动/项目）',
   owner: 'core',
   schema: {
@@ -146,9 +154,27 @@ export const getEventsCapability: Capability = {
   },
 }
 
+const ARTIFACT_KIND_LABEL: Record<string, string> = {
+  reflection: '反思记录',
+  document: '文档',
+  cheatsheet: '速查表',
+  plan: '学习计划',
+  review: '复盘',
+  essay: '文书草稿',
+  code: '代码',
+}
+
 export const getArtifactsCapability: Capability = {
   name: 'get_artifacts',
   kind: 'read',
+  label: '查看学习资产',
+  describeCall: (rawArgs) => {
+    const args = parseArgs(rawArgs)
+    const kind = typeof args.kind === 'string' ? ARTIFACT_KIND_LABEL[args.kind] : undefined
+    const query = typeof args.query === 'string' ? args.query.trim() : ''
+    if (query) return `在${kind ?? '学习资产'}里找「${query}」`
+    return kind ? `查看${kind}` : undefined
+  },
   summary: '读取学习资产：反思、文档、复盘、计划等历史产出',
   owner: 'core',
   schema: {

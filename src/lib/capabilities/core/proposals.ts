@@ -116,6 +116,7 @@ export function parseEventsArgs(rawArgs: string): ProposedGrowthEvent[] {
 export const proposeEventsCapability: Capability = {
   name: 'propose_events',
   kind: 'propose',
+  label: '整理出事项提案',
   summary: '提案新增事项（任务 / 截止 / 考试 / 活动 / 项目），出确认卡',
   owner: 'core',
   schema: {
@@ -199,6 +200,7 @@ export function parseProfileArgs(rawArgs: string): ProfilePatchProposal {
 export const proposeProfileCapability: Capability = {
   name: 'propose_profile_update',
   kind: 'propose',
+  label: '整理出档案更新',
   summary: '提案更新学生档案（年级 / 体系 / 课程 / 目标校），出确认卡',
   owner: 'core',
   schema: {
@@ -300,6 +302,7 @@ export function parseCanvasArgs(rawArgs: string): { edges: ProposedCanvasEdge[];
 export const proposeCanvasCapability: Capability = {
   name: 'propose_canvas',
   kind: 'propose',
+  label: '整理出画板连线',
   summary: '提案画板上的连线与节点注解，出确认卡',
   owner: 'core',
   schema: {
@@ -387,6 +390,7 @@ export function parseArtifactArgs(rawArgs: string): ProposedArtifact[] {
 export const proposeArtifactCapability: Capability = {
   name: 'propose_artifact',
   kind: 'propose',
+  label: '整理出学习资产',
   summary: '提案保存学习资产（反思 / 文档 / 复盘 / 计划），出确认卡',
   owner: 'core',
   schema: {

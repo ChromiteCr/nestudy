@@ -11,18 +11,32 @@ interface MessageBubbleProps {
   message: Message
   /** 同会话的全部消息，用来给工具结果找回它的调用参数 */
   argsByCallId: Map<string, string>
+  /** 同一批出现时错开的毫秒数；undefined = 不做入场动画 */
+  appearDelay?: number
 }
 
-export function MessageBubble({ message, argsByCallId }: MessageBubbleProps) {
+export function MessageBubble({ message, argsByCallId, appearDelay }: MessageBubbleProps) {
   if (message.compaction) return <CompactionMarker message={message} />
 
   if (message.role === 'tool') {
-    return <ToolCallRow message={message} args={message.toolCallId ? argsByCallId.get(message.toolCallId) : undefined} />
+    return (
+      <ToolCallRow
+        message={message}
+        args={message.toolCallId ? argsByCallId.get(message.toolCallId) : undefined}
+        appearDelay={appearDelay}
+      />
+    )
   }
 
   if (message.proposal) {
     return (
-      <div className="flex justify-start">
+      <div
+        className={cn(
+          'flex justify-start',
+          appearDelay !== undefined && 'animate-[tool-appear_320ms_ease-out_backwards]',
+        )}
+        style={appearDelay !== undefined ? { animationDelay: `${appearDelay}ms` } : undefined}
+      >
         <ProposalCard message={message} />
       </div>
     )

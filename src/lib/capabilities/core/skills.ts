@@ -23,6 +23,7 @@ export const SKILL_LOADED_MARKER = '@@skill-loaded:'
 export const readSkillCapability: Capability = {
   name: 'read_skill',
   kind: 'read',
+  label: '读取 skill',
   summary: '读取某个 skill 的完整定义；读了之后就按它的流程与边界工作',
   owner: 'core',
   alwaysGranted: true,

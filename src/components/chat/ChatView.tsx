@@ -10,6 +10,11 @@ import { MessageBubble } from './MessageBubble'
 import { ReminderStrip } from './ReminderStrip'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
+/** 到达时间差在这个窗口内的算同一批（一轮里的并发工具调用） */
+const APPEAR_BATCH_WINDOW_MS = 400
+/** 同一批里每行错开多少 */
+const APPEAR_STAGGER_MS = 110
+
 interface ChatViewProps {
   onOpenSettings: () => void
 }
@@ -22,11 +27,41 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const pendingPrompt = useChatStore((s) => s.pendingPrompt)
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 挂载之前就存在的消息不做入场动画：否则每次刷新/切会话，
+  // 满屏工具行都要重放一遍级联，那不是提示新内容，那是噪音
+  const mountedAt = useRef(Date.now())
   // 工具结果那一行要显示调用参数，参数存在发起它的 assistant 消息上
   const argsByCallId = useMemo(() => {
     const map = new Map<string, string>()
     for (const m of messages) {
       for (const call of m.toolCalls ?? []) map.set(call.id, call.arguments)
+    }
+    return map
+  }, [messages])
+
+  /**
+   * 入场动画的错开量。
+   *
+   * 一轮里的几个工具几乎同时执行完（读的都是本地 IndexedDB），于是它们在**同一次
+   * React 提交**里挂载，动画同时开始——看上去就是"啪地一起蹦出来"，等于没有动画。
+   * 按次序错开才看得出是一件件做完的。
+   *
+   * 分组依据是**到达时间**而不是在消息流里的位置：同一次提交里挂载的才需要错开。
+   * 按位置累计的话，一条长工具链跑到第八个时会被推迟近一秒才现身——
+   * 那不是节奏，那是卡顿。
+   */
+  const appearDelays = useMemo(() => {
+    const map = new Map<string, number>()
+    let batchStart = -Infinity
+    let indexInBatch = 0
+    for (const m of messages) {
+      if (m.role !== 'tool' && !m.proposal) continue
+      if (m.createdAt - batchStart > APPEAR_BATCH_WINDOW_MS) {
+        batchStart = m.createdAt
+        indexInBatch = 0
+      }
+      if (m.createdAt >= mountedAt.current) map.set(m.id, indexInBatch * APPEAR_STAGGER_MS)
+      indexInBatch++
     }
     return map
   }, [messages])
@@ -76,7 +111,12 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
             )}
 
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} argsByCallId={argsByCallId} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                argsByCallId={argsByCallId}
+                appearDelay={appearDelays.get(m.id)}
+              />
             ))}
 
             {/* 等待模型产出文本时（含工具轮次间隙）显示思考指示 */}
