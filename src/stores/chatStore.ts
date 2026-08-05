@@ -466,7 +466,9 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
     const exited = get().conversations.find((c) => c.id === conversationId)?.exitedSkills ?? []
     const restored = loadedSkillsFromTurns(history).filter((s) => !exited.includes(s.manifest.name))
     const base = narrowByLoadedSkills(listCapabilities(), restored)
-    const maxRounds = restored.reduce((acc, s) => Math.max(acc, s.manifest.maxRounds), DEFAULT_MAX_ROUNDS)
+    // 轮数也跟着生效的那个 skill 走：换到一个短流程之后还按上一个的上限跑，
+    // 等于给了它绕远路的余地
+    const maxRounds = restored[restored.length - 1]?.manifest.maxRounds ?? DEFAULT_MAX_ROUNDS
 
     const result = await runAgentLoop({
       provider: resolveProvider(modelConfig),

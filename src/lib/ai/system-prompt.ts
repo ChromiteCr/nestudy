@@ -79,10 +79,20 @@ export function buildSystemPrompt({
     parts.push(`${SKILL_RULES}\n\n可用 skill：\n${lines.join('\n')}`)
   }
 
+  // 生效的只有最后读入的那个：能力面按它收窄，界面上显示的也是它。
+  // 早先读过的定义还在上文里，得说明它们已经不作数，否则模型会把两套流程混着走
   if (loadedSkills.length > 0) {
-    parts.push(
-      `本次会话已读取并正在遵循的 skill：${loadedSkills.map((s) => `${s.manifest.name}（${s.manifest.displayName}）`).join('、')}。定义已经在上文的工具结果里，不要重复读取。`,
-    )
+    const active = loadedSkills[loadedSkills.length - 1].manifest
+    const previous = loadedSkills.slice(0, -1)
+    const lines = [
+      `当前正在遵循的 skill：${active.name}（${active.displayName}）。定义已经在上文的工具结果里，不要重复读取。`,
+    ]
+    if (previous.length > 0) {
+      lines.push(
+        `本次会话早些时候还读过：${previous.map((s) => `${s.manifest.name}（${s.manifest.displayName}）`).join('、')}——它们的定义也在上文，但**已经不再生效**，不要把它们的流程混进来。用户要求切回去时再 read_skill 读一次。`,
+      )
+    }
+    parts.push(lines.join('\n'))
   }
 
   // 正文还躺在上文的工具结果里，不说清楚模型会继续照着做

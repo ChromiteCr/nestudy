@@ -117,7 +117,11 @@ export async function runAgentLoop({
       }
 
       if (!capability) {
-        await push('该能力在当前 skill 下不可用')
+        // 把可用清单一并给出：只说"不可用"，模型只能靠猜——上一版实测它会
+        // 转头让学生手动把数据贴进来，把一次运行时限制变成了用户的麻烦
+        await push(
+          `没有名为「${call.name}」的能力，本次可用的是：${[...allowed.keys()].join('、')}。从里面选一个，或者用已有信息作答。`,
+        )
         continue
       }
 
@@ -133,8 +137,11 @@ export async function runAgentLoop({
         const skill = detectLoadedSkill(result)
         if (skill && !loadedSkills.some((s) => s.manifest.name === skill.manifest.name)) {
           loadedSkills.push(skill)
-          // 只收窄不放宽：读进来的 skill 只能在当前面上再切一刀
-          granted = narrowForSkill(granted, skill.manifest).granted
+          // 从**起始能力面**重新收窄，不是在当前面上再切一刀。
+          // 后者会让一次会话里换用第二个 skill 时拿到两者的交集——
+          // 界面说着"正在遵循 B"，B 声明的工具却被上一个 skill 挡掉了。
+          // 该守的不变量是"不超过用户的起始面"，不是"越用越少"。
+          granted = narrowForSkill(capabilities, skill.manifest).granted
           // 读 skill 本身花掉一轮，给它把预算补回来，否则声明 max_rounds 的 skill
           // 实际能干活的轮数总比它写的少一轮
           effectiveMaxRounds = Math.max(effectiveMaxRounds, round + 1 + skill.manifest.maxRounds)
@@ -227,11 +234,20 @@ export function loadedSkillsFromTurns(turns: ChatTurn[]): LoadedSkill[] {
   return out
 }
 
-/** 起始能力面：会话里读过的 skill 依次收窄，刷新之后约束不会松掉 */
+/**
+ * 起始能力面：按会话里**最后读入**的那个 skill 收窄，刷新之后约束不会松掉。
+ *
+ * 取最后一个而不是依次相交：一次会话里换用第二个 skill 是正常操作
+ * （"帮我排计划" → "顺便把活动栏压一下"），相交会让第二个 skill 声明的工具
+ * 被第一个挡掉，而界面上明明写着"正在遵循"它。用户看到的是 agent 中途说
+ * "这个能力没开放"然后改口让他手动贴数据。
+ *
+ * 安全上真正要守的是**不超过用户的起始面**——收窄始终以 base 为准，
+ * skill 拿不到用户本来就没有的能力；写库仍然一律要用户在卡片上确认。
+ */
 export function narrowByLoadedSkills(base: Capability[], loaded: LoadedSkill[]): Capability[] {
-  let granted = base
-  for (const skill of loaded) granted = narrowForSkill(granted, skill.manifest).granted
-  return granted
+  const active = loaded[loaded.length - 1]
+  return active ? narrowForSkill(base, active.manifest).granted : base
 }
 
 async function collectRound(stream: AsyncIterable<StreamEvent>, onText: (delta: string) => void) {
