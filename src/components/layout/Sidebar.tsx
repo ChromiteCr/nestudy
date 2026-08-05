@@ -1,4 +1,4 @@
-import { MessageSquare, Settings, Waypoints } from 'lucide-react'
+import { MessageSquare, Puzzle, Settings, Waypoints } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
@@ -11,7 +11,11 @@ interface SidebarProps {
 
 /**
  * 56px 图标导轨。不做 240px 带文字的侧栏——画板要最大宽度，
- * 而三个目标少到不需要常驻文字标签。
+ * 而目标少到不需要常驻文字标签。
+ *
+ * S10c 从三项加到四项（技能）。这是有代价的让步，不是随手加的：
+ * 自建 skill 之后「我有哪些技能、它能碰什么」成了日常动作。四项是上限，
+ * 再多就该重新考虑导轨这个形态了。
  */
 export function Sidebar({ view, onViewChange }: SidebarProps) {
   return (
@@ -32,6 +36,12 @@ export function Sidebar({ view, onViewChange }: SidebarProps) {
           label="画板"
           active={view === 'canvas'}
           onClick={() => onViewChange('canvas')}
+        />
+        <RailItem
+          icon={Puzzle}
+          label="技能"
+          active={view === 'skills'}
+          onClick={() => onViewChange('skills')}
         />
       </nav>
 

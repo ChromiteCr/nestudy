@@ -9,6 +9,8 @@ import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useReminderStore } from '@/stores/reminderStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useSkillStore } from '@/stores/skillStore'
+import { SkillsView } from '@/components/skills/SkillsView'
 import type { AppView } from '@/types'
 
 export default function App() {
@@ -19,6 +21,9 @@ export default function App() {
     // 申请持久化存储资格，降低浏览器在磁盘紧张时自动清除 IndexedDB/OPFS 的风险
     void navigator.storage?.persist?.()
     void useSettingsStore.getState().load()
+    // 自建 skill 要在会话开始前灌进 lib/skills 的缓存，否则第一轮的
+    // system prompt 里没有它们，agent 就"看不见"用户自己写的技能
+    void useSkillStore.getState().load()
     void useChatStore.getState().init()
     // 规则引擎依赖档案/事项，等 planning 加载完再算提醒
     void usePlanningStore
@@ -35,6 +40,7 @@ export default function App() {
         <Sidebar view={view} onViewChange={setView} />
         {view === 'chat' && <ChatView onOpenSettings={() => setView('settings')} />}
         {view === 'canvas' && <CanvasView />}
+        {view === 'skills' && <SkillsView onOpenChat={() => setView('chat')} />}
         {view === 'settings' && <SettingsView />}
       </div>
       <Toaster position="top-center" />

@@ -1,27 +1,23 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Puzzle, Upload } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mono } from '@/components/ui/mono'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
+import { useSkillStore } from '@/stores/skillStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
-import { listCapabilities, resolveForSkill } from '@/lib/capabilities'
-import { referenceStamp } from '@/lib/capabilities/application'
-import { listSkillLoadIssues, listSkills, OUTPUT_LABEL, SKILLS_SOURCE } from '@/lib/skills'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
 import { cn } from '@/lib/utils'
 
-export type SettingsCategory = 'model' | 'profile' | 'skills' | 'appearance' | 'data'
+export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data'
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: typeof Cpu }[] = [
   { key: 'model', label: '模型', icon: Cpu },
   { key: 'profile', label: '档案', icon: GraduationCap },
-  { key: 'skills', label: 'Skills', icon: Puzzle },
   { key: 'appearance', label: '外观', icon: Palette },
   { key: 'data', label: '数据', icon: Database },
 ]
@@ -63,7 +59,6 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {category === 'model' && <ModelPanel />}
           {category === 'profile' && <ProfileForm onSaved={() => toast.success('档案已保存')} />}
-          {category === 'skills' && <SkillsPanel />}
           {category === 'appearance' && <AppearancePanel />}
           {category === 'data' && <DataPanel />}
         </div>
@@ -129,115 +124,6 @@ function ModelPanel() {
   )
 }
 
-/**
- * 已装载的 skill 与它们的授权范围。
- *
- * 把"这个 skill 能碰什么"摊在明面上，是能力白名单这套机制唯一能被用户验证的地方——
- * 只写在代码里的守卫，对用户来说等于不存在。S12 的商店会在这一页长出来。
- */
-function SkillsPanel() {
-  const skills = listSkills()
-  const capabilities = listCapabilities()
-  const issues = listSkillLoadIssues()
-
-  return (
-    <div className="flex max-w-xl flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Skill 是声明式的学习流程，本身不含可执行代码，只能调用下面列出的能力，且写入一律要你在卡片上确认。
-      </p>
-
-      <div className="flex flex-col gap-3">
-        {skills.map((s) => {
-          const { granted } = resolveForSkill(s.manifest)
-          return (
-            <div key={s.manifest.name} className="flex flex-col gap-1.5 rounded-lg border bg-card p-3">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-medium">{s.manifest.displayName}</span>
-                <Mono className="text-muted-foreground">
-                  {s.manifest.name} v{s.manifest.version}
-                </Mono>
-                <Badge variant="outline" className="ml-auto">
-                  <Mono>{s.manifest.status}</Mono>
-                </Badge>
-              </div>
-              {/* 描述原本是这张卡里最响的一块（六行正文字号），可它是三者里最不重要的：
-                  这段话是写给模型的触发语。压到最小一档，让下面的授权范围成为视觉主角 */}
-              <p className="text-2xs text-muted-foreground">{s.manifest.description}</p>
-              <dl className="mt-1 flex flex-col gap-1 text-sm">
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-muted-foreground">能力</dt>
-                  <dd className="min-w-0">
-                    {s.manifest.readOnly ? (
-                      <span className="text-muted-foreground">未声明，按只读运行（{granted.length} 项读能力）</span>
-                    ) : (
-                      <Mono>{granted.map((c) => c.name).join(' · ')}</Mono>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-muted-foreground">产出</dt>
-                  <dd>{s.manifest.outputs.map((o) => OUTPUT_LABEL[o]).join('、')}</dd>
-                </div>
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-muted-foreground">轮数上限</dt>
-                  <dd>
-                    <Mono>{s.manifest.maxRounds}</Mono>
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          )
-        })}
-        {skills.length === 0 && <p className="text-sm text-muted-foreground">没有装载任何 skill。</p>}
-      </div>
-
-      {issues.errors.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
-          <span className="font-medium text-destructive">有 skill 未能装载</span>
-          {issues.errors.map((e, i) => (
-            <Mono key={i} className="text-destructive">
-              {e}
-            </Mono>
-          ))}
-        </div>
-      )}
-
-      {/* S9 之后能力有十几项，一行 name 挤在一起谁也看不清。
-          按读 / 提案分开、带上通俗名字列出来，这一页才真的能用来核对授权范围 */}
-      <div className="flex flex-col gap-2 border-t pt-3">
-        <span className="text-sm text-muted-foreground">全部可用能力（{capabilities.length}）</span>
-        {(['read', 'propose'] as const).map((kind) => {
-          const group = capabilities.filter((c) => c.kind === kind)
-          if (group.length === 0) return null
-          return (
-            <div key={kind} className="flex gap-2 text-sm">
-              <Mono className="w-14 shrink-0 text-muted-foreground">{kind === 'read' ? '读取' : '提案'}</Mono>
-              <ul className="grid min-w-0 flex-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-                {/* 不截断：工具名是 SKILL.md 里要照抄的字符串，截了这一页就白列了 */}
-                {group.map((c) => (
-                  <li key={c.name} className="min-w-0" title={c.summary}>
-                    {c.label} <Mono className="break-all text-muted-foreground">{c.name}</Mono>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-        <span>
-          申请参考数据：<Mono>{referenceStamp()}</Mono>
-        </span>
-        <span>
-          Skill 来源：<Mono>{SKILLS_SOURCE.repo}</Mono> @ <Mono>{SKILLS_SOURCE.commit}</Mono>（Library{' '}
-          <Mono>{SKILLS_SOURCE.libraryVersion}</Mono>）
-        </span>
-      </div>
-    </div>
-  )
-}
-
 function DataPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const growthEvents = usePlanningStore((s) => s.growthEvents)
@@ -254,7 +140,12 @@ function DataPanel() {
     try {
       const bundle = JSON.parse(await file.text())
       await importAll(bundle)
-      await Promise.all([useChatStore.getState().init(), usePlanningStore.getState().load()])
+      // skillStore 也要重载：备份里带着自建技能，不刷新的话 agent 还看着旧的那批
+      await Promise.all([
+        useChatStore.getState().init(),
+        usePlanningStore.getState().load(),
+        useSkillStore.getState().load(),
+      ])
       toast.success('备份已导入')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '导入失败，请检查文件')
