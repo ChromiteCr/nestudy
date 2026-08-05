@@ -35,6 +35,10 @@ export async function setConversationSkill(id: string, skillName: string | null)
   await db.conversations.update(id, { skillName: skillName ?? undefined })
 }
 
+export async function setConversationExitedSkills(id: string, exitedSkills: string[]): Promise<void> {
+  await db.conversations.update(id, { exitedSkills })
+}
+
 export async function touchConversation(id: string): Promise<void> {
   await db.conversations.update(id, { updatedAt: Date.now() })
 }

@@ -51,9 +51,16 @@ export interface SystemPromptInput {
   skills: LoadedSkill[]
   /** 本次会话已经读进来的 skill，读过就不必再读 */
   loadedSkills?: LoadedSkill[]
+  /** 用户手动退出的 skill 名。正文还在上文里，必须显式说明不再遵循 */
+  exitedSkills?: string[]
 }
 
-export function buildSystemPrompt({ capabilities, skills, loadedSkills = [] }: SystemPromptInput): string {
+export function buildSystemPrompt({
+  capabilities,
+  skills,
+  loadedSkills = [],
+  exitedSkills = [],
+}: SystemPromptInput): string {
   const parts = [BASE.replace('{{today}}', isoToday())]
 
   if (capabilities.length > 0) {
@@ -75,6 +82,13 @@ export function buildSystemPrompt({ capabilities, skills, loadedSkills = [] }: S
   if (loadedSkills.length > 0) {
     parts.push(
       `本次会话已读取并正在遵循的 skill：${loadedSkills.map((s) => `${s.manifest.name}（${s.manifest.displayName}）`).join('、')}。定义已经在上文的工具结果里，不要重复读取。`,
+    )
+  }
+
+  // 正文还躺在上文的工具结果里，不说清楚模型会继续照着做
+  if (exitedSkills.length > 0) {
+    parts.push(
+      `用户已退出这些 skill：${exitedSkills.join('、')}。它们的定义还留在上文的工具结果里，但**不要再按其中的流程与边界工作**，按通用规范正常回答即可。用户明确要求重新使用时才 read_skill 读回来。`,
     )
   }
 

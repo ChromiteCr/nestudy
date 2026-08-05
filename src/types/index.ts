@@ -699,6 +699,14 @@ export interface Conversation {
   updatedAt: number
   /** 该会话激活的 skill 名。S8 起 skill 激活态随会话持久化，刷新不再丢 */
   skillName?: string
+  /**
+   * 用户手动退出的 skill。
+   *
+   * 需要单独记一笔是因为激活态是从**历史**里还原的（read_skill 的工具结果还在那儿），
+   * 光清 skillName 下一轮就又被认出来了。而重写历史是更坏的选择——
+   * 那等于篡改已经发生过的事。
+   */
+  exitedSkills?: string[]
 }
 
 // ---- 模型配置 ----

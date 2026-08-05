@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { ArrowUp, ClipboardPaste, Loader2, Slash, Sparkles, Square } from 'lucide-react'
+import { ArrowUp, ClipboardPaste, Loader2, Slash, Sparkles, Square, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Mono } from '@/components/ui/mono'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -42,6 +42,7 @@ export function Composer() {
   const stopStreaming = useChatStore((s) => s.stopStreaming)
   const compactContext = useChatStore((s) => s.compactContext)
   const newConversation = useChatStore((s) => s.newConversation)
+  const exitSkill = useChatStore((s) => s.exitSkill)
   const contextWindow = useSettingsStore((s) => s.modelConfig.contextWindow)
 
   const usage = useMemo(() => selectContextUsage(messages, contextWindow), [messages, contextWindow])
@@ -160,11 +161,27 @@ export function Composer() {
 
       <div className="mx-auto flex max-w-3xl flex-col gap-1 rounded-xl border bg-card p-2 shadow-xs">
         {activeSkill && (
-          <div className="flex items-center gap-1.5 px-1 pt-0.5">
+          // 独立成卡而不是一行小字：正在遵循 skill 是个**有约束力**的状态
+          // （能力面被收窄、流程被规定），得看起来像个可以退出的东西，而不像一句脚注
+          <div className="flex items-center gap-1.5 rounded-lg border bg-muted/40 py-1 pr-1 pl-2">
             <Sparkles className="size-3.5 shrink-0 text-muted-foreground" />
-            <Mono className="text-muted-foreground">
+            <Mono className="min-w-0 flex-1 truncate text-muted-foreground">
               正在遵循 {activeSkill.skill.manifest.displayName} · {activeSkill.canWrite ? '可提案' : '只读'}
             </Mono>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+                  aria-label={`退出 ${activeSkill.skill.manifest.displayName}`}
+                  onClick={() => void exitSkill(activeSkill.skill.manifest.name)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>退出这个技能，回到普通对话</TooltipContent>
+            </Tooltip>
           </div>
         )}
         <div className="flex items-end gap-2">

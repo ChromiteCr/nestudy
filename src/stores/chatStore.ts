@@ -9,6 +9,7 @@ import {
   listMessages,
   newId,
   renameConversation,
+  setConversationExitedSkills,
   setConversationSkill,
   updateMessageAsk,
   updateMessageProposal,
@@ -58,6 +59,8 @@ interface ChatState {
   answerAsk: (messageId: string, answers: AskAnswer[]) => Promise<void>
   /** 跳过整张问题卡，让 agent 按默认值继续 */
   skipAsk: (messageId: string) => Promise<void>
+  /** 退出正在遵循的 skill：能力面放回全量，后续轮次不再按它的流程走 */
+  exitSkill: (skillName: string) => Promise<void>
 }
 
 /**
@@ -244,6 +247,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await settleAsk(messageId, { ...message.ask, status: 'skipped' }, set)
     await get().sendMessage('这几个问题我先跳过，你按合理的默认值继续，把假设写清楚我再看。')
   },
+
+  exitSkill: async (skillName) => {
+    const conversation = get().conversations.find((c) => c.id === get().activeId)
+    if (!conversation) return
+    const exitedSkills = [...new Set([...(conversation.exitedSkills ?? []), skillName])]
+    await setConversationExitedSkills(conversation.id, exitedSkills)
+    if (conversation.skillName === skillName) await setConversationSkill(conversation.id, null)
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === conversation.id
+          ? { ...c, exitedSkills, skillName: c.skillName === skillName ? undefined : c.skillName }
+          : c,
+      ),
+    }))
+  },
 }))
 
 type Set = (patch: Partial<ChatState> | ((s: ChatState) => Partial<ChatState>)) => void
@@ -414,10 +432,17 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
       })
     },
     onSkillLoaded: (skill) => {
-      void setConversationSkill(conversationId, skill.manifest.name)
+      const name = skill.manifest.name
+      void setConversationSkill(conversationId, name)
+      // 主动重新读入 = 又要用它了，把退出记录撤掉，否则系统提示会一边说
+      // "正在遵循"一边说"已退出"
+      const exited = (get().conversations.find((c) => c.id === conversationId)?.exitedSkills ?? []).filter(
+        (n) => n !== name,
+      )
+      void setConversationExitedSkills(conversationId, exited)
       set((s) => ({
         conversations: s.conversations.map((c) =>
-          c.id === conversationId ? { ...c, skillName: skill.manifest.name } : c,
+          c.id === conversationId ? { ...c, skillName: name, exitedSkills: exited } : c,
         ),
       }))
     },
@@ -436,8 +461,10 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
     }
 
     const history = buildTurns(get().messages)
-    // 会话里读过的 skill 从历史还原：刷新之后能力面不会重新放宽
-    const restored = loadedSkillsFromTurns(history)
+    // 会话里读过的 skill 从历史还原：刷新之后能力面不会重新放宽。
+    // 用户手动退出的除外——退出的语义就是"别再按它走"，能力面也跟着放回去
+    const exited = get().conversations.find((c) => c.id === conversationId)?.exitedSkills ?? []
+    const restored = loadedSkillsFromTurns(history).filter((s) => !exited.includes(s.manifest.name))
     const base = narrowByLoadedSkills(listCapabilities(), restored)
     const maxRounds = restored.reduce((acc, s) => Math.max(acc, s.manifest.maxRounds), DEFAULT_MAX_ROUNDS)
 
@@ -448,6 +475,7 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
           capabilities,
           skills: listSkills(),
           loadedSkills: [...restored, ...loadedSkills],
+          exitedSkills: exited,
         }),
       history,
       capabilities: base,
