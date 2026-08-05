@@ -418,8 +418,47 @@ export interface Message {
   toolCallId?: string
   /** role==='tool'：哪个能力产出的，展示与回放都要用 */
   toolName?: string
+  /** ask_user 提出的选择题，渲染为问题卡；随消息持久化 */
+  ask?: AskRequest
   /** role==='system' 且是压缩记录时存在 */
   compaction?: CompactionRecord
+}
+
+// ---- 提问卡（S10d：ask_user） ----
+
+export interface AskOption {
+  label: string
+  /** 选这个意味着什么，卡片上小字展示；可省 */
+  description?: string
+}
+
+export interface AskQuestion {
+  /** 极短标签（≤6 字），卡片上当小标题，也用来回读答案 */
+  header: string
+  question: string
+  multiSelect: boolean
+  options: AskOption[]
+}
+
+/**
+ * 一次提问。
+ *
+ * 与 Proposal 刻意分开：提案是"AI 想写库、等你确认"，提问是"AI 缺一个前提、等你选"。
+ * 两者的确认动作看起来像，含义完全不同——混成一种类型，日后想给提案加"批量确认"
+ * 之类的东西就会误伤提问。
+ */
+export interface AskRequest {
+  questions: AskQuestion[]
+  status: 'pending' | 'answered' | 'skipped'
+  /** answered 之后回填，卡片转为只读回执 */
+  answers?: AskAnswer[]
+}
+
+export interface AskAnswer {
+  header: string
+  question: string
+  /** 选中的选项文字；「其他」由用户手写，也落在这里 */
+  selected: string[]
 }
 
 // ---- Skill 运行记录（S8：替代 settings.usedSkillIds） ----

@@ -25,7 +25,7 @@ export const listCapabilitiesCapability: Capability = {
   schema: {
     name: 'list_capabilities',
     description:
-      '列出这个运行时全部可用能力的名字、类别与用途。**写 SKILL.md 的 capabilities 之前必须先调用它**——能力名是运行时定义的，凭印象写会声明出一个不存在的名字，那个 skill 装上去就是坏的。返回里 kind=read 的是读取类（自动执行），kind=propose 的是提案类（出确认卡，用户点了才写库）。',
+      '列出这个运行时全部可用能力的名字、类别与用途。**写 SKILL.md 的 capabilities 之前必须先调用它**——能力名是运行时定义的，凭印象写会声明出一个不存在的名字，那个 skill 装上去就是坏的。返回里 kind=read 的是读取类（自动执行），kind=propose 的是提案类（出确认卡，用户点了才写库），kind=ask 的是提问类（出选择题卡片，然后停下等人答）。',
     parameters: { type: 'object', properties: {} },
   },
   execute: async () => {
@@ -40,7 +40,8 @@ export const listCapabilitiesCapability: Capability = {
       })),
       outputs: SKILL_OUTPUTS.map((o) => ({ value: o, label: OUTPUT_LABEL[o] })),
       rules: [
-        '不写 capabilities 就是只读：运行时会给全部读能力，一个写能力都不给。这是安全默认值。',
+        '不写 capabilities 就是只读：运行时会给全部读能力与提问能力，一个写能力都不给。这是安全默认值。',
+        '技能的默认姿势是**先做出成品**：缺信息按合理默认值做第一版并写明假设，别先问一轮再动手。要问就声明 ask_user，一次问完（最多 4 问，每问带选项），运行时对连续追问有硬上限。',
         '声明了 capabilities 就只拿到声明的那几个，多一个都没有。写多了不会更强，只会让用户看到不必要的授权。',
         'optional_capabilities 是"有更好、没有也能跑"的；必需的写进 capabilities。',
         `max_rounds 是多轮工具调用的上限，1-${MAX_ALLOWED_ROUNDS}，不写按 ${DEFAULT_MAX_ROUNDS}。访谈类流程要给够（50 以上），一问一答很吃轮数。`,

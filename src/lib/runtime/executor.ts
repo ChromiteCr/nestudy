@@ -2,7 +2,7 @@ import type { ChatProvider, ChatTurn, StreamEvent, ToolCallRequest } from '@/lib
 import { narrowForSkill, type Capability } from '@/lib/capabilities'
 import { SKILL_LOADED_MARKER } from '@/lib/capabilities/core/skills'
 import { getSkill, type LoadedSkill } from '@/lib/skills'
-import type { MessageToolCall, Proposal } from '@/types'
+import type { AskRequest, MessageToolCall, Proposal } from '@/types'
 
 /**
  * 多轮 session 引擎。
@@ -33,6 +33,8 @@ export interface RunHandlers {
   onToolResult: (toolCallId: string, toolName: string, content: string) => Promise<void>
   /** 产出一张提案确认卡 */
   onProposal: (proposal: Proposal) => Promise<void>
+  /** 产出一张提问卡；出了它这次运行就停机等人 */
+  onAsk: (request: AskRequest) => Promise<void>
   /** 能力面因为读入 skill 而变化 */
   onSkillLoaded?: (skill: LoadedSkill) => void
 }
@@ -46,11 +48,13 @@ export interface RunRequest {
   /** 起始能力面 */
   capabilities: Capability[]
   maxRounds: number
+  /** 本次运行还允许出几张提问卡；用完之后 ask_user 一律驳回 */
+  askBudget: number
   signal: AbortSignal
   handlers: RunHandlers
 }
 
-export type RunStop = 'text' | 'rounds' | 'budget'
+export type RunStop = 'text' | 'rounds' | 'budget' | 'ask'
 
 export interface RunResult {
   rounds: number
@@ -65,6 +69,7 @@ export async function runAgentLoop({
   history,
   capabilities,
   maxRounds,
+  askBudget,
   signal,
   handlers,
 }: RunRequest): Promise<RunResult> {
@@ -74,6 +79,8 @@ export async function runAgentLoop({
   let proposals = 0
   let toolChars = 0
   let effectiveMaxRounds = maxRounds
+  let asksLeft = askBudget
+  let asked = false
 
   for (let round = 0; round < effectiveMaxRounds; round++) {
     const system = buildSystemPrompt(granted, loadedSkills)
@@ -136,6 +143,43 @@ export async function runAgentLoop({
         continue
       }
 
+      if (capability.kind === 'ask') {
+        if (asksLeft <= 0) {
+          // 追问是这个产品最容易滑进去的失败模式：一轮一句、每句都说"最后一个问题"。
+          // 额度用完就把路堵死，逼它按默认值把东西做出来——写进提示词管不住，
+          // 得由运行时管。
+          await push(
+            '本次对话的提问额度已用完，不再展示问题卡。请按合理默认值继续做出成品，' +
+              '并在正文里写明你假设了什么，让用户看着实物纠正。',
+          )
+          continue
+        }
+        let outcome
+        try {
+          outcome = capability.ask?.(call.arguments)
+        } catch {
+          await push('参数 JSON 解析失败，请修正后重试')
+          continue
+        }
+        if (!outcome?.request) {
+          await push(`没有可展示的问题${outcome?.notes?.length ? `（${outcome.notes.join('；')}）` : ''}。请直接作答。`)
+          continue
+        }
+        asksLeft--
+        asked = true
+        await handlers.onAsk(outcome.request)
+        await push(
+          [
+            `问题卡已展示给用户（${outcome.request.questions.length} 问），本次回答到此结束，等待用户作答。`,
+            outcome.notes?.length ? `未展示的部分：${outcome.notes.join('；')}——这些请自己按默认值定，不要再问。` : '',
+            '不要重复提问，也不要在用户回答之前继续输出。',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        )
+        continue
+      }
+
       let proposal: Proposal | null
       try {
         proposal = capability.parse?.(call.arguments) ?? null
@@ -151,6 +195,10 @@ export async function runAgentLoop({
       proposals++
       await push('提案卡已展示给用户，等待用户在卡片上确认或编辑。不要重复调用，也不要声称已保存。')
     }
+
+    // 停机等人。放在整轮的工具都处理完之后：这一轮里其余的调用也得拿到结果，
+    // 否则历史里留下没有 tool 结果的 tool_call，下一次装配就是个非法序列。
+    if (asked) return { rounds: round + 1, proposals, loadedSkills, stop: 'ask' }
 
     if (toolChars >= TOOL_OUTPUT_BUDGET && round === effectiveMaxRounds - 1) {
       return { rounds: round + 1, proposals, loadedSkills, stop: 'budget' }

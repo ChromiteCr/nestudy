@@ -108,9 +108,10 @@ export function buildTurns(messages: Message[]): ChatTurn[] {
     }
 
     if (m.role === 'assistant') {
-      // 提案卡本身不进上下文：模型在发起提案那一轮已经收到过回执，
-      // 用户确认与否是应用层的事，重放一遍只会诱导它重复提案
-      if (m.proposal) continue
+      // 提案卡与问题卡本身不进上下文：模型在发起那一轮已经收到过回执，
+      // 用户怎么处理是应用层的事，重放一遍只会诱导它重复提案／重复提问。
+      // 问题的原文在它自己那次 tool_call 的参数里，答案则以一条用户消息回来了
+      if (m.proposal || m.ask) continue
       const calls = (m.toolCalls ?? []).filter((c) => resultsByCallId.has(c.id))
       if (calls.length === 0) {
         if (m.content) turns.push({ role: 'assistant', content: m.content })
@@ -204,6 +205,10 @@ export function renderForSummary(messages: Message[]): string {
       if (m.role === 'user') return `用户：${m.content}`
       if (m.role === 'tool') return `工具结果（${m.toolName ?? '未知'}）：${truncateForReplay(m.content).content}`
       if (m.proposal) return `助手：提出了一张 ${m.proposal.kind} 提案卡（状态：${m.proposal.status}）`
+      if (m.ask) {
+        const answered = m.ask.answers?.map((a) => `${a.header}=${a.selected.join('/')}`).join('，')
+        return `助手：问了 ${m.ask.questions.length} 个选择题（${answered || m.ask.status}）`
+      }
       const calls = m.toolCalls?.map((c) => c.name).join('、')
       return `助手：${m.content}${calls ? `（调用了 ${calls}）` : ''}`
     })

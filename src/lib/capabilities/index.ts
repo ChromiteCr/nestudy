@@ -1,6 +1,7 @@
 import { getCapability, registerCapability } from './registry'
 import { CORE_READ_CAPABILITIES } from './core/reads'
 import { CORE_PROPOSE_CAPABILITIES } from './core/proposals'
+import { askUserCapability } from './core/ask'
 import { APPLICATION_PROPOSE_CAPABILITIES, APPLICATION_READ_CAPABILITIES } from './application'
 import { AUTHORING_PROPOSE_CAPABILITIES, AUTHORING_READ_CAPABILITIES } from './authoring'
 
@@ -14,6 +15,7 @@ import { AUTHORING_PROPOSE_CAPABILITIES, AUTHORING_READ_CAPABILITIES } from './a
 for (const cap of [
   ...CORE_READ_CAPABILITIES,
   ...CORE_PROPOSE_CAPABILITIES,
+  askUserCapability,
   ...APPLICATION_READ_CAPABILITIES,
   ...APPLICATION_PROPOSE_CAPABILITIES,
   ...AUTHORING_READ_CAPABILITIES,

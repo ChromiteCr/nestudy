@@ -49,8 +49,10 @@ export interface ResolvedCapabilities {
  * 按 skill 声明解析出本次运行的能力面。
  *
  * - 没有激活 skill：给全部能力（自由对话的学栖本体）
- * - skill 没声明 capabilities：**只给读能力**。这是安全默认值——
- *   社区 skill 的作者漏写一行，不该因此拿到写权限
+ * - skill 没声明 capabilities：**给读能力与提问能力**。这是安全默认值——
+ *   社区 skill 的作者漏写一行，不该因此拿到写权限。提问不碰数据，
+ *   一张选择题卡片能造成的最坏后果不比模型自己说话更严重，
+ *   所以"缺省即只读"这条守的是**不写库**，不必连问一句都不许
  * - 声明了：按声明给，注册表里没有的记进 missing
  */
 export function resolveForSkill(manifest: SkillManifest | null): ResolvedCapabilities {
@@ -73,7 +75,11 @@ export function narrowForSkill(base: Capability[], manifest: SkillManifest | nul
 
   if (!manifest) return { granted: base, missing: [], missingOptional: [] }
   if (manifest.readOnly) {
-    return { granted: withAlways(base.filter((c) => c.kind === 'read')), missing: [], missingOptional: [] }
+    return {
+      granted: withAlways(base.filter((c) => c.kind === 'read' || c.kind === 'ask')),
+      missing: [],
+      missingOptional: [],
+    }
   }
 
   const available = new Map(base.map((c) => [c.name, c]))

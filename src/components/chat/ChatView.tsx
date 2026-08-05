@@ -55,7 +55,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
     let batchStart = -Infinity
     let indexInBatch = 0
     for (const m of messages) {
-      if (m.role !== 'tool' && !m.proposal) continue
+      if (m.role !== 'tool' && !m.proposal && !m.ask) continue
       if (m.createdAt - batchStart > APPEAR_BATCH_WINDOW_MS) {
         batchStart = m.createdAt
         indexInBatch = 0
@@ -125,7 +125,8 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
                 messages.length > 0 &&
                 messages[messages.length - 1].role === 'assistant' &&
                 messages[messages.length - 1].content &&
-                !messages[messages.length - 1].proposal
+                !messages[messages.length - 1].proposal &&
+                !messages[messages.length - 1].ask
               ) && <ThinkingIndicator />}
 
             {error && (

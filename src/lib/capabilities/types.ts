@@ -1,16 +1,19 @@
 import type { ToolDef } from '@/lib/ai/provider'
-import type { Proposal } from '@/types'
+import type { AskRequest, Proposal } from '@/types'
 
 /**
  * Capability = agent 能做的一件事。
  *
- * 分两类，边界就是这个项目从 S2 起的底线：
+ * 分三类，边界就是这个项目从 S2 起的底线：
  * - `read`：自动执行，让模型了解现状
  * - `propose`：**不写库**，解析成提案渲染确认卡，用户点确认才由应用写入
+ * - `ask`：**不碰数据**，渲染一张选择题卡片，然后停下等人回答
  *
- * 没有第三类。任何"直接写"的能力都不该出现在这里。
+ * 三类都不写库。任何"直接写"的能力都不该出现在这里。
+ * `ask` 之所以单列而不是并进 `propose`：它停机（等人）而提案不停机，
+ * 而且它没有"确认之后写什么"这一步——共用一条分支会让两边都变糊。
  */
-export type CapabilityKind = 'read' | 'propose'
+export type CapabilityKind = 'read' | 'propose' | 'ask'
 
 /** 谁注册的。S13 的 plugin 用 `plugin:<name>`，禁用 plugin 时按 owner 整体撤销 */
 export type CapabilityOwner = 'core' | `plugin:${string}`
@@ -44,4 +47,13 @@ export interface Capability {
   execute?: (rawArgs: string) => Promise<string>
   /** kind === 'propose'：解析模型参数为提案；返回 null 表示提案为空，不出卡 */
   parse?: (rawArgs: string) => Proposal | null
+  /** kind === 'ask'：解析模型参数为一组问题 */
+  ask?: (rawArgs: string) => AskOutcome
+}
+
+export interface AskOutcome {
+  /** null 表示没有可展示的问题，不出卡 */
+  request: AskRequest | null
+  /** 解析时被丢弃或截断的部分，如实回给模型——它得知道有几问没问出去 */
+  notes?: string[]
 }

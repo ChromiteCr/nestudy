@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Conversation, Message, Proposal, SkillRunStatus } from '@/types'
+import type { AskAnswer, AskRequest, Conversation, Message, Proposal, SkillRunStatus } from '@/types'
 import {
   addMessage,
   createConversation,
@@ -10,6 +10,7 @@ import {
   newId,
   renameConversation,
   setConversationSkill,
+  updateMessageAsk,
   updateMessageProposal,
 } from '@/lib/db/repositories'
 import { recordSkillRun } from '@/lib/db/skill-runs'
@@ -53,6 +54,34 @@ interface ChatState {
   /** edited：卡片上用户编辑后的版本（勾选/改字段），缺省用原提案 */
   confirmProposal: (messageId: string, edited?: Proposal) => Promise<void>
   dismissProposal: (messageId: string) => Promise<void>
+  /** 在问题卡上作答：回填答案并把选择当作一条用户消息发出去 */
+  answerAsk: (messageId: string, answers: AskAnswer[]) => Promise<void>
+  /** 跳过整张问题卡，让 agent 按默认值继续 */
+  skipAsk: (messageId: string) => Promise<void>
+}
+
+/**
+ * **连续**追问的次数上限。
+ *
+ * 治的是"一轮问一句、每句都叫最后一个问题"。计的是连续次数而不是会话总数：
+ * agent 只要真拿出过东西（出了卡，或不再调工具地把话说完），计数就归零，
+ * 于是长会话里该问的时候仍然问得出来，只是不许一直问下去。
+ */
+const ASK_STREAK_LIMIT = 2
+
+function askStreak(messages: Message[]): number {
+  let streak = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.ask) {
+      streak++
+      continue
+    }
+    if (m.proposal) break
+    // 不再调工具还说了话 = 这一轮给出了实质回答
+    if (m.role === 'assistant' && !m.toolCalls?.length && m.content.trim()) break
+  }
+  return streak
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -111,6 +140,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeId: conversation.id,
         messages: [],
       }))
+    }
+
+    // 卡片还挂着、用户却直接在输入框说了别的：那就是跳过了。
+    // 留一张永远 pending 的卡在历史里，用户会以为它还在等自己。
+    for (const m of state.messages) {
+      if (m.ask?.status === 'pending') await settleAsk(m.id, { ...m.ask, status: 'skipped' }, set)
     }
 
     const userMessage: Message = {
@@ -192,10 +227,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: s.messages.map((m) => (m.id === messageId ? { ...m, proposal: updated } : m)),
     }))
   },
+
+  answerAsk: async (messageId, answers) => {
+    const message = get().messages.find((m) => m.id === messageId)
+    if (!message?.ask || message.ask.status !== 'pending' || get().streaming) return
+    await settleAsk(messageId, { ...message.ask, status: 'answered', answers }, set)
+    // 答案作为一条**普通用户消息**回到对话里，不回填成 tool 结果：
+    // 那样历史序列永远合法（不会留下悬空的 tool_call），刷新、压缩、
+    // 用户改口说别的，三种情况都不用特判。
+    await get().sendMessage(answers.map((a) => `${a.header}：${a.selected.join('、')}`).join('\n'))
+  },
+
+  skipAsk: async (messageId) => {
+    const message = get().messages.find((m) => m.id === messageId)
+    if (!message?.ask || message.ask.status !== 'pending' || get().streaming) return
+    await settleAsk(messageId, { ...message.ask, status: 'skipped' }, set)
+    await get().sendMessage('这几个问题我先跳过，你按合理的默认值继续，把假设写清楚我再看。')
+  },
 }))
 
 type Set = (patch: Partial<ChatState> | ((s: ChatState) => Partial<ChatState>)) => void
 type Get = () => ChatState
+
+/** 问题卡定案（作答 / 跳过）：落库并转为只读回执 */
+async function settleAsk(messageId: string, ask: AskRequest, set: Set) {
+  await updateMessageAsk(messageId, ask)
+  set((s) => ({ messages: s.messages.map((m) => (m.id === messageId ? { ...m, ask } : m)) }))
+}
 
 async function applyTitle(conversationId: string, title: string, set: Set) {
   await renameConversation(conversationId, title)
@@ -345,6 +403,16 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
         proposal,
       })
     },
+    onAsk: async (ask) => {
+      await persist({
+        id: newId(),
+        conversationId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        ask,
+      })
+    },
     onSkillLoaded: (skill) => {
       void setConversationSkill(conversationId, skill.manifest.name)
       set((s) => ({
@@ -384,6 +452,7 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
       history,
       capabilities: base,
       maxRounds,
+      askBudget: Math.max(0, ASK_STREAK_LIMIT - askStreak(get().messages)),
       signal: abortController.signal,
       handlers,
     })
@@ -391,7 +460,9 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
     proposals = result.proposals
     loaded = [...restored, ...result.loadedSkills]
 
-    if (result.stop !== 'text') {
+    // stop === 'ask' 是正常停机，不是异常收尾：卡片自己会说话，再补一句
+    // "先停在这里"只会让用户以为出了问题
+    if (result.stop !== 'text' && result.stop !== 'ask') {
       await persist({
         id: newId(),
         conversationId,

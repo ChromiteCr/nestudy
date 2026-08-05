@@ -4,6 +4,7 @@ import { Archive } from 'lucide-react'
 import type { Message } from '@/types'
 import { cn } from '@/lib/utils'
 import { Mono } from '@/components/ui/mono'
+import { AskCard } from './AskCard'
 import { ProposalCard } from './ProposalCard'
 import { ToolCallRow } from './ToolCallRow'
 
@@ -28,7 +29,7 @@ export function MessageBubble({ message, argsByCallId, appearDelay }: MessageBub
     )
   }
 
-  if (message.proposal) {
+  if (message.proposal || message.ask) {
     return (
       <div
         className={cn(
@@ -37,7 +38,7 @@ export function MessageBubble({ message, argsByCallId, appearDelay }: MessageBub
         )}
         style={appearDelay !== undefined ? { animationDelay: `${appearDelay}ms` } : undefined}
       >
-        <ProposalCard message={message} />
+        {message.ask ? <AskCard message={message} /> : <ProposalCard message={message} />}
       </div>
     )
   }

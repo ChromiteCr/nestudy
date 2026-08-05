@@ -38,6 +38,8 @@ const CATEGORY_LABEL: Record<string, string> = {
   'social-practice': '社会实践',
 }
 
+const KIND_LABEL = { read: '读取', propose: '提案', ask: '提问' } as const
+
 function topCategory(category: string): string {
   return category.split('/')[0] ?? category
 }
@@ -181,12 +183,12 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
 
         <div className="flex flex-col gap-2 border-t pt-4">
           <span className="text-sm text-muted-foreground">全部可用能力（{listCapabilities().length}）</span>
-          {(['read', 'propose'] as const).map((kind) => {
+          {(['read', 'propose', 'ask'] as const).map((kind) => {
             const group = listCapabilities().filter((c) => c.kind === kind)
             if (group.length === 0) return null
             return (
               <div key={kind} className="flex gap-2 text-sm">
-                <Mono className="w-14 shrink-0 text-muted-foreground">{kind === 'read' ? '读取' : '提案'}</Mono>
+                <Mono className="w-14 shrink-0 text-muted-foreground">{KIND_LABEL[kind]}</Mono>
                 <ul className="grid min-w-0 flex-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
                   {group.map((c) => (
                     <li key={c.name} className="min-w-0" title={c.summary}>

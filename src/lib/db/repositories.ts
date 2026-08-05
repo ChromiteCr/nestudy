@@ -66,6 +66,10 @@ export async function updateMessageProposal(id: string, proposal: Message['propo
   await db.messages.update(id, { proposal })
 }
 
+export async function updateMessageAsk(id: string, ask: Message['ask']): Promise<void> {
+  await db.messages.update(id, { ask })
+}
+
 export async function deleteMessage(id: string): Promise<void> {
   await db.messages.delete(id)
 }
