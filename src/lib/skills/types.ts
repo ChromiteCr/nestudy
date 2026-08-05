@@ -67,6 +67,18 @@ export interface SkillManifest {
   suggestHint?: string
 }
 
+/**
+ * 这个 skill 是否**把读别的 skill 当成自己流程的一部分**（如 skill-creator 要拿现成的当范本）。
+ *
+ * 判据是它有没有把 `read_skill` 写进声明。`read_skill` 本身是 alwaysGranted，
+ * 声明它对能力面毫无影响——所以作者写下这一行只可能是一个意思：读 skill 是我要干的活。
+ * 运行时据此把这类读取当成**查资料**而不是改换门庭：否则 skill-creator 读一份参考
+ * 就把自己的 propose_skill 弄丢了，整个流程再也走不到出卡那一步。
+ */
+export function readsSkillsAsData(manifest: SkillManifest): boolean {
+  return manifest.capabilities.includes('read_skill') || manifest.optionalCapabilities.includes('read_skill')
+}
+
 /** builtin=随构建打包；user=学生自建或导入；installed=S12 从商店装的 */
 export type SkillOrigin = 'builtin' | 'user' | 'installed'
 

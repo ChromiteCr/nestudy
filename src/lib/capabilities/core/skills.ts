@@ -30,7 +30,7 @@ export const readSkillCapability: Capability = {
   schema: {
     name: 'read_skill',
     description:
-      '读取一个 skill 的完整定义。系统提示里只给了每个 skill 的名字和用途；当用户的请求对得上某个 skill、或用户用 /<skill-name> 明确点名时，**先调用它把定义读进来再动手**，不要凭名字猜它的流程。读取后你的可用工具会收窄到该 skill 声明的范围，这是正常的。',
+      '读取一个 skill 的完整定义。系统提示里只给了每个 skill 的名字和用途；当用户的请求对得上某个 skill、或用户用 /<skill-name> 明确点名时，**先调用它把定义读进来再动手**，不要凭名字猜它的流程。读取后你的可用工具会收窄到该 skill 声明的范围，这是正常的。\n\n例外：当前遵循的 skill 如果自己声明了 read_skill（说明"读别的 skill"就是它的活，比如写技能的技能要拿现成的当范本），那么这次读取只是查资料，能力面不变、也不换 skill——工具结果里会说明。',
     parameters: {
       type: 'object',
       properties: {

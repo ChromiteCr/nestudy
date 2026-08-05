@@ -1,7 +1,7 @@
 import type { ChatProvider, ChatTurn, StreamEvent, ToolCallRequest } from '@/lib/ai/provider'
 import { narrowForSkill, type Capability } from '@/lib/capabilities'
 import { SKILL_LOADED_MARKER } from '@/lib/capabilities/core/skills'
-import { getSkill, type LoadedSkill } from '@/lib/skills'
+import { getSkill, readsSkillsAsData, type LoadedSkill } from '@/lib/skills'
 import type { AskRequest, MessageToolCall, Proposal } from '@/types'
 
 /**
@@ -75,6 +75,7 @@ export async function runAgentLoop({
 }: RunRequest): Promise<RunResult> {
   const convo: ChatTurn[] = [...history]
   const loadedSkills: LoadedSkill[] = []
+  const referencedSkills: LoadedSkill[] = []
   let granted = capabilities
   let proposals = 0
   let toolChars = 0
@@ -132,10 +133,29 @@ export async function runAgentLoop({
         }
         const result = (await capability.execute?.(call.arguments)) ?? '{}'
         toolChars += result.length
-        await push(result)
 
         const skill = detectLoadedSkill(result)
-        if (skill && !loadedSkills.some((s) => s.manifest.name === skill.manifest.name)) {
+        const known = (s: LoadedSkill) => s.manifest.name === skill?.manifest.name
+        const fresh = skill && !loadedSkills.some(known) && !referencedSkills.some(known)
+        const active = loadedSkills[loadedSkills.length - 1]
+
+        // 当前 skill 把"读别的 skill"写进了自己的能力声明（如 skill-creator 要拿现成的
+        // 当范本），那么这次读取是**查资料**，不是改换门庭。不加这一层，skill-creator
+        // 读一份参考就把自己的 propose_skill 弄丢了，整个流程再也走不到出卡那一步。
+        //
+        // 说明缀在同一条结果里，不另发一条：一次 tool_call 只能有一条 tool 结果，
+        // 发两条的话回放时按 id 装配会把先来的那条（正文）顶掉。
+        if (fresh && active && readsSkillsAsData(active.manifest)) {
+          referencedSkills.push(skill)
+          await push(
+            `${result}\n\n---\n\n以上定义只作为资料给你参考，当前仍在遵循 ${active.manifest.name}（${active.manifest.displayName}），可用工具没有变化。` +
+              `如果用户是想改用 ${skill.manifest.name}，请他先点输入框上那张卡右侧的 ✕ 退出当前 skill。`,
+          )
+          continue
+        }
+
+        await push(result)
+        if (fresh) {
           loadedSkills.push(skill)
           // 从**起始能力面**重新收窄，不是在当前面上再切一刀。
           // 后者会让一次会话里换用第二个 skill 时拿到两者的交集——
@@ -223,15 +243,25 @@ function detectLoadedSkill(result: string): LoadedSkill | undefined {
   return name ? getSkill(name) : undefined
 }
 
-/** 会话里已经读过哪些 skill（从历史里还原，用于重建 system prompt） */
+/**
+ * 会话里**激活过**哪些 skill（从历史还原，最后一个是当前生效的）。
+ *
+ * 与执行器同一套判定：当前 skill 声明了 `read_skill` 时，它之后的读取算查资料，
+ * 不算换 skill。两处必须一致，否则刷新一次能力面就变了。
+ */
 export function loadedSkillsFromTurns(turns: ChatTurn[]): LoadedSkill[] {
-  const out: LoadedSkill[] = []
+  const seen: LoadedSkill[] = []
+  const active: LoadedSkill[] = []
   for (const turn of turns) {
     if (turn.role !== 'tool') continue
     const skill = detectLoadedSkill(turn.content)
-    if (skill && !out.some((s) => s.manifest.name === skill.manifest.name)) out.push(skill)
+    if (!skill || seen.some((s) => s.manifest.name === skill.manifest.name)) continue
+    seen.push(skill)
+    const current = active[active.length - 1]
+    if (current && readsSkillsAsData(current.manifest)) continue
+    active.push(skill)
   }
-  return out
+  return active
 }
 
 /**
