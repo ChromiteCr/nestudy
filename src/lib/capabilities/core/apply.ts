@@ -5,6 +5,7 @@ import { addGrowthEvent, updateGrowthEvent } from '@/lib/db/events'
 import { resolveDeadline } from '../application'
 import { newId } from '@/lib/db/repositories'
 import { usePlanningStore } from '@/stores/planningStore'
+import { useSkillStore } from '@/stores/skillStore'
 import type {
   ProfilePatchProposal,
   Proposal,
@@ -13,6 +14,7 @@ import type {
   ProposedCanvasEdge,
   ProposedGrowthEvent,
   ProposedNodeNote,
+  ProposedSkill,
 } from '@/types'
 
 /**
@@ -227,6 +229,31 @@ function createDeadlineEvent(title: string, deadline: string) {
   })
 }
 
+/**
+ * skill 提案入库。
+ *
+ * 走 skillStore 而不是直接写库：它在写完之后还要把最新一批灌回 `lib/skills` 的
+ * 模块缓存，否则存进去了 agent 也看不见。校验在那里再做一遍——
+ * 卡片上的解析结果是提案当时算的，用户可能在这中间又存了个同名的。
+ */
+async function applySkills(skills: ProposedSkill[]): Promise<string> {
+  const store = useSkillStore.getState()
+  const saved: string[] = []
+  const failed: string[] = []
+
+  for (const s of skills.filter((x) => x.include && x.errors.length === 0)) {
+    const result = await store.saveSkill(s.text, 'created', s.replacesId)
+    if (result.ok) saved.push(s.manifest?.displayName ?? s.manifest?.name ?? '未命名')
+    else failed.push(`${s.manifest?.name ?? '未命名'}：${result.errors.join('；')}`)
+  }
+
+  if (saved.length === 0 && failed.length === 0) return '没有勾选任何技能'
+  const parts: string[] = []
+  if (saved.length) parts.push(`已保存 ${saved.join('、')}`)
+  if (failed.length) parts.push(`失败：${failed.join('；')}`)
+  return parts.join('；')
+}
+
 /** 提案的出处，写进 artifact 便于溯源「这份东西是哪个 skill 产出的」 */
 export interface ApplyContext {
   skillName?: string
@@ -251,6 +278,9 @@ export async function applyProposal(proposal: Proposal, context: ApplyContext = 
     case 'application':
       note = await applyApplications(proposal.applications)
       break
+    case 'skill':
+      // 技能不属于 planning 数据，写完不必让 planningStore 全量重读
+      return applySkills(proposal.skills)
     default:
       // 旧提案不再可确认；ProposalCard 也不会给出确认按钮，这里是兜底
       return '这张卡片来自旧版本，已无法确认'

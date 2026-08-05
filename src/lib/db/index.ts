@@ -10,6 +10,7 @@ import type {
   Settings,
   SkillRun,
   StudentProfile,
+  UserSkill,
 } from '@/types'
 import { migrateLegacyTables } from './migrate-v6'
 
@@ -28,6 +29,8 @@ export const db = new Dexie('studynest') as Dexie & {
   skillRuns: EntityTable<SkillRun, 'id'>
   /** S9 起的申请清单 */
   applications: EntityTable<Application, 'id'>
+  /** S10b 起的自建 / 导入 skill */
+  userSkills: EntityTable<UserSkill, 'id'>
 }
 
 db.version(1).stores({
@@ -190,4 +193,24 @@ db.version(8).stores({
   canvasEdges: 'id, sourceNodeId, targetNodeId, artifactId',
   skillRuns: 'id, skillName, conversationId, startedAt',
   applications: 'id, schoolName, track, deadline',
+})
+
+/**
+ * v9：新增 userSkills（S10b 自建 / 导入的 SKILL.md）。纯加表。
+ *
+ * `name` 建唯一索引：skill 名在运行时是白名单的键，重名会让"用户以为授权的是 A、
+ * 实际跑的是 B"，跟 capability 重名同一类问题，必须在写入这一层就挡住。
+ */
+db.version(9).stores({
+  conversations: 'id, updatedAt',
+  messages: 'id, conversationId, createdAt',
+  settings: 'id',
+  profile: 'id',
+  growthEvents: 'id, kind, category, startDate, status, parentId',
+  artifacts: 'id, kind, createdAt',
+  canvasNodes: 'id',
+  canvasEdges: 'id, sourceNodeId, targetNodeId, artifactId',
+  skillRuns: 'id, skillName, conversationId, startedAt',
+  applications: 'id, schoolName, track, deadline',
+  userSkills: 'id, &name, origin, updatedAt',
 })

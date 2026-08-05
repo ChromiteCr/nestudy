@@ -4,7 +4,7 @@ import { getProfile } from './profile'
 import { migrateLegacyTables, type MigratedTables } from './migrate-v6'
 import type { ExportBundle } from '@/types'
 
-const EXPORT_VERSION = 8
+const EXPORT_VERSION = 9
 
 /** 导出全部本地数据为 JSON（剥离 apiKey，避免备份文件泄露密钥） */
 export async function exportAll(): Promise<ExportBundle> {
@@ -19,6 +19,7 @@ export async function exportAll(): Promise<ExportBundle> {
     canvasEdges,
     skillRuns,
     applications,
+    userSkills,
   ] = await Promise.all([
     db.conversations.toArray(),
     db.messages.toArray(),
@@ -30,6 +31,7 @@ export async function exportAll(): Promise<ExportBundle> {
     db.canvasEdges.toArray(),
     db.skillRuns.toArray(),
     db.applications.toArray(),
+    db.userSkills.toArray(),
   ])
   const { apiKey: _apiKey, ...safeModelConfig } = settings.modelConfig
   return {
@@ -44,6 +46,7 @@ export async function exportAll(): Promise<ExportBundle> {
     canvasEdges,
     skillRuns,
     applications,
+    userSkills,
     settings: { ...settings, modelConfig: safeModelConfig },
   }
 }
@@ -102,6 +105,7 @@ export async function importAll(bundle: ExportBundle): Promise<void> {
       db.canvasEdges,
       db.skillRuns,
       db.applications,
+      db.userSkills,
     ],
     async () => {
       await Promise.all([
@@ -113,6 +117,7 @@ export async function importAll(bundle: ExportBundle): Promise<void> {
         db.canvasEdges.clear(),
         db.skillRuns.clear(),
         db.applications.clear(),
+        db.userSkills.clear(),
       ])
       await db.conversations.bulkAdd(bundle.conversations)
       await db.messages.bulkAdd(bundle.messages)
@@ -122,6 +127,7 @@ export async function importAll(bundle: ExportBundle): Promise<void> {
       if (tables.canvasNodes.length) await db.canvasNodes.bulkAdd(tables.canvasNodes)
       if (tables.canvasEdges.length) await db.canvasEdges.bulkAdd(tables.canvasEdges)
       if (bundle.applications?.length) await db.applications.bulkAdd(bundle.applications)
+      if (bundle.userSkills?.length) await db.userSkills.bulkAdd(bundle.userSkills)
       if (bundle.skillRuns?.length) await db.skillRuns.bulkAdd(bundle.skillRuns)
       // v6 备份里没有 skillRuns：把旧的 usedSkillIds 补成运行记录，与 Dexie v7 升级同一口径
       else if (bundle.settings.usedSkillIds?.length) {

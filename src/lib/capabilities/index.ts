@@ -2,6 +2,7 @@ import { getCapability, registerCapability } from './registry'
 import { CORE_READ_CAPABILITIES } from './core/reads'
 import { CORE_PROPOSE_CAPABILITIES } from './core/proposals'
 import { APPLICATION_PROPOSE_CAPABILITIES, APPLICATION_READ_CAPABILITIES } from './application'
+import { AUTHORING_PROPOSE_CAPABILITIES, AUTHORING_READ_CAPABILITIES } from './authoring'
 
 /**
  * 核心能力的注册入口。**其余代码一律从这里 import，不要直接 import ./registry**——
@@ -15,6 +16,8 @@ for (const cap of [
   ...CORE_PROPOSE_CAPABILITIES,
   ...APPLICATION_READ_CAPABILITIES,
   ...APPLICATION_PROPOSE_CAPABILITIES,
+  ...AUTHORING_READ_CAPABILITIES,
+  ...AUTHORING_PROPOSE_CAPABILITIES,
 ]) {
   // 跳过已注册：dev 下 HMR 会重新求值本模块，重名直接抛错会把页面打挂。
   // 真正的 plugin 重名仍然会在 registerCapability 里抛。

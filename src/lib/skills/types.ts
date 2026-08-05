@@ -67,13 +67,18 @@ export interface SkillManifest {
   suggestHint?: string
 }
 
+/** builtin=随构建打包；user=学生自建或导入；installed=S12 从商店装的 */
+export type SkillOrigin = 'builtin' | 'user' | 'installed'
+
 export interface LoadedSkill {
   manifest: SkillManifest
   /** frontmatter 之后的正文，激活时作为人设注入 system prompt */
   body: string
-  origin: 'builtin' | 'installed'
+  origin: SkillOrigin
   /** 出错时用来定位：内置是生成物里的相对路径，安装的是商店条目 id */
   source: string
+  /** origin==='user'：对应 userSkills 表的行 id，界面据此做编辑 / 导出 / 删除 */
+  userSkillId?: string
 }
 
 export interface SkillParseResult {

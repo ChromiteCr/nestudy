@@ -1,12 +1,18 @@
 // ---- 界面 ----
 
 /**
- * 主界面视图。S7 起收敛为三项：
+ * 主界面视图。
+ *
+ * S7 收敛为三项（聊天 / 画板 / 设置）；S10c 加回 skills 一项——
+ * **这是对极简导航的一次有代价的让步**：自建 skill 之后，"我有哪些技能、
+ * 这个能碰什么数据、导出给别人"需要一块常驻表面，塞进设置子页会让
+ * 一个日常动作藏进配置里。四项仍在导轨承受范围内，但不该再加第五项。
  * - chat：唯一的操作入口（含主动提醒与 skill 会话）
  * - canvas：唯一的数据视图（事项是节点，反思是边）
+ * - skills：技能库（内置 + 自建，含导入导出与授权范围）
  * - settings：配置
  */
-export type AppView = 'chat' | 'canvas' | 'settings'
+export type AppView = 'chat' | 'canvas' | 'skills' | 'settings'
 
 // ---- 学生档案 ----
 
@@ -437,6 +443,27 @@ export interface SkillRun {
   status: SkillRunStatus
 }
 
+// ---- 自建 skill（S10b：学生自己写的 / 导入的 SKILL.md） ----
+
+export type UserSkillOrigin = 'created' | 'imported'
+
+/**
+ * 学生自己拥有的 skill。
+ *
+ * 存的是**完整的 SKILL.md 原文**，不是解析后的结构——因为这份文本本身就是产物：
+ * 导出去能直接放进 Skills 仓库、也能被 Claude Code 加载。存结构化字段再回填成
+ * markdown，等于把一份可移植的文件降级成本应用的私有格式。
+ */
+export interface UserSkill {
+  id: string
+  /** kebab-case，与 SKILL.md 里的 name 一致；全局唯一（含内置） */
+  name: string
+  text: string
+  origin: UserSkillOrigin
+  createdAt: number
+  updatedAt: number
+}
+
 // ---- AI 提案（「AI 提案 → 卡片确认 → 入库」模式，AI 不直接写库） ----
 
 export interface ProposedEvent {
@@ -535,6 +562,31 @@ export interface ProposedApplication {
   notes: string
 }
 
+/**
+ * skill 提案。模型给的是**完整 SKILL.md 原文**，由运行时用真解析器验一遍：
+ * 解析不过就摊开错误且不可确认——跟画板里连不上的边、写坏时区的申请同一处理。
+ */
+export interface ProposedSkill {
+  include: boolean
+  /** 完整 SKILL.md 原文 */
+  text: string
+  /** 解析成功时的摘要，卡片展示用 */
+  manifest: {
+    name: string
+    displayName: string
+    description: string
+    category: string
+    capabilities: string[]
+    outputs: string[]
+    maxRounds: number
+    readOnly: boolean
+  } | null
+  /** 解析错误；非空即不可入库 */
+  errors: string[]
+  /** 命中已有的自建 skill 时为它的 id，确认后覆盖而不是新建 */
+  replacesId?: string
+}
+
 /** 档案补丁提案（S1d：Onboarding 用） */
 export interface ProfilePatchProposal {
   name?: string
@@ -587,6 +639,7 @@ export type Proposal =
     }
   | { kind: 'artifact'; artifacts: ProposedArtifact[]; status: ProposalStatus; resultNote?: string }
   | { kind: 'application'; applications: ProposedApplication[]; status: ProposalStatus; resultNote?: string }
+  | { kind: 'skill'; skills: ProposedSkill[]; status: ProposalStatus; resultNote?: string }
   /** @deprecated S7 及以前 */
   | { kind: 'import'; events: ProposedEvent[]; tasks: ProposedTask[]; status: ProposalStatus; resultNote?: string }
   /** @deprecated S7 及以前 */
@@ -683,6 +736,8 @@ export interface ExportBundle {
   skillRuns?: SkillRun[]
   /** v8 起包含：申请清单 */
   applications?: Application[]
+  /** v9 起包含：自建 / 导入的 skill */
+  userSkills?: UserSkill[]
   settings: Omit<Settings, 'modelConfig'> & {
     /** 导出时剥离 apiKey，避免备份文件泄露密钥 */
     modelConfig: Omit<ModelConfig, 'apiKey'>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Archive, CalendarClock, Check, GraduationCap, History, Network, Send, X } from 'lucide-react'
+import { Archive, CalendarClock, Check, GraduationCap, History, Network, Puzzle, Send, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,6 +20,7 @@ import {
   type ProposedCanvasEdge,
   type ProposedGrowthEvent,
   type ProposedNodeNote,
+  type ProposedSkill,
 } from '@/types'
 import { resolveDeadline, type ResolvedDeadline } from '@/lib/capabilities/application'
 
@@ -45,6 +46,7 @@ export function ProposalCard({ message }: ProposalCardProps) {
   if (proposal.kind === 'canvas') return <CanvasProposalCard message={message} proposal={proposal} />
   if (proposal.kind === 'artifact') return <ArtifactProposalCard message={message} proposal={proposal} />
   if (proposal.kind === 'application') return <ApplicationProposalCard message={message} proposal={proposal} />
+  if (proposal.kind === 'skill') return <SkillProposalCard message={message} proposal={proposal} />
   return <ProfileProposalCard message={message} proposal={proposal} />
 }
 
@@ -437,6 +439,96 @@ function ApplicationProposalCard({
                   </div>
                 )}
                 {a.notes && <p className="text-sm text-muted-foreground">{a.notes}</p>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </CardShell>
+  )
+}
+
+function SkillProposalCard({
+  message,
+  proposal,
+}: {
+  message: Message
+  proposal: Extract<Proposal, { kind: 'skill' }>
+}) {
+  const confirmProposal = useChatStore((s) => s.confirmProposal)
+  const dismissProposal = useChatStore((s) => s.dismissProposal)
+  const [skills, setSkills] = useState<ProposedSkill[]>(proposal.skills)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const editable = proposal.status === 'pending'
+
+  const patch = (i: number, next: Partial<ProposedSkill>) =>
+    setSkills((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...next } : s)))
+
+  return (
+    <CardShell
+      icon={<Puzzle className="size-4 text-muted-foreground" />}
+      title={`技能提案 ${skills.length}`}
+      status={proposal.status}
+      resultNote={proposal.resultNote}
+      onConfirm={() => void confirmProposal(message.id, { ...proposal, skills })}
+      onDismiss={() => void dismissProposal(message.id)}
+      confirmLabel="存进技能库"
+    >
+      <div className="flex flex-col gap-2">
+        {skills.map((s, i) => {
+          const usable = s.errors.length === 0 && s.manifest !== null
+          return (
+            <div key={i} className="flex items-start gap-2 rounded-lg border bg-background/50 p-2">
+              {editable && (
+                <Checkbox
+                  className="mt-1.5"
+                  checked={s.include && usable}
+                  disabled={!usable}
+                  onCheckedChange={(v) => patch(i, { include: v === true })}
+                />
+              )}
+              <div className={cn('flex min-w-0 flex-1 flex-col gap-1', (!s.include || !usable) && 'opacity-60')}>
+                {s.manifest ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-medium">{s.manifest.displayName}</span>
+                      <Mono className="text-muted-foreground">{s.manifest.name}</Mono>
+                      {s.replacesId && <Badge variant="outline">覆盖同名技能</Badge>}
+                    </div>
+                    <p className="text-2xs text-muted-foreground">{s.manifest.description}</p>
+                    {/* 授权范围要在确认之前看得见——这是白名单机制唯一能被用户验证的时刻 */}
+                    <Mono className="break-all text-muted-foreground">
+                      {s.manifest.readOnly
+                        ? '未声明能力，按只读运行'
+                        : `能力：${s.manifest.capabilities.join(' · ')}`}
+                    </Mono>
+                  </>
+                ) : (
+                  <span className="font-medium text-destructive">这份 SKILL.md 解析不通过</span>
+                )}
+
+                {s.errors.length > 0 && (
+                  <ul className="flex flex-col gap-0.5">
+                    {s.errors.map((e, ei) => (
+                      <li key={ei} className="text-sm text-destructive">
+                        {e}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <button
+                  type="button"
+                  className="self-start text-sm text-muted-foreground underline-offset-2 hover:underline"
+                  onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                >
+                  {openIndex === i ? '收起原文' : '看 SKILL.md 原文'}
+                </button>
+                {openIndex === i && (
+                  <pre className="max-h-72 overflow-auto rounded-sm border bg-muted/40 p-2 text-2xs whitespace-pre-wrap">
+                    {s.text}
+                  </pre>
+                )}
               </div>
             </div>
           )
