@@ -3,7 +3,7 @@
  *
  * 格式的权威定义在 `Skills` 仓库（`scripts/validate.sh` + `CONTRIBUTING.md`），
  * 这里只是它的 TypeScript 投影。必填键与那边一致；`capabilities` 等几个
- * StudyNest 扩展键是**可选**的，写在同一份 SKILL.md 里——validate.sh 不拒绝
+ * nestudy 扩展键是**可选**的，写在同一份 SKILL.md 里——validate.sh 不拒绝
  * 额外键、Claude Code 忽略未知键，所以同一份文件两边都能跑，不需要 fork 格式。
  */
 

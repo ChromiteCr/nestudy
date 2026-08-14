@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
 import type { AppView } from '@/types'
+import { Logo } from './Logo'
 
 interface SidebarProps {
   view: AppView
@@ -20,9 +21,16 @@ interface SidebarProps {
 export function Sidebar({ view, onViewChange }: SidebarProps) {
   return (
     <aside className="flex h-full w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
-      <div className="flex size-8 items-center justify-center rounded-sm bg-primary text-sm font-semibold text-primary-foreground">
-        栖
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex size-8 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+            <Logo className="size-7" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <Mono>学栖 nestudy</Mono>
+        </TooltipContent>
+      </Tooltip>
 
       <nav className="mt-6 flex flex-col gap-1">
         <RailItem

@@ -31,7 +31,7 @@ const explicit = fromIndex >= 0 ? args[fromIndex + 1] : undefined
 function resolveSkillsRepo() {
   const candidates = [
     explicit,
-    process.env.STUDYNEST_SKILLS_REPO,
+    process.env.NESTUDY_SKILLS_REPO,
     join(projectRoot, 'vendor/skills'),
     resolve(projectRoot, '../Skills'),
   ].filter(Boolean)
@@ -71,7 +71,7 @@ const repo = resolveSkillsRepo()
 if (!repo) {
   // 拿不到源仓库不是错误：clone 本仓库的人不一定有 Skills。已生成的 JSON 继续用。
   console.warn(
-    'build-skills: 未找到 Skills 仓库（试过 --from / $STUDYNEST_SKILLS_REPO / vendor/skills / ../Skills），' +
+    'build-skills: 未找到 Skills 仓库（试过 --from / $NESTUDY_SKILLS_REPO / vendor/skills / ../Skills），' +
       '保留现有 src/generated/skills.json 不动。',
   )
   process.exit(checkOnly ? 0 : 0)

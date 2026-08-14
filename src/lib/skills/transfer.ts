@@ -13,8 +13,12 @@ import type { UserSkill } from '@/types'
 
 export const SKILL_BUNDLE_VERSION = 1
 
+/** 信封的类型标记。改名之前导出的包写的是旧值，导入时两个都认 */
+export const SKILL_BUNDLE_KIND = 'nestudy-skills'
+const LEGACY_BUNDLE_KIND = 'studynest-skills'
+
 export interface SkillBundle {
-  kind: 'studynest-skills'
+  kind: typeof SKILL_BUNDLE_KIND | typeof LEGACY_BUNDLE_KIND
   version: number
   exportedAt: number
   skills: { name: string; text: string }[]
@@ -36,13 +40,13 @@ export function downloadSkillMarkdown(skill: { name: string; text: string }): vo
 
 export function downloadSkillBundle(skills: UserSkill[]): void {
   const bundle: SkillBundle = {
-    kind: 'studynest-skills',
+    kind: SKILL_BUNDLE_KIND,
     version: SKILL_BUNDLE_VERSION,
     exportedAt: Date.now(),
     skills: skills.map((s) => ({ name: s.name, text: s.text })),
   }
   const date = new Date().toISOString().slice(0, 10)
-  download(`studynest-skills-${date}.json`, JSON.stringify(bundle, null, 2), 'application/json')
+  download(`nestudy-skills-${date}.json`, JSON.stringify(bundle, null, 2), 'application/json')
 }
 
 export interface ImportedSkillText {
@@ -63,7 +67,8 @@ export async function readSkillFile(file: File): Promise<{ skills: ImportedSkill
   if (file.name.toLowerCase().endsWith('.json')) {
     try {
       const parsed = JSON.parse(text) as Partial<SkillBundle>
-      if (parsed.kind !== 'studynest-skills' || !Array.isArray(parsed.skills)) {
+      const known = parsed.kind === SKILL_BUNDLE_KIND || parsed.kind === LEGACY_BUNDLE_KIND
+      if (!known || !Array.isArray(parsed.skills)) {
         return { skills: [], errors: [`${file.name} 不是技能包文件`] }
       }
       if (typeof parsed.version === 'number' && parsed.version > SKILL_BUNDLE_VERSION) {

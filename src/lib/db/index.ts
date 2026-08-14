@@ -14,7 +14,16 @@ import type {
 } from '@/types'
 import { migrateLegacyTables } from './migrate-v6'
 
-/** 本地数据库：所有用户数据只存于浏览器 IndexedDB，永不上传 */
+/**
+ * 本地数据库：所有用户数据只存于浏览器 IndexedDB，永不上传。
+ *
+ * **库名 `studynest` 是历史名，改名时刻意没有跟着改。** IndexedDB 按库名寻址：
+ * 换个名字等于开一个空库，老库还在磁盘上但应用再也看不见——用户两年的事项、
+ * 反思、画板、API Key 一次性"消失"。为一个内部标识符付这个代价不值得。
+ *
+ * 真要统一命名，得先写一段跨库搬运（开旧库 → 逐表复制 → 校验 → 删旧库），
+ * 那是一次独立的迁移，不是改一个字符串。
+ */
 export const db = new Dexie('studynest') as Dexie & {
   conversations: EntityTable<Conversation, 'id'>
   messages: EntityTable<Message, 'id'>

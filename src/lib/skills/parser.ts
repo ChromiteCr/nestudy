@@ -132,7 +132,7 @@ export function parseSkillMarkdown({ text, origin, source }: ParseInput): SkillP
 
   if (!body) errors.push(`${source}：正文为空——正文就是激活后注入的人设，不能没有`)
 
-  // ---- StudyNest 扩展键（可选，缺省有安全默认值）----
+  // ---- nestudy 扩展键（可选，缺省有安全默认值）----
 
   const capabilities = asList(data.capabilities)
   const optionalCapabilities = asList(data.optional_capabilities)

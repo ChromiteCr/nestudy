@@ -57,7 +57,7 @@ export function downloadJson(bundle: ExportBundle): void {
   const a = document.createElement('a')
   const date = new Date(bundle.exportedAt).toISOString().slice(0, 10)
   a.href = url
-  a.download = `studynest-backup-${date}.json`
+  a.download = `nestudy-backup-${date}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
