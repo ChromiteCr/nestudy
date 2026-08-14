@@ -1,6 +1,6 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S10f-blue)
+![version](https://img.shields.io/badge/version-S10f1-blue)
 ![last commit](https://img.shields.io/github/last-commit/ChromiteCr/studynest)
 ![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/studynest)
 ![stars](https://img.shields.io/github/stars/ChromiteCr/studynest)
@@ -63,6 +63,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S10f1 | 2026-08-05 | 标记改成四笔：`\|\\\|` —— 两根立柱 + **被中断切开的两段斜撑**，四条边各自独立。中断从 32px 起看得见，16px 下自然合成实心 N，同一个形两个尺度都成立、不必为小尺寸另做一版。笔画整体收细（斜撑 4 → 2.6/32），立柱再细一档到 1.8：**边比节点重**，层次照画板的语义来。另外两种四笔读法都试过并否掉了——两条平行斜撑、`\|\\|\\` 重复，16px 下都糊成一团且不再像 n。立柱停在 1.8 而不是更细的 1.4：1.4 在 128px 下更利落，但 16px 时立柱基本消失、只剩一条斜杠；favicon 要在 16px 立得住是硬约束。缝宽、底板圆角、笔画粗细全部是渲染成 16/24/32/64/128 五档实际比对后定的，不是拍的 | fix |
 | S10f | 2026-08-05 | 更名 nestudy，与域名 nestudy.cn 对齐；中文名「学栖」保留不动。改到位的：标题与 meta、package name、系统提示词里的自我介绍、备份与技能包导出的文件名、`$NESTUDY_SKILLS_REPO`、注释与 README。技能包信封的 `kind` 改为 `nestudy-skills`，导入时**两个值都认**——不然改名前导出的包再也导不回来。**IndexedDB 库名 `studynest` 刻意没跟着改**：库名即寻址，换名等于开一个空库，老库还在磁盘上但应用再也看不见，用户两年的事项、反思、画板、API Key 一次性「消失」；为一个内部标识符付这个代价不值得，真要统一得先写一段跨库搬运，那是独立的一次迁移。版本记录里 `'/studynest/'`（当时真实的 vite base）与「S1a 更名学栖 StudyNest」两条保持原样——那是已经发生过的事实，改了记录就成了假的。**新增项目标记**：`\|\\\|` 两根立柱 + 一条斜撑，既是 n，也是画板的基本形（两个节点与连接它们的一条边）。三笔留缝 2 个单位，大尺寸看得出是构造出来的三笔、16px 下自然填实成实心 N——同一个形两个尺度都成立，不必为小尺寸另做一版。缝宽与底板圆角是渲染成 16/32/128px 三档比对后定的（缝 1 像瑕疵、缝 3 在 16px 下散架；圆角 5 比 9 更贴项目那套紧圆角）。favicon 带底板并按 `prefers-color-scheme` 反色，界面里的 `<Logo>` 只画笔画走 `currentColor`，底板复用侧栏那块 `bg-primary`，明暗两套不用各写一遍。顺带删掉模板遗留的紫色 favicon | feat |
 | S10e | 2026-08-05 | 项目头脑风暴。新增 skill `project-brainstorm`（Skills 仓库 Library 0.5.0 → 0.6.0）——**项目动手之前的那一步此前整个库是空的**，已有 skill 都从「项目已经定了」开始，而学生真正卡住的地方在更前面：不是没有想法，是没法判断哪个想法真做得动。不问「你对什么感兴趣」（他答不好，档案与已有经历比他临时想的准），直接给三个**在代价上拉开**的方案（几周 / 一学期 / 一年以上），每个写满五项：第一件事、要什么、做完手里有什么、可能死在哪、和已有的关系。「可能死在哪」是最有用的一项——学生放弃项目的原因通常在开始时就看得见。配套新增 capability `dedupe_findings`：URL 规范化（剥 utm 等追踪参数）+ 字符 bigram Jaccard 合并重复检索结果，并查集保证传递性。**shingle 取 2 是实测定的**：n=3 时「同一篇文章换两个词」只有 74%、低于阈值就漏判，n=2 拉开到 68–84% 对 0–7%。**语义归并明确不做**——实测「区域赛拿了第四」与「名次是第四名」只有 17%，而「本周复盘」与「上周复盘」有 21%，两群重叠，不存在能区分语义的阈值；工具只做字面那一半，剩下那一半写进 skill 交给模型，`similar` 只报「差一点就算重复」且不合并。网页检索接入等 S11 的 `web_search`，去重本身不用改——它只认 `{title, url, text}` 这个形状 | feat |
 | S10d3 | 2026-08-05 | 区分「激活一个 skill」与「把 skill 当资料读」。S10d2 改成最后读入者生效之后暴露出另一半：`skill-creator` 按自己的流程读一份现成技能当范本，能力面就跟着换过去了——`propose_skill` / `ask_user` / `list_capabilities` 全部消失，写好的 4 问问题卡被白名单拒掉，整个流程再也走不到出卡那一步，agent 只能改口让学生用编号回复。根因是 `read_skill` 一个工具担了两件事，而运行时分不清。判据用现成的：**skill 有没有把 `read_skill` 写进自己的声明**——它本来就是 `alwaysGranted`，声明它对能力面毫无影响，所以写下那一行只可能是"读 skill 是我要干的活"（全库只有 skill-creator 这么写）。这类 skill 激活期间，后续读取一律算查资料：能力面不变、`skillName` 不翻、工具结果里说明"仍在遵循 X，要改用请点 ✕ 退出"。执行器与从历史还原走同一套判定，刷新不会变脸。顺带修掉自己引入的一处：说明原本另发一条 tool 结果，一次 tool_call 两条结果既不合法、回放时按 id 装配还会把正文顶掉——改为缀在同一条里 | fix |
