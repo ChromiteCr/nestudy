@@ -15,7 +15,9 @@ import {
   type LoadedSkill,
 } from '@/lib/skills'
 import { downloadSkillBundle, downloadSkillMarkdown, readSkillFile } from '@/lib/skills/transfer'
+import { SkillStorePanel } from './SkillStorePanel'
 import { cn } from '@/lib/utils'
+import type { UserSkillOrigin } from '@/types'
 
 /**
  * 技能库。
@@ -54,6 +56,9 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
   const removeSkill = useSkillStore((s) => s.removeSkill)
   const setPendingPrompt = useChatStore((s) => s.setPendingPrompt)
   const fileRef = useRef<HTMLInputElement>(null)
+  // 商店和技能库分两页，不是一长条：商店有自己的搜索、安装、发布流程，
+  // 混在本地技能列表下面会让「我有什么」和「别人有什么」看起来是一回事
+  const [tab, setTab] = useState<'library' | 'store'>('library')
 
   // 内置那批是常量，自建那批从 store 读——不走 listSkills() 的模块缓存，
   // 那份缓存对 React 是不可见依赖，组件不知道它什么时候变了
@@ -105,6 +110,8 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
             className="hidden"
             onChange={(e) => void handleImport(e.target.files)}
           />
+          {tab === 'library' && (
+          <>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}>
             <Upload className="size-3.5" />
             导入
@@ -120,7 +127,35 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
             <Wand2 className="size-3.5" />
             做一个技能
           </Button>
+          </>
+          )}
         </header>
+
+        <div className="-mt-3 flex gap-1">
+          {(
+            [
+              ['library', '技能库'],
+              ['store', '商店'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={cn(
+                'rounded-sm px-2.5 py-1 text-sm transition-colors',
+                tab === key ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'store' && <SkillStorePanel />}
+
+        {tab === 'library' && (
+        <>
 
         <p className="text-sm text-muted-foreground">
           技能是声明式的学习流程，本身不含可执行代码，只能调用下面列出的能力，且写入一律要你在卡片上确认。
@@ -157,6 +192,7 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
               <SkillCard
                 key={s.manifest.name}
                 skill={s}
+                origin={userSkills.find((u) => u.id === s.userSkillId)?.origin}
                 onExport={() => {
                   const row = userSkills.find((u) => u.id === s.userSkillId)
                   if (row) downloadSkillMarkdown(row)
@@ -204,18 +240,29 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
             <Mono>{SKILLS_SOURCE.libraryVersion}</Mono>）
           </span>
         </div>
+        </>
+        )}
       </div>
     </main>
   )
 }
 
+/** 来源标签。**装来的不能标成「自建」**——这次商店设计的重点就是出处始终看得见 */
+const ORIGIN_LABEL: Record<UserSkillOrigin, string> = {
+  created: '自建',
+  imported: '导入',
+  installed: '商店',
+}
+
 interface SkillCardProps {
   skill: LoadedSkill
+  /** 只有「我的技能」那一栏有；内置的没有来源可言 */
+  origin?: UserSkillOrigin
   onExport?: () => void
   onDelete?: () => void
 }
 
-function SkillCard({ skill, onExport, onDelete }: SkillCardProps) {
+function SkillCard({ skill, origin, onExport, onDelete }: SkillCardProps) {
   const [open, setOpen] = useState(false)
   const { granted } = resolveForSkill(skill.manifest)
   const m = skill.manifest
@@ -223,11 +270,11 @@ function SkillCard({ skill, onExport, onDelete }: SkillCardProps) {
   return (
     <div className="group flex flex-col gap-1.5 rounded-lg border bg-card p-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-medium">{m.displayName}</span>
+        {m.displayName !== m.name && <span className="font-medium">{m.displayName}</span>}
         <Mono className="text-muted-foreground">
           {m.name} v{m.version}
         </Mono>
-        {skill.origin === 'user' && <Badge variant="secondary">自建</Badge>}
+        {origin && <Badge variant="secondary">{ORIGIN_LABEL[origin]}</Badge>}
         <Badge variant="outline" className="ml-auto">
           <Mono>{m.status}</Mono>
         </Badge>

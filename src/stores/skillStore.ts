@@ -8,7 +8,7 @@ import {
 } from '@/lib/db/user-skills'
 import { listBuiltinSkills, setUserSkills, type LoadedSkill } from '@/lib/skills'
 import { parseSkillMarkdown } from '@/lib/skills/parser'
-import type { UserSkill, UserSkillOrigin } from '@/types'
+import type { UserSkill, UserSkillOrigin, UserSkillSource } from '@/types'
 
 /**
  * 自建 / 导入 skill 的状态。
@@ -34,8 +34,13 @@ interface SkillState {
   loaded: boolean
 
   load: () => Promise<void>
-  /** 存一份 SKILL.md 原文；`replaceId` 有值时覆盖那一条 */
-  saveSkill: (text: string, origin: UserSkillOrigin, replaceId?: string) => Promise<SaveSkillResult>
+  /** 存一份 SKILL.md 原文；`replaceId` 有值时覆盖那一条。`source` 只在从商店装的时候给 */
+  saveSkill: (
+    text: string,
+    origin: UserSkillOrigin,
+    replaceId?: string,
+    source?: UserSkillSource,
+  ) => Promise<SaveSkillResult>
   removeSkill: (id: string) => Promise<void>
 }
 
@@ -73,16 +78,22 @@ export const useSkillStore = create<SkillState>((set, get) => {
       set({ loaded: true })
     },
 
-    saveSkill: async (text, origin, replaceId) => {
+    saveSkill: async (text, origin, replaceId, source) => {
       const { name, errors } = await validate(text, replaceId)
       if (errors.length > 0) return { ok: false, errors }
 
       let skill: UserSkill
       if (replaceId) {
-        await updateUserSkill(replaceId, { name, text })
-        skill = { ...get().userSkills.find((s) => s.id === replaceId)!, name, text, updatedAt: Date.now() }
+        await updateUserSkill(replaceId, source ? { name, text, source } : { name, text })
+        skill = {
+          ...get().userSkills.find((s) => s.id === replaceId)!,
+          name,
+          text,
+          ...(source ? { source } : {}),
+          updatedAt: Date.now(),
+        }
       } else {
-        skill = await addUserSkill({ name, text, origin })
+        skill = await addUserSkill(source ? { name, text, origin, source } : { name, text, origin })
       }
       await refresh()
       return { ok: true, errors: [], skill }

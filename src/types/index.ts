@@ -484,7 +484,7 @@ export interface SkillRun {
 
 // ---- 自建 skill（S10b：学生自己写的 / 导入的 SKILL.md） ----
 
-export type UserSkillOrigin = 'created' | 'imported'
+export type UserSkillOrigin = 'created' | 'imported' | 'installed'
 
 /**
  * 学生自己拥有的 skill。
@@ -493,12 +493,28 @@ export type UserSkillOrigin = 'created' | 'imported'
  * 导出去能直接放进 Skills 仓库、也能被 Claude Code 加载。存结构化字段再回填成
  * markdown，等于把一份可移植的文件降级成本应用的私有格式。
  */
+/**
+ * 从商店装来的那份是谁发的。
+ *
+ * 商店里条目的身份是 `(作者, 名字)`，而**本地的 name 是唯一的**——
+ * 于是「我装的是谁那一份」在本地无从判断，除非记下来。不记的话，
+ * 商店列表里两个同名不同作者的条目会一起显示「已安装」，而其中一个你根本没装。
+ */
+export interface UserSkillSource {
+  authorId: string
+  /** 发布时的署名，只为显示。作者改了名字也不回填——它记的是当时那一刻 */
+  author: string
+  version: string
+}
+
 export interface UserSkill {
   id: string
   /** kebab-case，与 SKILL.md 里的 name 一致；全局唯一（含内置） */
   name: string
   text: string
   origin: UserSkillOrigin
+  /** 只有 origin==='installed' 才有 */
+  source?: UserSkillSource
   createdAt: number
   updatedAt: number
 }

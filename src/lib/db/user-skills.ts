@@ -1,6 +1,6 @@
 import { db } from './index'
 import { newId } from './repositories'
-import type { UserSkill, UserSkillOrigin } from '@/types'
+import type { UserSkill, UserSkillOrigin, UserSkillSource } from '@/types'
 
 /** 自建 / 导入 skill 的读写。存的是完整 SKILL.md 原文，解析交给统一的解析器。 */
 
@@ -16,6 +16,7 @@ export async function addUserSkill(input: {
   name: string
   text: string
   origin: UserSkillOrigin
+  source?: UserSkillSource
 }): Promise<UserSkill> {
   const now = Date.now()
   const skill: UserSkill = { ...input, id: newId(), createdAt: now, updatedAt: now }
@@ -23,7 +24,10 @@ export async function addUserSkill(input: {
   return skill
 }
 
-export async function updateUserSkill(id: string, patch: { name?: string; text: string }): Promise<void> {
+export async function updateUserSkill(
+  id: string,
+  patch: { name?: string; text: string; source?: UserSkillSource },
+): Promise<void> {
   await db.userSkills.update(id, { ...patch, updatedAt: Date.now() })
 }
 

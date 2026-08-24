@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
+import { Cpu, Database, Download, GraduationCap, Palette, Upload, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mono } from '@/components/ui/mono'
@@ -11,11 +11,13 @@ import { useSkillStore } from '@/stores/skillStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
+import { AccountPanel } from './AccountPanel'
 import { cn } from '@/lib/utils'
 
-export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data'
+export type SettingsCategory = 'account' | 'model' | 'profile' | 'appearance' | 'data'
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: typeof Cpu }[] = [
+  { key: 'account', label: '账号', icon: UserRound },
   { key: 'model', label: '模型', icon: Cpu },
   { key: 'profile', label: '档案', icon: GraduationCap },
   { key: 'appearance', label: '外观', icon: Palette },
@@ -57,6 +59,7 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          {category === 'account' && <AccountPanel />}
           {category === 'model' && <ModelPanel />}
           {category === 'profile' && <ProfileForm onSaved={() => toast.success('档案已保存')} />}
           {category === 'appearance' && <AppearancePanel />}

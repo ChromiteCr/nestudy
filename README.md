@@ -1,10 +1,10 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S10f2-blue)
-![license](https://img.shields.io/github/license/ChromiteCr/studynest)
-![last commit](https://img.shields.io/github/last-commit/ChromiteCr/studynest)
-![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/studynest)
-![stars](https://img.shields.io/github/stars/ChromiteCr/studynest)
+![version](https://img.shields.io/badge/version-S11-blue)
+![license](https://img.shields.io/github/license/ChromiteCr/nestudy)
+![last commit](https://img.shields.io/github/last-commit/ChromiteCr/nestudy)
+![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/nestudy)
+![stars](https://img.shields.io/github/stars/ChromiteCr/nestudy)
 
 开源、**本地优先**的 AI Agent，帮助国际部（IB / AP / A-Level）学生做学习规划、背景提升与时间管理。
 
@@ -64,6 +64,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S11 | 2026-08-24 | 接上服务器：登录与 skill 商店前端。**这一层此前整个不存在**——`src/lib/api` 是空的、`tier: 'free'` 还是一句 throw。新增 relay 客户端（同源 `/api`，vite 开发代理转到本机 8081，**线上和开发同一条代码路径**，不做「开发写全地址、线上写相对路径」的分叉），以及设置里的账号页：邮箱收码两步登录，**邀请码那一栏一开始不显示**——名单里的人不需要它，先问所有人要一个多数人用不上的东西会让「登录」看起来像「申请入会」，服务器回 `invite_required` 时再露出来。账号页常驻一段话说清账号只承载身份、用量与发布，学习数据一字未上传。商店在技能页新开一个「商店」标签：浏览、搜索、安装、发布、看自己投稿的审核理由。**能力名的核对在这一侧做**——商店那边同时伺候 modeling 与 nestudy，两边能力词表不一样，服务端硬存一份必然漂；这里有权威注册表，所以装的时候当场算缺什么并说出来（实测装一个声明了 `propose_assignment` 的 skill，会提示「这里没有它要的能力」）。本轮实际跑通了整条链路才发现的三处问题，都已修：账号只在设置页挂载时才加载，于是**一个已经登录的人打开商店会被告知去登录**，改到开屏就问一次；装来的 skill 被标成「自建」，而出处始终看得见正是这次商店设计的重点，改成按 `UserSkill.origin` 显示自建／导入／商店；商店里两个同名不同作者的条目一起显示「已安装」——**本地 name 唯一而商店身份是（作者，名字）**，只按名字判分不清，于是 `UserSkill` 记下装的是谁那一份，按钮分成安装／更新／已安装／同名已占用四态。顺带把徽章里已改名的仓库地址 `studynest` 更成 `nestudy` | feat |
 | S10f2 | 2026-08-23 | 项目开源协议落地：根目录新增 `LICENSE`（MIT，Copyright 2026 ChromiteCr），README 徽章行补上 license 徽章 | feat |
 | S10f1 | 2026-08-05 | 标记改成四笔：`\|\\\|` —— 两根立柱 + **被中断切开的两段斜撑**，四条边各自独立。中断从 32px 起看得见，16px 下自然合成实心 N，同一个形两个尺度都成立、不必为小尺寸另做一版。笔画整体收细（斜撑 4 → 2.6/32），立柱再细一档到 1.8：**边比节点重**，层次照画板的语义来。另外两种四笔读法都试过并否掉了——两条平行斜撑、`\|\\|\\` 重复，16px 下都糊成一团且不再像 n。立柱停在 1.8 而不是更细的 1.4：1.4 在 128px 下更利落，但 16px 时立柱基本消失、只剩一条斜杠；favicon 要在 16px 立得住是硬约束。缝宽、底板圆角、笔画粗细全部是渲染成 16/24/32/64/128 五档实际比对后定的，不是拍的 | fix |
 | S10f | 2026-08-05 | 更名 nestudy，与域名 nestudy.cn 对齐；中文名「学栖」保留不动。改到位的：标题与 meta、package name、系统提示词里的自我介绍、备份与技能包导出的文件名、`$NESTUDY_SKILLS_REPO`、注释与 README。技能包信封的 `kind` 改为 `nestudy-skills`，导入时**两个值都认**——不然改名前导出的包再也导不回来。**IndexedDB 库名 `studynest` 刻意没跟着改**：库名即寻址，换名等于开一个空库，老库还在磁盘上但应用再也看不见，用户两年的事项、反思、画板、API Key 一次性「消失」；为一个内部标识符付这个代价不值得，真要统一得先写一段跨库搬运，那是独立的一次迁移。版本记录里 `'/studynest/'`（当时真实的 vite base）与「S1a 更名学栖 StudyNest」两条保持原样——那是已经发生过的事实，改了记录就成了假的。**新增项目标记**：`\|\\\|` 两根立柱 + 一条斜撑，既是 n，也是画板的基本形（两个节点与连接它们的一条边）。三笔留缝 2 个单位，大尺寸看得出是构造出来的三笔、16px 下自然填实成实心 N——同一个形两个尺度都成立，不必为小尺寸另做一版。缝宽与底板圆角是渲染成 16/32/128px 三档比对后定的（缝 1 像瑕疵、缝 3 在 16px 下散架；圆角 5 比 9 更贴项目那套紧圆角）。favicon 带底板并按 `prefers-color-scheme` 反色，界面里的 `<Logo>` 只画笔画走 `currentColor`，底板复用侧栏那块 `bg-primary`，明暗两套不用各写一遍。顺带删掉模板遗留的紫色 favicon | feat |
