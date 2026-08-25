@@ -15,6 +15,7 @@ import {
   type SkillSubmissionView,
 } from '@/lib/api'
 import { resolveForSkill } from '@/lib/capabilities'
+import { listBuiltinSkills } from '@/lib/skills'
 import { parseSkillMarkdown } from '@/lib/skills/parser'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSkillStore } from '@/stores/skillStore'
@@ -183,20 +184,28 @@ function StoreCard({ item }: { item: SkillListing }) {
   }
 
   /**
-   * 本地那份和这一条是不是同一个东西。
+   * 这一条对我来说是什么状态。
    *
-   * **本地的 name 是唯一的，而商店里的身份是 (作者, 名字)。** 所以「本地有个同名的」
-   * 有三种可能：就是这一条、是同名不同作者的另一条、或者是自己写的。
-   * 只按名字判会让第二第三种也显示「已安装」——而那两种其实根本装不进来。
+   * **官方那批同时是内置的**——商店里有它们是为了让「别冒充官方」那道闸有内容
+   * （闸判的是「这个名字有没有被老师账号发过」），不是为了让人再装一遍。
+   * 它们本来就在技能库里，`saveSkill` 也会以「和内置技能重复」为由拒绝，
+   * 所以这里要先于其它情况把它认出来，标成已有而不是可装。
+   *
+   * 其次是本地那份：**本地的 name 是唯一的，而商店里的身份是 (作者, 名字)。**
+   * 所以「本地有个同名的」有三种可能：就是这一条、是同名不同作者的另一条、
+   * 或者是自己写的。只按名字判会让后两种也显示「已安装」——而那两种根本装不进来。
    */
+  const builtin = listBuiltinSkills().find((s) => s.manifest.name === item.name)
   const local = userSkills.find((s) => s.name === item.name)
-  const state: 'none' | 'installed' | 'outdated' | 'taken' = !local
-    ? 'none'
-    : local.source?.authorId !== item.authorId
-      ? 'taken'
-      : local.source.version === item.version
-        ? 'installed'
-        : 'outdated'
+  const state: 'none' | 'builtin' | 'installed' | 'outdated' | 'taken' = builtin
+    ? 'builtin'
+    : !local
+      ? 'none'
+      : local.source?.authorId !== item.authorId
+        ? 'taken'
+        : local.source.version === item.version
+          ? 'installed'
+          : 'outdated'
 
   /**
    * 装的时候才算缺什么能力。
@@ -270,14 +279,22 @@ function StoreCard({ item }: { item: SkillListing }) {
           size="sm"
           variant={state === 'outdated' || state === 'none' ? 'secondary' : 'ghost'}
           className="ml-auto gap-1.5"
-          disabled={busy || state === 'installed' || state === 'taken'}
+          disabled={busy || (state !== 'none' && state !== 'outdated')}
           title={
-            state === 'taken'
-              ? `本地已经有一个叫 ${item.name} 的技能（${local?.source?.author ?? '你自己写的'}）。技能库里改名或删掉它，才装得下这一份。`
-              : undefined
+            state === 'builtin'
+              ? `${item.name} 是随应用内置的，技能库里已经有了，不用装。`
+              : state === 'taken'
+                ? `本地已经有一个叫 ${item.name} 的技能（${local?.source?.author ?? '你自己写的'}）。技能库里改名或删掉它，才装得下这一份。`
+                : undefined
           }
           onClick={() => void install()}
         >
+          {state === 'builtin' && (
+            <>
+              <Check className="size-3.5" />
+              已内置
+            </>
+          )}
           {state === 'installed' && (
             <>
               <Check className="size-3.5" />
