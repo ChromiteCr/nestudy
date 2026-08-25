@@ -32,6 +32,15 @@ const BASE = import.meta.env.VITE_API_BASE ?? '/api'
  */
 const TOKEN_KEY = 'nestudy-token'
 
+/**
+ * 告诉服务器「要码的是哪个站」。
+ *
+ * relay 是和 nes modeling 共用的一个进程，而**注册政策逐站分开**：两个站各有各的
+ * 邀请码，甚至可以各有各的模式。服务器不看 `Origin`——那个头可能缺、也可以伪造，
+ * 而它决定的是一道注册闸——所以由客户端显式说自己是谁，而客户端当然知道。
+ */
+const APP_ID = 'nestudy'
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY)
@@ -134,7 +143,7 @@ export const api = {
   requestCode: (email: string, inviteCode?: string) =>
     request<void>('/v1/auth/request-code', {
       method: 'POST',
-      body: JSON.stringify(inviteCode ? { email, inviteCode } : { email }),
+      body: JSON.stringify({ email, app: APP_ID, ...(inviteCode ? { inviteCode } : {}) }),
       auth: false,
     }),
 
