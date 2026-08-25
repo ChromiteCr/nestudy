@@ -18,6 +18,8 @@ export type ErrorCode =
   | 'invite_invalid'
   | 'code_invalid'
   | 'code_expired'
+  | 'web_unavailable'
+  | 'web_blocked'
   | 'invalid_token'
   | 'rate_limited'
   | 'quota_exhausted'
@@ -162,4 +164,31 @@ export interface PublishResult {
   state: 'listed' | 'pending'
   review: SkillReview
   warnings: string[]
+}
+
+// ---- 网页 ----
+
+/** 一条搜索结果。**大部分价值在 snippet 上**——大学官网挡自动抓取，摘要却进得了索引 */
+export interface WebSearchHit {
+  title: string
+  url: string
+  snippet: string
+  /** 站点发布或更新的日期，有就给。申请要求年年变，没有日期的资料不敢用 */
+  published?: string
+}
+
+export interface WebSearchResponse {
+  query: string
+  hits: WebSearchHit[]
+  /** 今天还能搜几次。给模型看，让它自己收着点，不用等撞到 429 */
+  remainingToday: number
+}
+
+export interface WebFetchResponse {
+  /** 跟完重定向之后真正读到的那个地址，不一定是传进去的那个 */
+  url: string
+  title: string
+  text: string
+  truncated: boolean
+  remainingToday: number
 }

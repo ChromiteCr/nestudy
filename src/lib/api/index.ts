@@ -7,6 +7,8 @@ import type {
   SkillPage,
   SkillQueueItem,
   SkillSubmissionView,
+  WebFetchResponse,
+  WebSearchResponse,
 } from './types'
 
 export * from './types'
@@ -168,6 +170,22 @@ export const api = {
 
   withdrawSkill: (name: string) =>
     request<void>(`/v1/skills/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  // ---- 网页 ----
+  //
+  // 为什么经服务器：搜索 API 要 key，而**放进前端的 key 就是公开的 key**；
+  // 取页则根本过不了跨域。代价是服务器替学生上网，所以那边有每日次数闸
+  // 和一整套只准打公网的守卫。
+
+  /** 检索词是 agent 自己造的，**档案原文没有任何路径流到这里** */
+  webSearch: (query: string, count?: number) =>
+    request<WebSearchResponse>('/v1/web/search', {
+      method: 'POST',
+      body: JSON.stringify(count ? { query, count } : { query }),
+    }),
+
+  webFetch: (url: string) =>
+    request<WebFetchResponse>('/v1/web/fetch', { method: 'POST', body: JSON.stringify({ url }) }),
 
   // ---- 审核队列（teacher）----
 

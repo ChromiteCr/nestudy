@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { BookOpen, ChevronRight, Wrench } from 'lucide-react'
+import { BookOpen, ChevronRight, Globe, Wrench } from 'lucide-react'
 import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
 import { getSkill } from '@/lib/skills'
 import { getCapability } from '@/lib/capabilities'
 import { SKILL_LOADED_MARKER } from '@/lib/capabilities/core/skills'
+import { WEB_CAPABILITY_NAMES } from '@/lib/capabilities/research/web'
 import type { Message } from '@/types'
 
 const PREVIEW_CHARS = 1200
@@ -30,6 +31,9 @@ export function ToolCallRow({ message, args, appearDelay }: ToolCallRowProps) {
   const capability = name ? getCapability(name) : undefined
   const skill = name === 'read_skill' ? skillFromResult(message.content) : undefined
   const failed = name !== 'read_skill' && /^\s*\{"error"/.test(message.content)
+  // 网页内容和学生自己写的东西在对话里长得一样，这件事本身就是问题。
+  // 失败的那次不标：那里面没有网页正文，只有一句错误说明
+  const fromWeb = !failed && (WEB_CAPABILITY_NAMES as readonly string[]).includes(name)
 
   const label = skill
     ? `读取 skill：${skill.manifest.displayName}`
@@ -53,6 +57,8 @@ export function ToolCallRow({ message, args, appearDelay }: ToolCallRowProps) {
         >
           {skill ? (
             <BookOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : fromWeb ? (
+            <Globe className="size-3.5 shrink-0 text-muted-foreground" />
           ) : (
             <Wrench className="size-3.5 shrink-0 text-muted-foreground" />
           )}
@@ -70,6 +76,14 @@ export function ToolCallRow({ message, args, appearDelay }: ToolCallRowProps) {
               <Mono className="text-muted-foreground">{name || '未知能力'}</Mono>
               {args && args !== '{}' && <Mono className="break-all opacity-60">{args}</Mono>}
             </div>
+            {fromWeb && (
+              /* 正文上面必须先说清这段东西是谁写的。档案是学生自己写的，
+                 网页是陌生人写的，两者在同一条消息流里出现而不加区分就会出事 */
+              <p className="flex items-center gap-1.5 border-b bg-amber-500/10 px-2.5 py-1.5 text-[0.8em] text-muted-foreground">
+                <Globe className="size-3 shrink-0" />
+                以下来自网页，不是你的数据
+              </p>
+            )}
             <pre className="max-h-72 overflow-auto px-2.5 py-2 font-mono text-[0.8em] leading-relaxed break-all whitespace-pre-wrap text-muted-foreground">
               {preview}
             </pre>
