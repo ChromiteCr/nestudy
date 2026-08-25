@@ -5,8 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // 自定义域根路径部署（public/CNAME → app.nestudy.cn）。
-  // 若日后退回 <user>.github.io/nestudy/ 子路径，改回 '/nestudy/' 并删掉 public/CNAME。
+  // 由服务器发（Caddy → /var/www/nestudy），根路径部署。
+  // GitHub Pages 那条路已经退掉：前端和 relay 必须同源，否则要给一套刻意保持
+  // 同源的后端开第一个 CORS 口子。发版方式见 deploy/setup.md。
   base: '/',
   server: {
     /**

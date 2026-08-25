@@ -1,0 +1,63 @@
+# /etc/caddy/sites/nestudy.caddy
+#
+# **这个文件不碰 /etc/caddy/Caddyfile 里的任何一行**，那里面 request.nestudy.cn
+# 与 (relay_site) 两段属于 Luminara，与这里毫无关系。主文件末尾那行
+# `import /etc/caddy/sites/*.caddy` 早就在了，加站点就是往这个目录丢一个文件。
+#
+# 三个站共用的只有 Caddy 这一个进程和 80/443 两个端口——一台机器上没有第二种可能。
+#
+# **不要写成 *.nestudy.cn。** 通配证书只能走 DNS-01，需要 DNSPod 插件，
+# 而那要用 xcaddy 重新编译整个 Caddy 二进制；为了几个子域重编反代不划算。
+# 把名字列出来，HTTP-01 用现成的二进制就能签。
+#
+# app.nestudy.cn 暂时不在这里：它的 CNAME 还指着 GitHub Pages，
+# 名字没解析过来就申请证书会失败并进退避重试。DNS 改完之后加进下面这一行、
+# reload 一次即可。
+
+nestudy.cn, www.nestudy.cn {
+	encode zstd gzip
+
+	# 后端。/api 前缀在这里剥掉，服务内部的路由写的是 /v1/…
+	# 与 modeling 共用同一个 relay 进程：账号、额度、skill 商店都是同一份
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8081 {
+			# 一轮回答真的可能跑一两分钟，流式的更是从头挂到尾
+			transport http {
+				read_timeout 300s
+				write_timeout 300s
+			}
+			# 逐块吐出去，不攒。攒着发等于把逐字出现的回答变成一次性弹出
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /var/www/nestudy
+		# 单页应用：找不到文件就回 index.html。
+		# 少了这一行，刷新一下就是 404
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+
+	# 带哈希的构建产物可以永久缓存；index.html 绝对不行——
+	# 缓存住它，用户手上就永远是上一版的应用，而他不知道要清缓存
+	@immutable path /assets/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+
+	request_body {
+		max_size 8MB
+	}
+
+	# 只记路径和状态码。请求体一个字都不记，这里和后面的服务里都是
+	log {
+		output file /var/log/caddy/nestudy.log
+	}
+}
