@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Upload, UserRound } from 'lucide-react'
+import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
@@ -12,13 +12,12 @@ import { useAccountStore } from '@/stores/accountStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
-import { AccountPanel } from './AccountPanel'
+import { AccountSection } from './AccountPanel'
 import { cn } from '@/lib/utils'
 
-export type SettingsCategory = 'account' | 'model' | 'profile' | 'appearance' | 'data'
+export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data'
 
 const CATEGORIES: { key: SettingsCategory; label: string; icon: typeof Cpu }[] = [
-  { key: 'account', label: '账号', icon: UserRound },
   { key: 'model', label: '模型', icon: Cpu },
   { key: 'profile', label: '档案', icon: GraduationCap },
   { key: 'appearance', label: '外观', icon: Palette },
@@ -60,14 +59,45 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {category === 'account' && <AccountPanel />}
           {category === 'model' && <ModelPanel />}
-          {category === 'profile' && <ProfileForm onSaved={() => toast.success('档案已保存')} />}
+          {category === 'profile' && <ProfilePanel />}
           {category === 'appearance' && <AppearancePanel />}
           {category === 'data' && <DataPanel />}
         </div>
       </div>
     </main>
+  )
+}
+
+/**
+ * 档案。**档案与账号合在这一页**，中间那条分隔线上写着两者的区别。
+ *
+ * 合起来是因为学生心里只有一个「我是谁」，不是「我的账号」和「我的档案」两件事——
+ * 分成两栏的结果是他要在两个地方找同一件事。
+ *
+ * 中间那段话是这一页真正要说的：**上面那些一字都没上传过。**
+ * 它放在两段之间而不是页脚，因为它正好解释了这两样为什么能同页而互不相干。
+ */
+function ProfilePanel() {
+  return (
+    <div className="max-w-lg space-y-6">
+      <ProfileForm onSaved={() => toast.success('档案已保存')} />
+
+      <div className="space-y-1.5 border-t pt-5 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">上面这些不上传云端。</p>
+        <p>
+          档案、事项、反思、画板、资产全都只在这台设备上，
+          <strong className="font-medium text-foreground">一字都没上传过</strong>
+          ——换设备靠「数据」页里的手动导出导入。
+        </p>
+        <p>
+          下面的账号是另一回事：它只承载身份、用量与发布。服务器存的是你的邮箱、
+          用了多少额度、你发布到商店的 skill。转发模型请求时是无状态透传，对话内容不落日志。
+        </p>
+      </div>
+
+      <AccountSection />
+    </div>
   )
 }
 

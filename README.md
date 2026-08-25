@@ -1,6 +1,6 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S11e1-blue)
+![version](https://img.shields.io/badge/version-S11e2-blue)
 ![license](https://img.shields.io/github/license/ChromiteCr/nestudy)
 ![last commit](https://img.shields.io/github/last-commit/ChromiteCr/nestudy)
 ![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/nestudy)
@@ -64,6 +64,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S11e2 | 2026-08-25 | 「账号」并进「档案」。合起来是因为**学生心里只有一个「我是谁」**，不是「我的账号」和「我的档案」两件事——分成两栏的结果是他要在两个地方找同一件事。中间那条分隔线上写明：**上面这些不上传云端**，档案、事项、反思、画板、资产全都只在这台设备上，换设备靠手动导出导入；下面的账号是另一回事，只承载身份、用量与发布。这段话放在两段之间而不是页脚，因为它正好解释了这两样为什么能同页而互不相干 | feat |
 | S11e1 | 2026-08-25 | 商店里的官方 skill 不再显示「安装」。**它们同时是内置的**——商店里有它们是为了让「别冒充官方」那道闸有内容（闸判的是「这个名字有没有被老师账号发过」），不是为了让人再装一遍；而 `saveSkill` 本来就会以「和内置技能重复」为由拒绝，所以原来那个「安装」按钮点下去只会得到一句报错。现在按钮直接是禁用的「已内置」，hover 说明为什么。判据放在 `StoreCard` 里、先于其它状态——**权威的内置清单在客户端**，这和「装的时候本地算缺什么能力」是同一条：谁有清单谁去查 | fix |
 | S11e | 2026-08-25 | 输入框换成**描边 + 浮起标签**那一套（与 nes modeling 同一份，那边先落地的）。两个应用同属 nestudy，输入框长得不一样是没有理由的。24 处、9 个文件全部换掉，`ui/input.tsx` 与 `ui/textarea.tsx` 删除——没人用了还留着，只会让下一个人伸手拿错那个。**AI 对话那个输入框不在其中**：它不是一格表单，是一张纸，加一个浮起的「问点什么」标签只会碍事（它本来就用原生 textarea，天然在外）。占位符被写成一个空格，因为 `:placeholder-shown` 是「这一格空着吗」唯一不用受控 value 就能问到的地方；真的占位文字在 CSS 里涂透明——标签已经在那儿了，再垫一层灰字就是同一句话说两遍。描边的缺口靠 fieldset 的 legend 撑开，所以 legend 里要把标签文字再写一遍（不可见，只用来占宽度）。卡片里原来 28px 的行内编辑框跟着长到 44px（`sm` 档），那是手指够得着的下限。下拉框保持原样——参考实现那边也没有做 field 化 | style |
 | S11d1 | 2026-08-25 | 删掉 `scripts/seed-store.mjs` 与 `store:seed`。它走 `POST /v1/skills` 投稿，要一个会话令牌——而官方发布账号最终定成了**不能登录的系统账号**（`nestudy.cn` 没有 MX，收不了验证码，也不该为署名去建一个真邮箱），所以那条路对它永远走不通。播种改由服务端的 `seed-official.js` 直接写库。留一个跑不了的脚本比没有更坏——下一个人会照着它试半天 | chore |

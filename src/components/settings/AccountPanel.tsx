@@ -8,13 +8,13 @@ import { ApiError, NetworkError, type QuotaView } from '@/lib/api'
 import { useAccountStore } from '@/stores/accountStore'
 
 /**
- * 账号。
+ * 账号那一段。**它和档案表单同在「档案」一页**，中间隔着一句话说清两者的区别：
+ * 上面那些留在这台设备上，下面这个只承载身份、用量与发布。
  *
- * 这一页要一直说清楚一件事：**没有账号，这个应用照样是完整的。**
- * 学习数据从来没有离开过这台浏览器，登录换来的只有免费模型通道和 skill 商店。
- * 把这句话写在页面上，而不是写在文档里——会去读文档的人本来就不担心这个。
+ * 合到一页是因为学生心里本来就只有一个「我是谁」，而不是「我的账号」和「我的档案」
+ * 两件事；分成两栏的结果是他要在两个地方找同一件事。
  */
-export function AccountPanel() {
+export function AccountSection() {
   const { me, loading, offline, load, signOut } = useAccountStore()
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export function AccountPanel() {
   }
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="space-y-6">
       {me ? <SignedIn onSignOut={signOut} /> : <SignInForm />}
 
       {offline && !me && (
@@ -34,16 +34,6 @@ export function AccountPanel() {
           连不上服务器。本地的一切照常可用——事项、反思、画板、档案都在这台设备上。
         </p>
       )}
-
-      <div className="space-y-1.5 border-t pt-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">账号只承载身份、用量与发布。</p>
-        <p>
-          服务器存的是：你的邮箱、用了多少额度、你发布到商店的 skill。
-          <strong className="font-medium text-foreground">不存</strong>
-          事项、反思、画板、资产、档案——那些一字都没上传过，跨设备靠手动导出导入。
-        </p>
-        <p>转发模型请求时是无状态透传，对话内容不落日志。</p>
-      </div>
     </div>
   )
 }
