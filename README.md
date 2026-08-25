@@ -1,6 +1,6 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S11e2-blue)
+![version](https://img.shields.io/badge/version-S11e3-blue)
 ![license](https://img.shields.io/github/license/ChromiteCr/nestudy)
 ![last commit](https://img.shields.io/github/last-commit/ChromiteCr/nestudy)
 ![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/nestudy)
@@ -15,7 +15,7 @@
 - 🤖 **主动式 Agent**：DDL 临近没安排、任务积压、档案缺失——学栖在对话里主动开口
 - ✅ **提案确认制**：AI 不直接写数据，所有安排以卡片提案，你确认才生效
 - ✍️ **机器声 / 人声**：系统说的话用等宽，你写下的一切用衬线——AI 参与到哪一步，排版上看得见
-- 🔑 **自带 Key 直连**：填入 DeepSeek（或任意 OpenAI 兼容）API Key，浏览器直连模型服务商，Key 只存本机
+- 🔑 **两条模型通道**：登录用服务器转发的免费额度，或自带 Key——**认协议不认厂商**，任何实现了 OpenAI `/chat/completions` 的服务商都能用（官方、DeepSeek、国内各家、自建 vLLM／Ollama），自带 Key 时浏览器直连，Key 只存本机
 - 🧩 **Skill Runtime**：直接运行 [Skills 仓库](https://github.com/ChromiteCr/Skills)的 `SKILL.md`——同一份文件在 Claude Code 里也能跑，不是另立格式。skill 是纯文本、无可执行代码，能碰什么由**能力白名单**决定，写库一律要你在卡片上确认
 - ⌨️ **斜杠命令**：输入框里敲 `/` 就出命令表，skill 与 `/compact`、`/new` 同一张表——用不用 skill 是说话的一部分，不是说话之前的一道手续
 - 🔍 **渐进式披露**：系统提示里只放每个 skill 的名字与用途，agent 判断对得上再调 `read_skill` 把正文读进来，读完能力面自动收窄到它声明的范围。装再多 skill 也不占上下文
@@ -29,7 +29,7 @@ npm install
 npm run dev
 ```
 
-打开设置填入 [DeepSeek API Key](https://platform.deepseek.com)，即可开始对话。
+打开设置选一条模型通道：登录用免费额度，或自带任意 OpenAI 兼容服务商的 Key。
 
 内置 skill 由 `src/generated/skills.json` 提供，已提交进仓库，构建不依赖外部仓库。改动 [Skills 仓库](https://github.com/ChromiteCr/Skills)后重新采集：
 
@@ -64,6 +64,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S11e3 | 2026-08-25 | 自带 Key 那条路改成**认协议不认厂商**。功能上它一直就是通用的（provider 从配置里取 baseURL/model），坏在措辞：开场白写着「填写 DeepSeek API Key」、字段标着「API Key（DeepSeek）」，读起来像只支持这一家。现在说清楚：只要实现了 OpenAI 的 `/chat/completions` 就行，官方、DeepSeek、国内各家、自建的 vLLM 或 Ollama 都能用，并写明**唯一的硬条件是支持 function calling**——这个应用的技能与能力全靠它，不支持的模型能聊天但做不了事，而这件事不写出来只会变成一次说不清的「怎么不干活」。两个字段补上具体例子。**顺带削掉 baseURL 结尾的斜杠**：粘地址时带一个尾斜杠太常见，而拼出来的 `//chat/completions` 有的服务商认、有的直接 404 | feat |
 | S11e2 | 2026-08-25 | 「账号」并进「档案」。合起来是因为**学生心里只有一个「我是谁」**，不是「我的账号」和「我的档案」两件事——分成两栏的结果是他要在两个地方找同一件事。中间那条分隔线上写明：**上面这些不上传云端**，档案、事项、反思、画板、资产全都只在这台设备上，换设备靠手动导出导入；下面的账号是另一回事，只承载身份、用量与发布。这段话放在两段之间而不是页脚，因为它正好解释了这两样为什么能同页而互不相干 | feat |
 | S11e1 | 2026-08-25 | 商店里的官方 skill 不再显示「安装」。**它们同时是内置的**——商店里有它们是为了让「别冒充官方」那道闸有内容（闸判的是「这个名字有没有被老师账号发过」），不是为了让人再装一遍；而 `saveSkill` 本来就会以「和内置技能重复」为由拒绝，所以原来那个「安装」按钮点下去只会得到一句报错。现在按钮直接是禁用的「已内置」，hover 说明为什么。判据放在 `StoreCard` 里、先于其它状态——**权威的内置清单在客户端**，这和「装的时候本地算缺什么能力」是同一条：谁有清单谁去查 | fix |
 | S11e | 2026-08-25 | 输入框换成**描边 + 浮起标签**那一套（与 nes modeling 同一份，那边先落地的）。两个应用同属 nestudy，输入框长得不一样是没有理由的。24 处、9 个文件全部换掉，`ui/input.tsx` 与 `ui/textarea.tsx` 删除——没人用了还留着，只会让下一个人伸手拿错那个。**AI 对话那个输入框不在其中**：它不是一格表单，是一张纸，加一个浮起的「问点什么」标签只会碍事（它本来就用原生 textarea，天然在外）。占位符被写成一个空格，因为 `:placeholder-shown` 是「这一格空着吗」唯一不用受控 value 就能问到的地方；真的占位文字在 CSS 里涂透明——标签已经在那儿了，再垫一层灰字就是同一句话说两遍。描边的缺口靠 fieldset 的 legend 撑开，所以 legend 里要把标签文字再写一遍（不可见，只用来占宽度）。卡片里原来 28px 的行内编辑框跟着长到 44px（`sm` 档），那是手指够得着的下限。下拉框保持原样——参考实现那边也没有做 field 化 | style |

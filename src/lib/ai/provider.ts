@@ -1,5 +1,5 @@
 // ---- 统一的模型调用抽象 ----
-// S1: OpenAICompatibleProvider（自带 Key 浏览器直连 DeepSeek）
+// S1: OpenAICompatibleProvider（自带 Key 浏览器直连任意 OpenAI 兼容服务商）
 // S2: 增加 function-calling 支持（agent loop 的地基）
 // 未来: ProxyProvider（北京服务器无状态代理，免费层）
 // 切换通道只改 resolveProvider，不动 UI/业务层。

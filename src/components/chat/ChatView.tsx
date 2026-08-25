@@ -109,7 +109,7 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
                     ? '说说你现在最想解决的事？'
                     : tier === 'free'
                       ? '先去设置里登录，用邮箱收个验证码就行。'
-                      : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
+                      : '先在设置里填一个模型 API Key，然后我们开始。'}
                 </p>
                 {!ready && (
                   <Button size="sm" onClick={onOpenSettings}>

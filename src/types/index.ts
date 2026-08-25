@@ -746,12 +746,21 @@ export interface ModelConfig {
   contextWindow: number
 }
 
+/**
+ * 自带 Key 的默认值。
+ *
+ * **这只是一组预填，不是「只支持这一家」**：通道走的是 OpenAI 协议，
+ * 任何认这套协议的服务商（官方、国内各家、自建的 vLLM / Ollama）
+ * 换掉这三格就能用。填 DeepSeek 是因为总得填一个，而它注册最省事。
+ *
+ * 换服务商时上下文窗口要跟着改：不同模型差一个数量级，
+ * 写死一个值的结果是要么早早开始压缩、要么压之前先撞上 400。
+ */
 export const DEFAULT_MODEL_CONFIG: ModelConfig = {
   tier: 'custom',
   baseURL: 'https://api.deepseek.com',
   apiKey: '',
   model: 'deepseek-chat',
-  // deepseek-chat 当前是 64K
   contextWindow: 64000,
 }
 

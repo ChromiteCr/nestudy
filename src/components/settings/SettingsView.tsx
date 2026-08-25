@@ -130,7 +130,7 @@ function ModelPanel() {
         <ChannelOption
           active={!free}
           title="自带 Key"
-          note="浏览器直连模型服务商，Key 只存在本机，请求不经过任何中间服务器。"
+          note="任何兼容 OpenAI 协议的服务商都能用。浏览器直连，Key 只存在本机，请求不经过任何中间服务器。"
           onSelect={() => void updateModelConfig({ tier: 'custom' })}
         />
       </div>
@@ -143,6 +143,13 @@ function ModelPanel() {
         </p>
       ) : (
         <>
+          <p className="text-sm text-muted-foreground">
+            填的是<strong className="font-medium text-foreground">协议</strong>不是厂商：只要它实现了 OpenAI 的{' '}
+            <Mono>/chat/completions</Mono>，
+            官方、DeepSeek、国内各家、自建的 vLLM 或 Ollama 都行。
+            <strong className="font-medium text-foreground">唯一的硬条件是支持 function calling</strong>
+            ——这个应用的技能与能力全靠它，不支持的模型能聊天但做不了事。
+          </p>
           <TextField
             label="API Key"
             type="password"
@@ -152,17 +159,18 @@ function ModelPanel() {
             onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
           />
           <TextField
-            label="模型"
-            value={modelConfig.model}
-            className="font-mono"
-            onChange={(e) => void updateModelConfig({ model: e.target.value })}
-          />
-          <TextField
             label="API Base URL"
             value={modelConfig.baseURL}
             className="font-mono"
-            hint="兼容任意 OpenAI 格式的服务商"
+            hint="到 /v1 之前那一截，例如 https://api.deepseek.com。结尾多一个斜杠不要紧，会自动去掉"
             onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
+          />
+          <TextField
+            label="模型"
+            value={modelConfig.model}
+            className="font-mono"
+            hint="服务商文档里那个 id，例如 deepseek-chat、gpt-4o-mini、qwen-max"
+            onChange={(e) => void updateModelConfig({ model: e.target.value })}
           />
           <TextField
             label="上下文窗口（token）"
