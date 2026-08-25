@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertTriangle, Check, Download, RefreshCw, Search, Upload } from 'lucide-react'
+import { AlertTriangle, Check, Download, RefreshCw, Search, ThumbsDown, ThumbsUp, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mono } from '@/components/ui/mono'
-import { api, ApiError, CRITERION_LABEL, NetworkError, type SkillListing, type SkillSubmissionView } from '@/lib/api'
+import {
+  api,
+  ApiError,
+  CRITERION_LABEL,
+  NetworkError,
+  type SkillListing,
+  type SkillQueueItem,
+  type SkillSubmissionView,
+} from '@/lib/api'
 import { resolveForSkill } from '@/lib/capabilities'
 import { parseSkillMarkdown } from '@/lib/skills/parser'
 import { useAccountStore } from '@/stores/accountStore'
@@ -22,7 +30,7 @@ import { cn } from '@/lib/utils'
  */
 export function SkillStorePanel() {
   const me = useAccountStore((s) => s.me)
-  const [mode, setMode] = useState<'browse' | 'mine'>('browse')
+  const [mode, setMode] = useState<'browse' | 'mine' | 'queue'>('browse')
 
   if (!me) {
     return (
@@ -43,6 +51,9 @@ export function SkillStorePanel() {
           [
             ['browse', '浏览'],
             ['mine', '我发布的'],
+            // 学生根本不渲染这一页，而不是渲染成灰的：点不动的东西只会让每个人问一遍那是什么。
+            // 真正的边界在服务器（/v1/skills/queue 认 role），这里少画一个只是别去撩拨
+            ...(me.role === 'teacher' ? ([['queue', '待审']] as const) : []),
           ] as const
         ).map(([key, label]) => (
           <button
@@ -59,7 +70,9 @@ export function SkillStorePanel() {
         ))}
       </div>
 
-      {mode === 'browse' ? <BrowseTab /> : <MineTab />}
+      {mode === 'browse' && <BrowseTab />}
+      {mode === 'mine' && <MineTab />}
+      {mode === 'queue' && <QueueTab />}
     </div>
   )
 }
@@ -137,6 +150,37 @@ function StoreCard({ item }: { item: SkillListing }) {
   const userSkills = useSkillStore((s) => s.userSkills)
   const saveSkill = useSkillStore((s) => s.saveSkill)
   const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false)
+  /** 正文懒加载：列表里几十条，没人会全都想看 */
+  const [text, setText] = useState<string | null>(null)
+  const [reading, setReading] = useState(false)
+
+  /**
+   * 取正文，取过就不再取。
+   *
+   * 展开和安装共用这一份缓存——展开看过之后再点安装，不该再往服务器跑一趟。
+   */
+  const fetchText = async (): Promise<string> => {
+    if (text !== null) return text
+    setReading(true)
+    try {
+      const detail = await api.getSkill(item.authorId, item.name)
+      setText(detail.text)
+      return detail.text
+    } finally {
+      setReading(false)
+    }
+  }
+
+  const toggle = async () => {
+    if (open) return setOpen(false)
+    try {
+      await fetchText()
+      setOpen(true)
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : '读不到正文')
+    }
+  }
 
   /**
    * 本地那份和这一条是不是同一个东西。
@@ -164,8 +208,8 @@ function StoreCard({ item }: { item: SkillListing }) {
   const install = async () => {
     setBusy(true)
     try {
-      const detail = await api.getSkill(item.authorId, item.name)
-      const result = await saveSkill(detail.text, 'installed', local?.id, {
+      const source = await fetchText()
+      const result = await saveSkill(source, 'installed', local?.id, {
         authorId: item.authorId,
         author: item.author,
         version: item.version,
@@ -175,7 +219,7 @@ function StoreCard({ item }: { item: SkillListing }) {
         return
       }
 
-      const parsed = parseSkillMarkdown({ text: detail.text, origin: 'installed', source: item.name })
+      const parsed = parseSkillMarkdown({ text: source, origin: 'installed', source: item.name })
       const missing = parsed.skill ? resolveForSkill(parsed.skill.manifest).missing : []
       if (missing.length > 0) {
         toast.warning(`装好了，但这里没有它要的能力：${missing.join('、')}`, { duration: 8000 })
@@ -214,6 +258,14 @@ function StoreCard({ item }: { item: SkillListing }) {
             要 <Mono className="break-all">{item.capabilities.join(' ')}</Mono>
           </span>
         )}
+        <button
+          type="button"
+          className="underline-offset-2 hover:underline disabled:opacity-60"
+          disabled={reading}
+          onClick={() => void toggle()}
+        >
+          {reading ? '读取中…' : open ? '收起正文' : '看正文'}
+        </button>
         <Button
           size="sm"
           variant={state === 'outdated' || state === 'none' ? 'secondary' : 'ghost'}
@@ -252,6 +304,17 @@ function StoreCard({ item }: { item: SkillListing }) {
           )}
         </Button>
       </div>
+
+      {/*
+        原样的 SKILL.md，**按纯文本渲染，不按 markdown**。
+        这是别人写的、准备整份注入 system prompt 的文本——决定要不要信它的时候，
+        该看到的是它本来的样子，而不是被排版美化过的样子。
+      */}
+      {open && text !== null && (
+        <pre className="max-h-96 overflow-auto rounded-sm border bg-muted/40 p-2 text-2xs whitespace-pre-wrap">
+          {text}
+        </pre>
+      )}
     </div>
   )
 }
@@ -375,6 +438,135 @@ function SubmissionCard({ sub }: { sub: SkillSubmissionView }) {
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+// ---- 待审队列（teacher）----
+
+/**
+ * 人工那一档。
+ *
+ * 模型只把**拿不准的**推到这里——它明确判干净的已经上架了，明确有问题的作者当场就被退回。
+ * 所以这一页上的每一条都是「模型说不好」，而不是「模型说不行」，界面上要说清这个区别，
+ * 否则看的人会带着「这些都是坏东西」的预设去点驳回。
+ */
+function QueueTab() {
+  const [items, setItems] = useState<SkillQueueItem[]>([])
+  const [state, setState] = useState<'loading' | 'idle' | 'failed'>('loading')
+
+  const reload = useCallback(async () => {
+    try {
+      setItems((await api.reviewQueue()).items)
+      setState('idle')
+    } catch {
+      setState('failed')
+    }
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  if (state === 'failed') {
+    return <p className="text-sm text-muted-foreground">读不到队列。</p>
+  }
+  if (state === 'idle' && items.length === 0) {
+    return <p className="text-sm text-muted-foreground">队列是空的，没有等着的投稿。</p>
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">
+        这里的每一条都是模型<strong className="font-medium text-foreground">拿不准</strong>的——
+        它判干净的已经上架，判明确有问题的当场退回了作者。
+      </p>
+      {items.map((item) => (
+        <QueueCard key={item.id} item={item} onDone={() => void reload()} />
+      ))}
+    </div>
+  )
+}
+
+function QueueCard({ item, onDone }: { item: SkillQueueItem; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const concerns = item.review.verdicts.filter((v) => v.verdict === 'concern')
+
+  const decide = async (approve: boolean) => {
+    setBusy(true)
+    try {
+      await api.decideSubmission(item.id, approve, approve ? undefined : note.trim() || undefined)
+      toast.success(approve ? '已放行上架' : '已驳回')
+      onDone()
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : '没能提交裁决')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Mono>
+          {item.name} v{item.version}
+        </Mono>
+        <span className="text-xs text-muted-foreground">{item.author}</span>
+        <Badge variant="secondary" className="ml-auto">
+          <Mono>{concerns.length} 处存疑</Mono>
+        </Badge>
+      </div>
+
+      <ul className="flex flex-col gap-1 text-sm">
+        {concerns.map((v) => (
+          <li key={v.criterion} className="flex gap-2">
+            <Mono className="w-16 shrink-0 text-muted-foreground">{CRITERION_LABEL[v.criterion]}</Mono>
+            <span className="min-w-0 text-muted-foreground">{v.note || '没给理由'}</span>
+          </li>
+        ))}
+      </ul>
+
+      {item.review.fault && (
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+          {item.review.fault}
+        </p>
+      )}
+
+      <button
+        type="button"
+        className="self-start text-sm text-muted-foreground underline-offset-2 hover:underline"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? '收起正文' : '看正文'}
+      </button>
+
+      {/* 正文按纯文本渲染：判断要不要放行时，该看到的是它本来的样子 */}
+      {open && (
+        <pre className="max-h-96 overflow-auto rounded-sm border bg-muted/40 p-2 text-2xs whitespace-pre-wrap">
+          {item.text}
+        </pre>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={note}
+          placeholder="驳回理由（作者看得到）"
+          className="min-w-40 flex-1"
+          maxLength={500}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => void decide(false)}>
+          <ThumbsDown className="size-3.5" />
+          驳回
+        </Button>
+        <Button size="sm" variant="secondary" disabled={busy} className="gap-1.5" onClick={() => void decide(true)}>
+          <ThumbsUp className="size-3.5" />
+          放行
+        </Button>
+      </div>
     </div>
   )
 }

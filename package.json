@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "skills:sync": "node scripts/build-skills.mjs",
-    "skills:check": "node scripts/build-skills.mjs --check"
+    "skills:check": "node scripts/build-skills.mjs --check",
+    "store:seed": "node scripts/seed-store.mjs"
   },
   "dependencies": {
     "@fontsource-variable/noto-serif-sc": "^5.3.0",

@@ -137,6 +137,18 @@ export interface SkillSubmissionView {
   updatedAt: number
 }
 
+/**
+ * 待审队列里的一条（teacher 才拿得到）。
+ *
+ * 比「我投的」多了作者与正文——**裁决必须看得到正文**，
+ * 只看模型给的理由就点放行，等于把判断权整个交给了那次审核。
+ */
+export interface SkillQueueItem extends SkillSubmissionView {
+  authorId: string
+  author: string
+  text: string
+}
+
 export interface PublishResult {
   state: 'listed' | 'pending'
   review: SkillReview

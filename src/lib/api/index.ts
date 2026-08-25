@@ -5,6 +5,7 @@ import type {
   Quotas,
   SkillDetail,
   SkillPage,
+  SkillQueueItem,
   SkillSubmissionView,
 } from './types'
 
@@ -156,4 +157,15 @@ export const api = {
 
   withdrawSkill: (name: string) =>
     request<void>(`/v1/skills/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  // ---- 审核队列（teacher）----
+
+  reviewQueue: () => request<{ items: SkillQueueItem[] }>('/v1/skills/queue'),
+
+  /** 裁决一条。驳回时 `note` 会写进 review.fault，作者在「我投的」里看得到 */
+  decideSubmission: (id: string, approve: boolean, note?: string) =>
+    request<{ state: 'listed' | 'rejected' }>(`/v1/skills/queue/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      body: JSON.stringify(note ? { approve, note } : { approve }),
+    }),
 }
