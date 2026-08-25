@@ -3,6 +3,7 @@ import { RotateCcw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useAccountStore } from '@/stores/accountStore'
 import { ChatDrawer } from './ChatDrawer'
 import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
@@ -25,7 +26,11 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const error = useChatStore((s) => s.error)
   const retryLast = useChatStore((s) => s.retryLast)
   const pendingPrompt = useChatStore((s) => s.pendingPrompt)
+  // 自带 Key 要有 key；免费通道要登录过。两条路都没走通才拦在开场白那一屏
+  const tier = useSettingsStore((s) => s.modelConfig.tier)
   const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
+  const signedIn = useAccountStore((s) => !!s.me)
+  const ready = tier === 'free' ? signedIn : hasKey
   const scrollRef = useRef<HTMLDivElement>(null)
   // 挂载之前就存在的消息不做入场动画：否则每次刷新/切会话，
   // 满屏工具行都要重放一遍级联，那不是提示新内容，那是噪音
@@ -100,11 +105,15 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
                 <h2 className="text-lg font-semibold">你好，我是学栖</h2>
                 <p className="max-w-md leading-relaxed text-muted-foreground">
                   我帮国际部学生做学习规划、背景提升和时间管理。
-                  {hasKey ? '说说你现在最想解决的事？' : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
+                  {ready
+                    ? '说说你现在最想解决的事？'
+                    : tier === 'free'
+                      ? '先去设置里登录，用邮箱收个验证码就行。'
+                      : '先在设置中填写 DeepSeek API Key，然后我们开始。'}
                 </p>
-                {!hasKey && (
+                {!ready && (
                   <Button size="sm" onClick={onOpenSettings}>
-                    去设置 API Key
+                    {tier === 'free' ? '去登录' : '去设置 API Key'}
                   </Button>
                 )}
               </div>

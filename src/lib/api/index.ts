@@ -48,6 +48,17 @@ export function setToken(token: string | null) {
   }
 }
 
+/**
+ * relay 的绝对地址。
+ *
+ * OpenAI SDK 内部要 `new URL(path, baseURL)`，而 `new URL()` 吃不下 `/api` 这种
+ * 相对路径——所以给它的必须是绝对的。同源部署时这就是当前站点加 `/api`，
+ * 不引入第二个来源。
+ */
+export function relayOrigin(): string {
+  return new URL(BASE, window.location.origin).toString().replace(/\/+$/, '')
+}
+
 /** 服务器拒绝了。`message` 是写给人看的，直接显示 */
 export class ApiError extends Error {
   status: number

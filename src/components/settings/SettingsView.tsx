@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useChatStore } from '@/stores/chatStore'
 import { usePlanningStore } from '@/stores/planningStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { useAccountStore } from '@/stores/accountStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
@@ -70,60 +71,120 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
   )
 }
 
+/**
+ * 模型通道。
+ *
+ * 两条路的区别不是「贵不贵」，是**请求经不经过我们的服务器**——
+ * 自带 Key 时浏览器直连服务商，我们连你问了什么都不知道；免费通道要经过转发，
+ * 虽然不落对话日志，但那毕竟是一次经手。这件事要写在选项里，不是写在文档里。
+ */
 function ModelPanel() {
   const modelConfig = useSettingsStore((s) => s.modelConfig)
   const updateModelConfig = useSettingsStore((s) => s.updateModelConfig)
+  const signedIn = useAccountStore((s) => !!s.me)
+  const free = modelConfig.tier === 'free'
 
   return (
     <div className="flex max-w-md flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        自带 Key 模式：请求从浏览器直连模型服务商，Key 只存在本机。
-      </p>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">API Key（DeepSeek）</span>
-        <Input
-          type="password"
-          value={modelConfig.apiKey}
-          placeholder="sk-…"
-          className="font-mono"
-          onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
+      <div className="flex flex-col gap-2">
+        <ChannelOption
+          active={free}
+          title="用我的账号"
+          note={
+            signedIn
+              ? '请求经服务器转发，额度按 token 算。对话内容不落日志。'
+              : '要先在「账号」里登录。请求经服务器转发，对话内容不落日志。'
+          }
+          onSelect={() => void updateModelConfig({ tier: 'free' })}
         />
-        <span className="text-xs text-muted-foreground">
-          在 platform.deepseek.com 创建；免费通道后续上线
-        </span>
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">模型</span>
-        <Input
-          value={modelConfig.model}
-          className="font-mono"
-          onChange={(e) => void updateModelConfig({ model: e.target.value })}
+        <ChannelOption
+          active={!free}
+          title="自带 Key"
+          note="浏览器直连模型服务商，Key 只存在本机，请求不经过任何中间服务器。"
+          onSelect={() => void updateModelConfig({ tier: 'custom' })}
         />
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">API Base URL</span>
-        <Input
-          value={modelConfig.baseURL}
-          className="font-mono"
-          onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
-        />
-        <span className="text-xs text-muted-foreground">兼容任意 OpenAI 格式的服务商</span>
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium">上下文窗口（token）</span>
-        <Input
-          type="number"
-          min={4000}
-          step={1000}
-          value={modelConfig.contextWindow}
-          className="font-mono"
-          onChange={(e) => void updateModelConfig({ contextWindow: Number(e.target.value) || 0 })}
-        />
-        <span className="text-xs text-muted-foreground">
-          决定对话涨到多长时自动压缩成摘要。换模型时按它的窗口改，填小了会频繁压缩，填大了会撞上模型上限。
-        </span>
-      </label>
+      </div>
+
+      {free ? (
+        <p className="text-sm text-muted-foreground">
+          {signedIn
+            ? '模型与上下文窗口由服务器定，这里不用配。'
+            : '还没登录——去左边的「账号」用邮箱收个验证码。'}
+        </p>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">API Key（DeepSeek）</span>
+            <Input
+              type="password"
+              value={modelConfig.apiKey}
+              placeholder="sk-…"
+              className="font-mono"
+              onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
+            />
+            <span className="text-xs text-muted-foreground">在 platform.deepseek.com 创建</span>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">模型</span>
+            <Input
+              value={modelConfig.model}
+              className="font-mono"
+              onChange={(e) => void updateModelConfig({ model: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">API Base URL</span>
+            <Input
+              value={modelConfig.baseURL}
+              className="font-mono"
+              onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
+            />
+            <span className="text-xs text-muted-foreground">兼容任意 OpenAI 格式的服务商</span>
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">上下文窗口（token）</span>
+            <Input
+              type="number"
+              min={4000}
+              step={1000}
+              value={modelConfig.contextWindow}
+              className="font-mono"
+              onChange={(e) => void updateModelConfig({ contextWindow: Number(e.target.value) || 0 })}
+            />
+            <span className="text-xs text-muted-foreground">
+              决定对话涨到多长时自动压缩成摘要。换模型时按它的窗口改，填小了会频繁压缩，填大了会撞上模型上限。
+            </span>
+          </label>
+        </>
+      )}
     </div>
+  )
+}
+
+function ChannelOption({
+  active,
+  title,
+  note,
+  onSelect,
+}: {
+  active: boolean
+  title: string
+  note: string
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={cn(
+        'flex flex-col gap-0.5 rounded-sm border p-3 text-left transition-colors',
+        active ? 'border-foreground/30 bg-accent' : 'hover:bg-accent/50',
+      )}
+    >
+      <span className="text-sm font-medium">{title}</span>
+      <span className="text-xs text-muted-foreground">{note}</span>
+    </button>
   )
 }
 

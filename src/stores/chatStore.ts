@@ -291,7 +291,8 @@ async function maybeGenerateTitle(conversationId: string, set: Set, get: Get) {
   const { modelConfig } = useSettingsStore.getState()
   if (modelConfig.tier === 'custom' && !modelConfig.apiKey) return
   try {
-    const title = await generateConversationTitle(resolveProvider(modelConfig), get().messages)
+    // 起标题走 aux 档：给自己看的活，不值得占正经模型
+    const title = await generateConversationTitle(resolveProvider(modelConfig, 'aux'), get().messages)
     if (title) await applyTitle(conversationId, title, set)
   } catch {
     // 起标题失败不影响对话本身，占位标题继续用
@@ -313,7 +314,8 @@ async function compact(
   keepRecentTokens?: number,
 ): Promise<Message | null> {
   const { modelConfig } = useSettingsStore.getState()
-  const outcome = await summarizeForCompaction(resolveProvider(modelConfig), messages, { keepRecentTokens })
+  // 压缩同理：把二十条消息缩成一段话不需要最好的模型，而它一次长对话要跑好几遍
+  const outcome = await summarizeForCompaction(resolveProvider(modelConfig, 'aux'), messages, { keepRecentTokens })
   if (!outcome) return null
 
   const record: Message = {

@@ -21,6 +21,14 @@ export class OpenAICompatibleProvider implements ChatProvider {
   }
 
   async *streamChat(messages: ChatTurn[], opts?: StreamOptions): AsyncIterable<StreamEvent> {
+    try {
+      yield* this.run(messages, opts)
+    } catch (error) {
+      throw humanize(error)
+    }
+  }
+
+  private async *run(messages: ChatTurn[], opts?: StreamOptions): AsyncIterable<StreamEvent> {
     const stream = await this.client.chat.completions.create(
       {
         model: this.model,
@@ -60,6 +68,22 @@ export class OpenAICompatibleProvider implements ChatProvider {
       yield { type: 'tool_calls', calls }
     }
   }
+}
+
+/**
+ * 把服务商抛出来的错整理成一句人话。
+ *
+ * OpenAI SDK 会把 HTTP 状态码拼在消息最前面（`429 这周的额度用完了…`）。
+ * 服务器回的 message 本来就是写给人看的，前面挂一个三位数只是噪音——
+ * **学生对 429 这个数字做不了任何事**。状态码仍然进 console，排查时找得到。
+ */
+function humanize(error: unknown): Error {
+  if (!(error instanceof Error)) return new Error(String(error))
+  const cleaned = error.message.replace(/^\d{3}\s+/, '').trim()
+  if (!cleaned || cleaned === error.message) return error
+  const next = new Error(cleaned)
+  next.cause = error
+  return next
 }
 
 function toOpenAIMessage(turn: ChatTurn) {
