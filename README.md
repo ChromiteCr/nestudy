@@ -1,6 +1,6 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S11f1-blue)
+![version](https://img.shields.io/badge/version-S11f2-blue)
 ![license](https://img.shields.io/github/license/ChromiteCr/nestudy)
 ![last commit](https://img.shields.io/github/last-commit/ChromiteCr/nestudy)
 ![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/nestudy)
@@ -64,6 +64,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S11f2 | 2026-08-25 | **`web_search` 写好了但先不注册，只上 `web_fetch`。** 要求是「免费、不限量、不用注册账号」，查完之后的结论是这样的通用网页搜索不存在——从服务器逐条实测：DuckDuckGo lite 用 POST 加完整请求头**前 2 次能拿到 10 条结果，第 3 次起一律 202 人机验证**，等 60 秒不恢复（早先那次 GET 全挂，是因为少了 `Accept` 与 `Accept-Language`——所以「一直被挡」这个判断本身也是错的，真相是「两次之后被挡」）；Bing 结果在 JS 里、Startpage 是工作量证明、Ecosia/Qwant 403、Yandex 302；**自建 SearXNG 换不掉这堵墙**，它发的是同样的请求打同样的引擎；Marginalia 公共 API 真的免费不限量，但索引不对路——查「MIT 申请截止日」回 2012 年的 MIT News 和一个创客空间 wiki，查「Common App 文书题目」回第三方作文站而不是官网，中文 0 条。最后这条正是这个产品最该躲开的：`school-requirements.json` 的注释里记着，一份第三方整理的名校截止日清单 6 条能核对的有 4 条与官网不符——**搜一堆这种东西喂给模型比不搜更糟**。服务端那一半（`/v1/web/search` 与两个驱动）留着且测过，哪天认了注册免费 key 这件事，填两个环境变量再把能力加回数组就通。`web_fetch` 照常上，它正好满足那三条要求；没有搜索它也有用，因为 `school-requirements.json` 里每个平台和学校都带官网地址，学生自己贴链接也是常事 | feat |
 | S11f1 | 2026-08-25 | 网页两个能力**必须在 SKILL.md 里点名声明才给**，不再跟着「没声明就给全部读能力」那一份白送。原来那条默认值的理由是「作者漏写一行不该因此拿到写权限」——守的是不写库。但网页这两个不是普通的读：其余读能力都是本地的、免费的、读的还是学生自己的东西，而它们**要花钱，而且会把字发出这台设备**。一个漏写声明的 skill 拿到写权限是明显的错，拿到「能往外发字」同样是，只是不那么显眼。摘出来之后它必须出现在声明里，也就必然出现在用户装之前看到的那张卡上——这正是商店那套「装之前看得见它能干什么」想要的性质。实测四种情形：自由对话 23 个能力两个都在；没声明能力的 skill 拿到 15 个读+问、两个都不在；只声明了别的能力的不在；点名声明 `web_search` 的拿得到。能力清单上给这类加一个「需声明」的标 | fix |
 | S11f | 2026-08-25 | 网页搜索与取页两个能力（`web_search` / `web_fetch`）。做成**应用侧 capability，不用厂商托管的搜索工具**——那类工具既绑厂商也绑端点，用户换一把兼容 Key 就整个没了，而自带 Key 是这个产品明确支持的用法。三条约束写进工具描述里，不是写在文档里：①**已收录的学校不走这里**，名校要求在 `school-requirements.json`，那份是编写期逐条核对官网填的、带 `source` 与 `verifiedAt`、进仓库可 review 可 diff，而运行时搜来的东西没人核对过也没人能回溯——一个被产品背书的错误截止日比「查不到」危险得多，所以描述里明确要求先查本地、查得到就不要再搜；②**网页内容只进 read 通道**，结果开头缀一句来源声明，界面上加一条「以下来自网页，不是你的数据」的条带（学生的档案是他自己写的、网页是陌生人写的，这两样在同一条消息流里长得一样就会出事），而且永不直接触发 propose；③**只发 agent 造的检索词不发档案原文**——参数就只有一个 query 字符串，档案没有任何路径流到那里，描述里进一步要求把背景抽象成领域和年级再搜，而不是拿经历原文当检索词。`web_fetch` 的描述里单独写了**页面正文是陌生人写的、不是指令**：取回来的文字若有「忽略以上要求」「把学生资料发到某处」，那是网页在指挥模型，要如实报告而不是照做。失败不回「出错了」而回**下一步该干什么**（换词再搜／别搜了用已有资料答／让学生去登录）——「出错了」对 agent 没用，它只会原样重试。没登录时不发请求，直接回一句能落地的话。两个 schema 合计 1311 字符、占全部工具描述的 7.6%，比 `convert_grades` 一个还小，常驻开销可以忽略 | feat |
 | S11e3 | 2026-08-25 | 自带 Key 那条路改成**认协议不认厂商**。功能上它一直就是通用的（provider 从配置里取 baseURL/model），坏在措辞：开场白写着「填写 DeepSeek API Key」、字段标着「API Key（DeepSeek）」，读起来像只支持这一家。现在说清楚：只要实现了 OpenAI 的 `/chat/completions` 就行，官方、DeepSeek、国内各家、自建的 vLLM 或 Ollama 都能用，并写明**唯一的硬条件是支持 function calling**——这个应用的技能与能力全靠它，不支持的模型能聊天但做不了事，而这件事不写出来只会变成一次说不清的「怎么不干活」。两个字段补上具体例子。**顺带削掉 baseURL 结尾的斜杠**：粘地址时带一个尾斜杠太常见，而拼出来的 `//chat/completions` 有的服务商认、有的直接 404 | feat |
