@@ -229,6 +229,15 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
                   {group.map((c) => (
                     <li key={c.name} className="min-w-0" title={c.summary}>
                       {c.label} <Mono className="break-all text-muted-foreground">{c.name}</Mono>
+                      {/* 这几个不在「没声明就给全部读」那一份里：它们花钱，而且会把字发出这台设备 */}
+                      {c.requiresDeclaration && (
+                        <span
+                          className="ml-1 rounded bg-muted px-1 py-0.5 text-[0.7em] text-muted-foreground"
+                          title="skill 必须在 SKILL.md 里点名声明才拿得到"
+                        >
+                          需声明
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

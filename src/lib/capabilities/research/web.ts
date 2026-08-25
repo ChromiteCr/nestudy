@@ -80,6 +80,8 @@ export const webSearchCapability: Capability = {
   },
   summary: '按关键词搜公开网页，返回标题、链接与摘要（不含学生的任何数据）',
   owner: 'core',
+  // 会花钱、会把字发出这台设备，所以 skill 必须点名声明才给
+  requiresDeclaration: true,
   schema: {
     name: 'web_search',
     description:
@@ -157,6 +159,7 @@ export const webFetchCapability: Capability = {
   },
   summary: '打开一个公开网页，取回它的正文（只取文本，不执行页面上的任何东西）',
   owner: 'core',
+  requiresDeclaration: true,
   schema: {
     name: 'web_fetch',
     description:
