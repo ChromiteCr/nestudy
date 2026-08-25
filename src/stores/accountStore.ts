@@ -82,7 +82,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     const me = get().me
     if (!me) return
     try {
-      set({ me: { ...me, quotas: await api.quota() } })
+      set({ me: { ...me, quota: await api.quota() } })
     } catch {
       /* 额度显示旧的比显示错的好，静默 */
     }

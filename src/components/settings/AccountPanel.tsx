@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Mono } from '@/components/ui/mono'
-import { ApiError, NetworkError, type Tier } from '@/lib/api'
+import { ApiError, NetworkError, type QuotaView } from '@/lib/api'
 import { useAccountStore } from '@/stores/accountStore'
 
 /**
@@ -47,8 +47,6 @@ export function AccountPanel() {
     </div>
   )
 }
-
-const TIER_LABEL: Record<Tier, string> = { tutor: '对话', quick: '整理' }
 
 function SignedIn({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const me = useAccountStore((s) => s.me)!
@@ -102,22 +100,7 @@ function SignedIn({ onSignOut }: { onSignOut: () => Promise<void> }) {
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label>本周额度</Label>
-        {(Object.keys(me.quotas) as Tier[]).map((tier) => {
-          const q = me.quotas[tier]
-          const left = Math.max(0, q.limit - q.used)
-          return (
-            <div key={tier} className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{TIER_LABEL[tier] ?? tier}</span>
-              <Mono>
-                {left} / {q.limit}
-              </Mono>
-            </div>
-          )
-        })}
-        <p className="text-xs text-muted-foreground">周一零点恢复。</p>
-      </div>
+      <QuotaBar quota={me.quota} />
     </div>
   )
 }
@@ -236,6 +219,42 @@ function SignInForm() {
       <Button onClick={() => void send()} disabled={busy || !email.trim()}>
         发送验证码
       </Button>
+    </div>
+  )
+}
+
+/**
+ * 本周还剩多少。
+ *
+ * **给比例不给那个七位数。** 「还剩 1,847,203 / 2,000,000」等于没说——
+ * 没有人对 token 有直觉，而一个看不懂的额度和没有额度是一回事。
+ *
+ * 倍数不是 1 的时候一定要写出来：一个 0.1 倍的人只看到「额度很少」会以为产品坏了，
+ * 看到「你的倍数是 0.1」才知道那是设定。
+ */
+function QuotaBar({ quota }: { quota: QuotaView }) {
+  const ratio = quota.limitTokens > 0 ? Math.min(1, quota.usedTokens / quota.limitTokens) : 1
+  const left = Math.max(0, 1 - ratio)
+  const tight = left <= 0.1
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <Label>本周还剩</Label>
+        <Mono className={tight ? 'text-destructive' : 'text-muted-foreground'}>
+          {Math.round(left * 100)}%
+        </Mono>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full transition-[width] ${tight ? 'bg-destructive/70' : 'bg-foreground/40'}`}
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        周一零点恢复。按实际用量计——一次技能运行要跑好几轮，比单问一句花得多
+        {quota.multiplier !== 1 && `。你的额度倍数是 ${quota.multiplier}`}
+      </p>
     </div>
   )
 }

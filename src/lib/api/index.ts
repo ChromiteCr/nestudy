@@ -2,7 +2,7 @@ import type {
   ErrorCode,
   MeView,
   PublishResult,
-  Quotas,
+  QuotaView,
   SkillDetail,
   SkillPage,
   SkillQueueItem,
@@ -139,7 +139,7 @@ export const api = {
 
   signOut: () => request<void>('/v1/auth/sign-out', { method: 'POST' }),
 
-  quota: () => request<Quotas>('/v1/quota'),
+  quota: () => request<QuotaView>('/v1/quota'),
 
   // ---- Skill 商店 ----
 

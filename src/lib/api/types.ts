@@ -36,14 +36,23 @@ export const RELAY_MODEL: Record<Tier, string> = {
   quick: 'nes-quick',
 }
 
+/**
+ * 额度。**按 token，不按轮。**
+ *
+ * 曾经是按轮的，而 nestudy 的 agent loop 一次技能运行就是六到八次调用——
+ * 按轮算等于同一件事被收八遍，200 次/周第一周就爆。按 token 算之后，
+ * 轮次花多少就是多少，档位（tutor/quick）只剩「路由到哪个上游模型」这一个作用。
+ *
+ * 代价是 token 数学生数不清，所以界面上给**剩余比例**而不是那个七位数。
+ */
 export interface QuotaView {
-  used: number
-  limit: number
+  usedTokens: number
+  limitTokens: number
+  /** 这个账号的倍数，默认 1。不是 1 的时候要显示，否则「额度很少」看起来像故障 */
+  multiplier: number
   /** 归零时刻（毫秒时间戳） */
   resetsAt: number
 }
-
-export type Quotas = Record<Tier, QuotaView>
 
 export interface MeView {
   id: string
@@ -51,7 +60,7 @@ export interface MeView {
   /** 自己填的，没填就是 null。不从邮箱前缀猜——猜出来的名字比留空更让人想去改 */
   name: string | null
   role: 'student' | 'teacher'
-  quotas: Quotas
+  quota: QuotaView
 }
 
 // ---- Skill 商店 ----
