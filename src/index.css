@@ -76,6 +76,8 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    /* 起步快、收尾慢，像是有质量的东西停下来，而不是走完了一段时间 */
+    --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -243,6 +245,188 @@
  * agent 在做什么应该是"浮现"出来的——一轮里可能连出好几行，
  * 啪地跳出来会让人以为界面闪了一下，看不清哪一行是新的。
  */
+/**
+ * 描边 + 浮起标签的输入框。
+ *
+ * 与 nes modeling 用的是同一套（那边先落地的），两个应用同属 nestudy，
+ * 输入框长得不一样是没有理由的。**AI 对话那个输入框不用这套**——
+ * 它不是一格表单，是一张纸，加一个浮起的「问点什么」标签只会碍事。
+ *
+ * 三层拼起来：真正的控件、看得见的那个标签、以及用来在描边上开缺口的 fieldset。
+ */
+.field {
+  /* 手机上不降到 16px 以下：iOS 会在聚焦时把整页放大，退出时也不缩回去 */
+  --field-font: var(--text-base);
+  --field-h: 3.25rem;
+  --field-pad: 0.9375rem;
+  /* 标签浮起后缩到 0.75，缺口按同一个尺寸开，两边各留 0.3rem 余量 */
+  --field-scale: 0.75;
+  --field-notch: calc(var(--field-font) * var(--field-scale));
+  --field-line: 1.5rem;
+  --field-label-top: calc((var(--field-h) - var(--field-line)) / 2);
+  /* 浮起后标签的横中线正好落在上边框那条线上 */
+  --field-lift: calc(0rem - var(--field-label-top) - var(--field-line) / 2);
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+@media (width >= 48rem) {
+  .field {
+    --field-font: var(--text-sm);
+  }
+}
+
+/** 紧凑档：一行并排好几个的地方。44px 是手指还够得着的下限 */
+.field[data-size='sm'] {
+  --field-h: 2.75rem;
+  --field-pad: 0.75rem;
+}
+
+/** 多行：标签停在第一行文字那一格，不是整个框的正中 */
+.field[data-multiline] {
+  --field-label-top: 0.875rem;
+}
+
+.field-control {
+  width: 100%;
+  height: var(--field-h);
+  padding-inline: var(--field-pad);
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: var(--field-font);
+  line-height: 1;
+  outline: none;
+}
+
+.field-control[data-multiline] {
+  height: auto;
+  min-height: var(--field-h);
+  padding-block: 0.875rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.field-control::placeholder {
+  color: transparent;
+}
+
+/**
+ * 自动填充。Chrome 会拿 !important 往输入框里刷一块淡蓝底色，
+ * 描边框里于是出现一个直角的蓝方块。改不掉那条声明，但可以把它裁到字形上——
+ * 底色只画在笔画背后，而笔画本身是实心的，等于看不见。
+ */
+.field-control:-webkit-autofill,
+.field-control:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.field-control:disabled {
+  cursor: not-allowed;
+}
+
+.field:has(.field-control:disabled) {
+  opacity: 0.5;
+}
+
+.field-label {
+  position: absolute;
+  top: var(--field-label-top);
+  left: var(--field-pad);
+  display: flex;
+  align-items: center;
+  height: var(--field-line);
+  max-width: calc(100% - var(--field-pad) * 2);
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--field-font);
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transform-origin: left center;
+  transition:
+    transform 200ms var(--ease-fluid),
+    color 200ms var(--ease-fluid);
+}
+
+.field-control:focus ~ .field-label,
+.field-control:not(:placeholder-shown) ~ .field-label {
+  transform: translateY(var(--field-lift)) scale(var(--field-scale));
+  /* 缩小之后同样的像素宽度能装下更多字，上限跟着放开 */
+  max-width: calc((100% - var(--field-pad) * 2) / var(--field-scale));
+}
+
+.field-control:focus ~ .field-label {
+  color: var(--ring);
+}
+
+/**
+ * 描边整体上移半个缺口高度：legend 骑在 fieldset 的上边框上，
+ * 于是这条线最终落回输入框的上沿。
+ */
+.field-outline {
+  position: absolute;
+  inset: calc(var(--field-notch) / -2) 0 0;
+  margin: 0;
+  padding-inline: calc(var(--field-pad) - 0.3rem);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  pointer-events: none;
+  transition: border-color 200ms var(--ease-fluid);
+}
+
+.field-outline legend {
+  float: none;
+  width: auto;
+  /* 收起时不占宽度，边框是连着的一圈 */
+  max-width: 0.01px;
+  height: var(--field-notch);
+  padding: 0;
+  font-size: var(--field-notch);
+  white-space: nowrap;
+  /* 只用来把缺口撑开，字由上面那个 label 画 */
+  visibility: hidden;
+  transition: max-width 150ms var(--ease-fluid);
+}
+
+.field-outline legend > span {
+  display: inline-block;
+  padding-inline: 0.3rem;
+}
+
+.field-control:focus ~ .field-outline legend,
+.field-control:not(:placeholder-shown) ~ .field-outline legend {
+  max-width: 100%;
+}
+
+/* 加宽而不是换颜色深浅：描边只有在真的变粗时才像是「这一格活了」 */
+.field-control:focus ~ .field-outline {
+  border-width: 2px;
+  border-color: var(--ring);
+}
+
+.field-control[aria-invalid='true'] ~ .field-outline {
+  border-color: var(--destructive);
+}
+
+.field-control[aria-invalid='true'] ~ .field-label {
+  color: var(--destructive);
+}
+
+/** 减弱动效：标签照样浮起来，只是不再滑过去 */
+@media (prefers-reduced-motion: reduce) {
+  .field-label,
+  .field-outline legend {
+    transition-duration: 1ms;
+  }
+}
+
 @keyframes tool-appear {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }

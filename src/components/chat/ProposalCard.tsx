@@ -3,7 +3,7 @@ import { Archive, CalendarClock, Check, GraduationCap, History, Network, Puzzle,
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
@@ -329,10 +329,13 @@ function ArtifactProposalCard({
                   {ARTIFACT_KIND_LABEL[a.kind]}
                 </Badge>
                 {editable ? (
-                  <Input
+                  <TextField
+                    label="标题"
+                    size="sm"
+                    wrapClassName="min-w-0 flex-1"
+                    className="font-medium"
                     value={a.title}
                     onChange={(e) => patch(i, { title: e.target.value })}
-                    className="h-7 min-w-0 flex-1 font-medium"
                   />
                 ) : (
                   <span className="min-w-0 flex-1 truncate font-medium">{a.title}</span>

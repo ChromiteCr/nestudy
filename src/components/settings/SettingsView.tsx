@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Cpu, Database, Download, GraduationCap, Palette, Upload, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -113,48 +113,37 @@ function ModelPanel() {
         </p>
       ) : (
         <>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">API Key（DeepSeek）</span>
-            <Input
-              type="password"
-              value={modelConfig.apiKey}
-              placeholder="sk-…"
-              className="font-mono"
-              onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
-            />
-            <span className="text-xs text-muted-foreground">在 platform.deepseek.com 创建</span>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">模型</span>
-            <Input
-              value={modelConfig.model}
-              className="font-mono"
-              onChange={(e) => void updateModelConfig({ model: e.target.value })}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">API Base URL</span>
-            <Input
-              value={modelConfig.baseURL}
-              className="font-mono"
-              onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
-            />
-            <span className="text-xs text-muted-foreground">兼容任意 OpenAI 格式的服务商</span>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">上下文窗口（token）</span>
-            <Input
-              type="number"
-              min={4000}
-              step={1000}
-              value={modelConfig.contextWindow}
-              className="font-mono"
-              onChange={(e) => void updateModelConfig({ contextWindow: Number(e.target.value) || 0 })}
-            />
-            <span className="text-xs text-muted-foreground">
-              决定对话涨到多长时自动压缩成摘要。换模型时按它的窗口改，填小了会频繁压缩，填大了会撞上模型上限。
-            </span>
-          </label>
+          <TextField
+            label="API Key"
+            type="password"
+            value={modelConfig.apiKey}
+            className="font-mono"
+            hint="在服务商后台创建。只存在这台设备上，不会上传"
+            onChange={(e) => void updateModelConfig({ apiKey: e.target.value })}
+          />
+          <TextField
+            label="模型"
+            value={modelConfig.model}
+            className="font-mono"
+            onChange={(e) => void updateModelConfig({ model: e.target.value })}
+          />
+          <TextField
+            label="API Base URL"
+            value={modelConfig.baseURL}
+            className="font-mono"
+            hint="兼容任意 OpenAI 格式的服务商"
+            onChange={(e) => void updateModelConfig({ baseURL: e.target.value })}
+          />
+          <TextField
+            label="上下文窗口（token）"
+            type="number"
+            min={4000}
+            step={1000}
+            value={modelConfig.contextWindow}
+            className="font-mono"
+            hint="决定对话涨到多长时自动压缩成摘要。换模型时按它的窗口改，填小了会频繁压缩，填大了会撞上模型上限。"
+            onChange={(e) => void updateModelConfig({ contextWindow: Number(e.target.value) || 0 })}
+          />
         </>
       )}
     </div>

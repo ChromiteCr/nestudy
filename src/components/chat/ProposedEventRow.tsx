@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
 import { EVENT_CATEGORY_LABEL, type ProposedGrowthEvent } from '@/types'
@@ -43,10 +43,12 @@ export function ProposedEventRow({ event, editable, onChange }: ProposedEventRow
             </Badge>
           )}
           {editable ? (
-            <Input
+            <TextField
+              label="标题"
+              size="sm"
+              wrapClassName="min-w-0 flex-1"
               value={event.title}
               onChange={(e) => onChange({ title: e.target.value })}
-              className="h-7 min-w-0 flex-1"
             />
           ) : (
             <span className={cn('min-w-0 flex-1 truncate', dimmed && 'line-through')}>{event.title}</span>
@@ -55,19 +57,22 @@ export function ProposedEventRow({ event, editable, onChange }: ProposedEventRow
         <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
           {editable ? (
             <>
-              <Input
+              <TextField
+                label={event.kind === 'long' ? '开始' : '日期'}
+                size="sm"
+                wrapClassName="w-36"
                 type="date"
                 value={event.startDate}
                 onChange={(e) => onChange({ startDate: e.target.value })}
-                className="h-7 w-36"
               />
               {event.kind === 'long' && (
-                <Input
+                <TextField
+                  label="结束"
+                  size="sm"
+                  wrapClassName="w-36"
                   type="date"
                   value={event.endDate ?? ''}
-                  placeholder="进行中"
                   onChange={(e) => onChange({ endDate: e.target.value || null })}
-                  className="h-7 w-36"
                 />
               )}
             </>

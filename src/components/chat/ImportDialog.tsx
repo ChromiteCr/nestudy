@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
+import { TextArea } from '@/components/ui/text-field'
 import { parseImportText } from '@/lib/ai/import'
 import { applyProposal } from '@/lib/capabilities'
 import { ProposedEventRow } from './ProposedEventRow'
@@ -74,11 +74,12 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
         {!preview ? (
           <div className="flex flex-col gap-3">
-            <Textarea
+            <TextArea
+              label="粘贴通知原文"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={'例如：\n各位同学，AP微积分BC考试定于5月11日上午8点，请5月1日前完成报名缴费…'}
               className="min-h-36"
+              hint="例如：各位同学，AP 微积分 BC 考试定于 5 月 11 日上午 8 点，请 5 月 1 日前完成报名缴费…"
             />
             <Button disabled={!text.trim() || parsing} onClick={() => void handleParse()} className="gap-1.5">
               {parsing ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}

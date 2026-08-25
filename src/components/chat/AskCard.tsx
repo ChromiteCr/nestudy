@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check, CircleHelp, SkipForward } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
@@ -184,11 +184,12 @@ function QuestionBlock({ question, answered, pending, picked, other, onToggle, o
           })}
 
           {pending && picked.includes(OTHER) && (
-            <Input
+            <TextField
+              label="你的情况是……"
+              size="sm"
+              wrapClassName="mt-0.5"
               autoFocus
               value={other}
-              placeholder="你的情况是……"
-              className="mt-0.5"
               onChange={(e) => onOther(e.target.value)}
             />
           )}

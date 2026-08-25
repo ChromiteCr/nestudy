@@ -13,7 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { PanelLeftClose, PanelLeftOpen, Trash2, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePlanningStore } from '@/stores/planningStore'
@@ -169,10 +169,11 @@ export function CanvasView() {
                 </Button>
               </div>
             </div>
-            <Input
+            <TextField
+              label="这两件事之间发生了什么？"
+              size="sm"
+              wrapClassName="mb-2"
               value={selectedEdge.label}
-              placeholder="这两件事之间发生了什么？"
-              className="mb-2 h-8 text-sm"
               onChange={(e) => void editCanvasEdge(selectedEdge.id, { label: e.target.value })}
             />
             <label className="flex flex-col gap-1">

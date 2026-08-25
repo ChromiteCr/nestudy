@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { AlertTriangle, Check, Download, RefreshCw, Search, ThumbsDown, ThumbsUp, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import {
   api,
@@ -109,10 +109,10 @@ function BrowseTab() {
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            placeholder="按名字或说明搜"
+          <TextField
+            label="按名字或说明搜"
             className="pl-8"
+            value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void search(query.trim())
@@ -551,10 +551,11 @@ function QueueCard({ item, onDone }: { item: SkillQueueItem; onDone: () => void 
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Input
+        <TextField
+          label="驳回理由（作者看得到）"
+          size="sm"
+          wrapClassName="min-w-40 flex-1"
           value={note}
-          placeholder="驳回理由（作者看得到）"
-          className="min-w-40 flex-1"
           maxLength={500}
           onChange={(e) => setNote(e.target.value)}
         />

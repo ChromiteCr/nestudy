@@ -1,6 +1,6 @@
 # 学栖 nestudy
 
-![version](https://img.shields.io/badge/version-S11d1-blue)
+![version](https://img.shields.io/badge/version-S11e-blue)
 ![license](https://img.shields.io/github/license/ChromiteCr/nestudy)
 ![last commit](https://img.shields.io/github/last-commit/ChromiteCr/nestudy)
 ![commit activity](https://img.shields.io/github/commit-activity/m/ChromiteCr/nestudy)
@@ -64,6 +64,7 @@ Vite · React 19 · TypeScript · Tailwind CSS v4 · shadcn/ui · Zustand · Dex
 
 | 版本 | 日期 | 变更内容 | 类型 |
 |------|------|----------|------|
+| S11e | 2026-08-25 | 输入框换成**描边 + 浮起标签**那一套（与 nes modeling 同一份，那边先落地的）。两个应用同属 nestudy，输入框长得不一样是没有理由的。24 处、9 个文件全部换掉，`ui/input.tsx` 与 `ui/textarea.tsx` 删除——没人用了还留着，只会让下一个人伸手拿错那个。**AI 对话那个输入框不在其中**：它不是一格表单，是一张纸，加一个浮起的「问点什么」标签只会碍事（它本来就用原生 textarea，天然在外）。占位符被写成一个空格，因为 `:placeholder-shown` 是「这一格空着吗」唯一不用受控 value 就能问到的地方；真的占位文字在 CSS 里涂透明——标签已经在那儿了，再垫一层灰字就是同一句话说两遍。描边的缺口靠 fieldset 的 legend 撑开，所以 legend 里要把标签文字再写一遍（不可见，只用来占宽度）。卡片里原来 28px 的行内编辑框跟着长到 44px（`sm` 档），那是手指够得着的下限。下拉框保持原样——参考实现那边也没有做 field 化 | style |
 | S11d1 | 2026-08-25 | 删掉 `scripts/seed-store.mjs` 与 `store:seed`。它走 `POST /v1/skills` 投稿，要一个会话令牌——而官方发布账号最终定成了**不能登录的系统账号**（`nestudy.cn` 没有 MX，收不了验证码，也不该为署名去建一个真邮箱），所以那条路对它永远走不通。播种改由服务端的 `seed-official.js` 直接写库。留一个跑不了的脚本比没有更坏——下一个人会照着它试半天 | chore |
 | S11d | 2026-08-25 | **上线了**：`nestudy.cn` 与 `www.nestudy.cn` 由服务器发，`/api/*` 转给与 nes modeling **共用的那一个 relay**（账号、额度、skill 商店同一份）。退掉 GitHub Pages——删 `deploy.yml` 与 `public/CNAME`，改成 rsync；理由不是省事，是前端和 relay 必须同源，否则要给一套刻意保持同源的后端开第一个 CORS 口子。新增 `deploy/nestudy.caddy` 与 `deploy/setup.md`。**站点列表写死主机名而不是 `*.nestudy.cn`**：通配证书只能走 DNS-01，要 xcaddy 重编整个 Caddy 二进制，为几个子域重编反代不划算。`app.nestudy.cn` 暂不列入——它的 CNAME 还指着 Pages，名字没解析过来就申请证书会失败并进退避重试。部署过程中的两处实况记进了 setup.md：顶级域第一次签证书**失败了一次**（LE 二次校验节点解析 `nestudy.cn` 超时），Caddy 自动从 tls-alpn-01 退回 http-01 重试后拿到；`caddy validate` 会以 root 建出新站点日志文件（root:root 600），而 Caddy 跑在 caddy 用户下打不开它，不 chown 的话下一句 reload 直接 permission denied。全程用 `luminara-guard.sh` 的 snapshot/verify 夹着，**十项全绿，包括「Luminara 主进程号没变」**——进程号没变就意味着它自始至终没被重启过 | milestone |
 | S11c | 2026-08-25 | **免费通道接上了**——`resolveProvider` 的 `'free'` 分支从 S2 起就是一句 throw，现在指向共用 relay：`baseURL` 用同源的 `/api/v1`、`apiKey` 用会话令牌（**上游那把 key 在服务器上，一个字节都不会到浏览器里**）。`resolveProvider` 加一个 `purpose` 参数：起标题和压缩历史走 `nes-quick`，正经对话走 `nes-tutor`——把二十条消息缩成一段话不需要最好的模型，而它一次长对话要跑好几遍；自带 Key 的人只配了一个模型，两种用途都是它。设置里新增通道二选一，两条路的说明写的是**请求经不经过我们的服务器**而不是「贵不贵」：自带 Key 时浏览器直连、我们连你问了什么都不知道；免费通道毕竟是一次经手，这件事该写在选项里不是写在文档里。开场白那一屏跟着分叉：免费通道没登录时说「去登录」而不是「去设置 API Key」。顺带把服务商错误里 SDK 拼在最前面的 HTTP 状态码剥掉——服务器回的 message 本来就是人话，前面挂个「429」只是噪音，**学生对那个数字做不了任何事**；状态码仍进 console。本地拿假上游跑通了整条链路：流式回答、标题走 quick、tutor/quick/review 三档在 usage 表里分开、额度只算前两档、超额时界面显示「这周的额度用完了，周一零点恢复。」 | feat |

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { ApiError, NetworkError, type QuotaView } from '@/lib/api'
 import { useAccountStore } from '@/stores/accountStore'
@@ -80,24 +80,22 @@ function SignedIn({ onSignOut }: { onSignOut: () => Promise<void> }) {
         </Button>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="account-name">名字</Label>
-        <div className="flex gap-2">
-          <Input
-            id="account-name"
-            className="flex-1"
-            value={name}
-            maxLength={40}
-            placeholder="别人在商店里看到的署名"
-            onChange={(e) => setName_(e.target.value)}
-          />
-          <Button onClick={() => void save()} disabled={saving || name.trim() === (me.name ?? '')}>
-            保存
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          留空的话，商店里显示的是邮箱 @ 前面那一截。
-        </p>
+      <div className="flex items-start gap-2">
+        <TextField
+          label="名字"
+          wrapClassName="flex-1"
+          value={name}
+          maxLength={40}
+          hint="别人在商店里看到的署名。留空的话显示的是邮箱 @ 前面那一截"
+          onChange={(e) => setName_(e.target.value)}
+        />
+        <Button
+          className="h-13 shrink-0"
+          onClick={() => void save()}
+          disabled={saving || name.trim() === (me.name ?? '')}
+        >
+          保存
+        </Button>
       </div>
 
       <QuotaBar quota={me.quota} />
@@ -156,24 +154,22 @@ function SignInForm() {
   if (step === 'code') {
     return (
       <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="account-code">验证码</Label>
-          <Input
-            id="account-code"
-            value={code}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="邮件里那六位"
-            className="font-mono tracking-widest"
-            onChange={(e) => setCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && code.trim()) void confirm()
-            }}
-          />
-          <p className="text-xs text-muted-foreground">
-            发到了 <Mono>{email.trim()}</Mono>，十分钟内有效。
-          </p>
-        </div>
+        <TextField
+          label="验证码"
+          value={code}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          className="font-mono tracking-widest"
+          hint={
+            <>
+              发到了 <Mono>{email.trim()}</Mono>，十分钟内有效。
+            </>
+          }
+          onChange={(e) => setCode(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && code.trim()) void confirm()
+          }}
+        />
         <div className="flex gap-2">
           <Button onClick={() => void confirm()} disabled={busy || !code.trim()}>
             登录
@@ -188,32 +184,24 @@ function SignInForm() {
 
   return (
     <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label htmlFor="account-email">邮箱</Label>
-        <Input
-          id="account-email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          placeholder="you@example.com"
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && email.trim()) void send()
-          }}
-        />
-      </div>
+      <TextField
+        label="邮箱"
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && email.trim()) void send()
+        }}
+      />
 
       {needsInvite && (
-        <div className="space-y-1.5">
-          <Label htmlFor="account-invite">邀请码</Label>
-          <Input
-            id="account-invite"
-            value={invite}
-            placeholder="从组织者那里拿"
-            onChange={(e) => setInvite(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">只在第一次登录时要，之后只输邮箱。</p>
-        </div>
+        <TextField
+          label="邀请码"
+          value={invite}
+          hint="从组织者那里拿。只在第一次登录时要，之后只输邮箱"
+          onChange={(e) => setInvite(e.target.value)}
+        />
       )}
 
       <Button onClick={() => void send()} disabled={busy || !email.trim()}>
