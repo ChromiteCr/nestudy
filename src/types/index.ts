@@ -729,8 +729,11 @@ export interface Conversation {
 
 /**
  * 模型通道：
- * - custom：自带 Key，浏览器直连 OpenAI 兼容 API（S1）
- * - free：经北京服务器无状态代理，匿名 UUID 鉴权（S2 预留）
+ * - custom：自带 Key，浏览器直连 OpenAI 兼容 API。Key 与对话都不经过我们
+ * - free：经共用 relay 转发，上游那把 key 在服务器上，浏览器里没有
+ *
+ * **两条都要先登录**（邮箱验证码换会话令牌）。免费那条是技术上必须——
+ * relay 认的就是这个令牌；自带 Key 那条是产品上的决定，见 `resolveProvider`。
  */
 export type ModelTier = 'custom' | 'free'
 

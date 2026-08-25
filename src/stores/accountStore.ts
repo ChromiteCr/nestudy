@@ -11,6 +11,14 @@ import { ApiError, api, getToken, setToken, type MeView } from '@/lib/api'
 
 interface AccountState {
   me: MeView | null
+  /**
+   * 本机有没有会话令牌。**这才是「登录过没有」的口径，`me` 不是。**
+   *
+   * 断网时问不到服务器，`me` 只能是 null，可人确实登录过——按 `me` 判会让界面
+   * 对着一个已登录的人说「去登录」。而 `resolveProvider` 那道门判的正是令牌，
+   * 界面要跟它说同一件事，否则会出现「提示去登录、但其实能发」这种自相矛盾。
+   */
+  hasToken: boolean
   /** 开屏那一刻本地就有令牌，先当作「可能已登录」，等 `load()` 问过服务器再定 */
   loading: boolean
   /** 上一次和服务器说话失败的原因。连不上和被拒绝要分得开 */
@@ -26,12 +34,13 @@ interface AccountState {
 
 export const useAccountStore = create<AccountState>((set, get) => ({
   me: null,
+  hasToken: Boolean(getToken()),
   loading: Boolean(getToken()),
   offline: false,
 
   load: async () => {
     if (!getToken()) {
-      set({ me: null, loading: false })
+      set({ me: null, hasToken: false, loading: false })
       return
     }
     set({ loading: true })
@@ -41,7 +50,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
       // 令牌过期／被吊销：本地那份已经没用了，清掉，让界面回到未登录
       if (error instanceof ApiError && error.status === 401) {
         setToken(null)
-        set({ me: null })
+        set({ me: null, hasToken: false })
       } else {
         // 连不上不等于没登录。**不清令牌**——网络回来之后他还是他，
         // 清了的话地铁里刷新一次就要重新收一封验证码
@@ -59,7 +68,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
   verify: async (email, code) => {
     const { token, user } = await api.verify(email, code)
     setToken(token)
-    set({ me: user, offline: false })
+    set({ me: user, hasToken: true, offline: false })
   },
 
   setName: async (name) => {
@@ -75,7 +84,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
       /* 服务器不在也要能退出来，本地清掉就是退出了 */
     }
     setToken(null)
-    set({ me: null })
+    set({ me: null, hasToken: false })
   },
 
   refreshQuota: async () => {

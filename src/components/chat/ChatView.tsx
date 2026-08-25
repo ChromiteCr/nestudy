@@ -26,11 +26,18 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const error = useChatStore((s) => s.error)
   const retryLast = useChatStore((s) => s.retryLast)
   const pendingPrompt = useChatStore((s) => s.pendingPrompt)
-  // 自带 Key 要有 key；免费通道要登录过。两条路都没走通才拦在开场白那一屏
-  const tier = useSettingsStore((s) => s.modelConfig.tier)
-  const hasKey = useSettingsStore((s) => !!s.modelConfig.apiKey)
-  const signedIn = useAccountStore((s) => !!s.me)
-  const ready = tier === 'free' ? signedIn : hasKey
+  /**
+   * 开场白那一屏拦不拦人。
+   *
+   * **两条通道都要先登录**，自带 Key 也一样；在这之上，自带 Key 还得有 key。
+   * 顺序就是提示的顺序：没登录就先说登录，别让人填完 key 再被拦一次。
+   *
+   * 判据是 `hasToken` 不是 `me`——断网时 `me` 是 null 但人确实登录过，
+   * 而这一屏和 `resolveProvider` 那道门必须说同一件事。
+   */
+  const needsKey = useSettingsStore((s) => s.modelConfig.tier === 'custom' && !s.modelConfig.apiKey)
+  const signedIn = useAccountStore((s) => s.hasToken)
+  const ready = signedIn && !needsKey
   const scrollRef = useRef<HTMLDivElement>(null)
   // 挂载之前就存在的消息不做入场动画：否则每次刷新/切会话，
   // 满屏工具行都要重放一遍级联，那不是提示新内容，那是噪音
@@ -107,13 +114,13 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
                   我帮国际部学生做学习规划、背景提升和时间管理。
                   {ready
                     ? '说说你现在最想解决的事？'
-                    : tier === 'free'
+                    : !signedIn
                       ? '先去设置里登录，用邮箱收个验证码就行。'
                       : '先在设置里填一个模型 API Key，然后我们开始。'}
                 </p>
                 {!ready && (
                   <Button size="sm" onClick={onOpenSettings}>
-                    {tier === 'free' ? '去登录' : '去设置 API Key'}
+                    {!signedIn ? '去登录' : '去设置 API Key'}
                   </Button>
                 )}
               </div>

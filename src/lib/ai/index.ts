@@ -23,15 +23,37 @@ const FREE_CONTEXT_WINDOW = 64_000
  */
 export type ProviderPurpose = 'chat' | 'aux'
 
+/**
+ * 没登录时两条通道都走不了。
+ *
+ * 说「档案」不是「账号」：S11e2 之后账号并进了档案那一页，这里的指路要跟着改，
+ * 否则学生按这句话去找会找不到。
+ */
+const SIGN_IN_FIRST = '要先登录才能用：设置 → 档案，用邮箱收一个验证码。'
+
 export function resolveProvider(config: ModelConfig, purpose: ProviderPurpose = 'chat'): ChatProvider {
+  /**
+   * **两条通道都要登录，自带 Key 也不例外。**
+   *
+   * 自带 Key 那条本来不需要服务器——浏览器直连服务商，Key 和对话一个字节都不经过
+   * 我们。所以这道门不是技术上的必需，是产品上的决定：用这个应用的人得有一个账号。
+   *
+   * 也因此**它不是一道安全边界**，得说清楚：这条路上没有服务器参与，
+   * 手动往 localStorage 里塞一个假令牌就能绕过去。真正兜住的是开屏那次
+   * `accountStore.load()`——它拿令牌去问服务器，假的和过期的都会在那时候被清掉。
+   * 也就是说，绕过去的人在下一次联网开屏时就被请回登录页。
+   *
+   * 判据用「本机有没有会话令牌」而不是「me 已经加载出来」：断网时问不到服务器，
+   * `me` 是 null，但人确实登录过——而自带 Key 那条路**本来就该能离线用**
+   * （自建的 vLLM 或 Ollama 就在同一个局域网里）。按 `me` 判会把这些人整个挡在外面。
+   */
+  const token = getToken()
+  if (!token) throw new Error(SIGN_IN_FIRST)
+
   switch (config.tier) {
     case 'custom':
       return new OpenAICompatibleProvider(config)
     case 'free': {
-      const token = getToken()
-      if (!token) {
-        throw new Error('免费通道要先登录：设置 → 账号，用邮箱收一个验证码。')
-      }
       return new OpenAICompatibleProvider({
         tier: 'free',
         // relay 认的是会话令牌，不是模型服务商的 key。上游那把 key 在服务器上，

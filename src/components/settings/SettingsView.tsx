@@ -111,7 +111,9 @@ function ProfilePanel() {
 function ModelPanel() {
   const modelConfig = useSettingsStore((s) => s.modelConfig)
   const updateModelConfig = useSettingsStore((s) => s.updateModelConfig)
-  const signedIn = useAccountStore((s) => !!s.me)
+  // `hasToken` 不是 `me`：断网时问不到服务器，`me` 是 null 但人确实登录过。
+  // 这一页得和 `resolveProvider` 那道门说同一件事
+  const signedIn = useAccountStore((s) => s.hasToken)
   const free = modelConfig.tier === 'free'
 
   return (
@@ -123,14 +125,18 @@ function ModelPanel() {
           note={
             signedIn
               ? '请求经服务器转发，额度按 token 算。对话内容不落日志。'
-              : '要先在「账号」里登录。请求经服务器转发，对话内容不落日志。'
+              : '要先在「档案」里登录。请求经服务器转发，对话内容不落日志。'
           }
           onSelect={() => void updateModelConfig({ tier: 'free' })}
         />
         <ChannelOption
           active={!free}
           title="自带 Key"
-          note="任何兼容 OpenAI 协议的服务商都能用。浏览器直连，Key 只存在本机，请求不经过任何中间服务器。"
+          note={
+            signedIn
+              ? '任何兼容 OpenAI 协议的服务商都能用。浏览器直连，Key 只存在本机，请求不经过任何中间服务器。'
+              : '也要先在「档案」里登录。登录之后浏览器直连，Key 只存在本机，请求不经过任何中间服务器。'
+          }
           onSelect={() => void updateModelConfig({ tier: 'custom' })}
         />
       </div>
@@ -139,10 +145,21 @@ function ModelPanel() {
         <p className="text-sm text-muted-foreground">
           {signedIn
             ? '模型与上下文窗口由服务器定，这里不用配。'
-            : '还没登录——去左边的「账号」用邮箱收个验证码。'}
+            : '还没登录——去左边的「档案」用邮箱收个验证码。'}
         </p>
       ) : (
         <>
+          {!signedIn && (
+            /* 这一条要写清楚「登录不等于把东西交给我们」。不写的话，
+               「自带 Key 也要登录」读起来就像是对话要绕道服务器了——
+               而那正好是选这条通道的人最在意的一件事 */
+            <p className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+              <strong className="font-medium text-foreground">还没登录。</strong>
+              两条通道都要先登录，自带 Key 也一样——去左边的「档案」用邮箱收个验证码。
+              登录<strong className="font-medium text-foreground">不改变</strong>下面这件事：
+              你的 Key 和对话仍然只在这台设备和你自己选的服务商之间，一个字节都不经过我们。
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             填的是<strong className="font-medium text-foreground">协议</strong>不是厂商：只要它实现了 OpenAI 的{' '}
             <Mono>/chat/completions</Mono>，
