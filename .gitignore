@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# vite 的 .env：`*.local` 只挡得住 .env.local，挡不住 .env / .env.production。
+# 这里有 VITE_API_BASE 这类变量之后，很容易有人建一个 .env 就直接提交了。
+#
+# 注意 **VITE_ 开头的变量会被打进公开的前端产物**——那是给浏览器看的，
+# 不是配置。任何密钥都不能放进 VITE_ 变量，放了就等于发布了。
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
