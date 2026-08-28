@@ -18,7 +18,7 @@ import { recordSkillRun } from '@/lib/db/skill-runs'
 import { resolveProvider } from '@/lib/ai'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { applyProposal, listCapabilities } from '@/lib/capabilities'
-import { DEFAULT_MAX_ROUNDS, listSkills, type LoadedSkill } from '@/lib/skills'
+import { DEFAULT_MAX_ASKS, DEFAULT_MAX_ROUNDS, listSkills, type LoadedSkill } from '@/lib/skills'
 import { summarizeForCompaction } from '@/lib/runtime/compaction'
 import { buildTurns, measureContext, MANUAL_KEEP_RECENT_TOKENS } from '@/lib/runtime/context'
 import { generateConversationTitle } from '@/lib/runtime/title'
@@ -70,7 +70,9 @@ interface ChatState {
  * agent 只要真拿出过东西（出了卡，或不再调工具地把话说完），计数就归零，
  * 于是长会话里该问的时候仍然问得出来，只是不许一直问下去。
  */
-const ASK_STREAK_LIMIT = 2
+// 默认值搬去了 `skills/types.ts`（`DEFAULT_MAX_ASKS`），因为它现在是
+// **每个 skill 可以自己声明的东西**，和 `max_rounds` 一样——该问几次是流程的性质。
+// 这里只负责把「已经连着问了几次」减掉。
 
 function askStreak(messages: Message[]): number {
   let streak = 0
@@ -471,6 +473,9 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
     // 轮数也跟着生效的那个 skill 走：换到一个短流程之后还按上一个的上限跑，
     // 等于给了它绕远路的余地
     const maxRounds = restored[restored.length - 1]?.manifest.maxRounds ?? DEFAULT_MAX_ROUNDS
+    // 提问额度也跟着生效的那个 skill 走。访谈类的会声明一个大得多的数——
+    // 那里「一句一句问」是对的，而默认值 2 正是为了禁止那种做法而设的
+    const maxAsks = restored[restored.length - 1]?.manifest.maxAsks ?? DEFAULT_MAX_ASKS
 
     const result = await runAgentLoop({
       provider: resolveProvider(modelConfig),
@@ -484,7 +489,7 @@ async function runConversation(conversationId: string, set: Set, get: Get) {
       history,
       capabilities: base,
       maxRounds,
-      askBudget: Math.max(0, ASK_STREAK_LIMIT - askStreak(get().messages)),
+      askBudget: Math.max(0, maxAsks - askStreak(get().messages)),
       signal: abortController.signal,
       handlers,
     })

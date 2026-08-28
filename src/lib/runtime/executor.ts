@@ -165,6 +165,11 @@ export async function runAgentLoop({
           // 读 skill 本身花掉一轮，给它把预算补回来，否则声明 max_rounds 的 skill
           // 实际能干活的轮数总比它写的少一轮
           effectiveMaxRounds = Math.max(effectiveMaxRounds, round + 1 + skill.manifest.maxRounds)
+          // 提问额度同理。**这里给的是它声明的全额，不减掉此前问过的次数**——
+          // 那些次数属于换 skill 之前的流程，而刚载入的这个才是接下来要走的流程。
+          // 不这么做的话，一个访谈 skill 在对话中途被载入时，会拿着上一段
+          // 对话剩下的零头去做访谈，走两步就被掐断
+          asksLeft = Math.max(asksLeft, skill.manifest.maxAsks)
           handlers.onSkillLoaded?.(skill)
         }
         continue

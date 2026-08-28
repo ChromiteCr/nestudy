@@ -1,5 +1,7 @@
 import {
+  DEFAULT_MAX_ASKS,
   DEFAULT_MAX_ROUNDS,
+  MAX_ALLOWED_ASKS,
   MAX_ALLOWED_ROUNDS,
   SKILL_OUTPUTS,
   type LoadedSkill,
@@ -159,6 +161,17 @@ export function parseSkillMarkdown({ text, origin, source }: ParseInput): SkillP
     }
   }
 
+  let maxAsks = DEFAULT_MAX_ASKS
+  const rawMaxAsks = asString(data.max_asks)
+  if (rawMaxAsks) {
+    const parsed = Number(rawMaxAsks)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_ALLOWED_ASKS) {
+      warnings.push(`${source}：max_asks「${rawMaxAsks}」不是 1-${MAX_ALLOWED_ASKS} 的整数，按默认 ${DEFAULT_MAX_ASKS} 处理`)
+    } else {
+      maxAsks = parsed
+    }
+  }
+
   const suggestHint = asString(data.suggest_hint)
 
   if (errors.length > 0) return { skill: null, errors, warnings }
@@ -177,6 +190,7 @@ export function parseSkillMarkdown({ text, origin, source }: ParseInput): SkillP
     readOnly,
     outputs,
     maxRounds,
+    maxAsks,
     suggestHint: suggestHint || undefined,
   }
 

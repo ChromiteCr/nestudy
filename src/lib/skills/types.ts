@@ -45,6 +45,28 @@ export const OUTPUT_CAPABILITY: Record<SkillOutput, string | null> = {
 export const DEFAULT_MAX_ROUNDS = 32
 export const MAX_ALLOWED_ROUNDS = 100
 
+/**
+ * 一次运行里最多连着出几张问题卡。
+ *
+ * 默认 2，治的是这个产品最容易滑进去的失败模式：**一轮问一句，而且每句都叫
+ * 「最后一个问题」**，学生敲五六次字才等到产出。对绝大多数 skill，
+ * 「先做出东西来让人改」比「问清楚再动手」正确。
+ *
+ * **但访谈是例外，而且是要紧的例外。** 反思访谈的价值全在学生自己的语言里，
+ * 替他写一版让他改，写出来的就是你的反思不是他的——那里只能一句一句问。
+ * `reflection-interviewer` 现在的绕法是「开放问答走普通对话、不用 `ask_user`」：
+ * 能跑，但拿不到选项卡的好处，而具体的选项恰恰是让人答得出来的关键。
+ *
+ * 所以这个数做成**每个 skill 自己声明**（`max_asks:`），和 `max_rounds` 同一个道理：
+ * 该问几次是流程的性质，不是全局常量能定的事。
+ */
+export const DEFAULT_MAX_ASKS = 2
+/**
+ * 上限。写得比 `MAX_ALLOWED_ROUNDS` 小得多——**问题卡每出一张就停机等人**，
+ * 20 张已经是一场很长的访谈；再多就不是访谈，是盘问。
+ */
+export const MAX_ALLOWED_ASKS = 20
+
 export interface SkillManifest {
   /** kebab-case，等于 skill 目录名 */
   name: string
@@ -64,6 +86,8 @@ export interface SkillManifest {
   readOnly: boolean
   outputs: SkillOutput[]
   maxRounds: number
+  /** 最多连着出几张问题卡。缺省 {@link DEFAULT_MAX_ASKS}，访谈类的 skill 该自己调大 */
+  maxAsks: number
   suggestHint?: string
 }
 
