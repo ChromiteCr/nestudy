@@ -59,6 +59,17 @@ export function ReflectionReader({
               ))}
             </div>
 
+            {/*
+              「下次会怎么做」摆在两栏之上：整理稿和原话都是「当时发生了什么」，
+              只有这一句是**将来用得上的**。它也是这段经历长到第三层的凭据
+            */}
+            {artifact.takeaway && (
+              <div className="shrink-0 rounded-lg border bg-muted/40 px-3 py-2">
+                <Mono className="mb-0.5 block text-muted-foreground">下次会怎么做</Mono>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{artifact.takeaway}</p>
+              </div>
+            )}
+
             {hasQa ? (
               <Tabs defaultValue="content" className="flex min-h-0 flex-1 flex-col gap-2">
                 <TabsList className="shrink-0 self-start">

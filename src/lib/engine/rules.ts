@@ -1,4 +1,5 @@
 import { daysUntil, isoToday } from '@/lib/db/dates'
+import { shallowEvents } from './depth'
 import { getSkill } from '@/lib/skills'
 import { isProfileEmpty } from '@/types'
 import type { Artifact, GrowthEvent, StudentProfile } from '@/types'
@@ -99,24 +100,32 @@ export function computeReminders(input: {
     }
   }
 
-  // R5：长期事项结束 ≥7 天且没有关联反思，提醒补写
-  const reflectedNodeIds = new Set(
-    artifacts.filter((a) => a.kind === 'reflection').flatMap((a) => a.linkedNodeIds),
-  )
-  const needsReflection = longEvents
-    .filter(
-      (e) =>
-        e.endDate &&
-        daysUntil(e.endDate) <= -REFLECTION_LOOKBACK_DAYS &&
-        !reflectedNodeIds.has(`event:${e.id}`),
-    )
+  /**
+   * R5：结束 ≥7 天、还停在第一层（只有履历）的长期事项。
+   *
+   * 判的是**长到第几层**而不是「有没有关联反思」——两者常常不一样：
+   * 一份只记了「参加了什么」的反思在旧口径下算「有了」，但那段经历其实
+   * 什么也没长出来。
+   *
+   * 措辞是**陈述**不是催促：说的是「这段还只有履历」，不是「你还没写反思」。
+   * 而且**一次只提一条**——同时指出五段没消化的经历，那是一张待办清单，
+   * 不是一个提醒。
+   *
+   * **只在第一层提醒，第二层不提。** 第二层（写了做了什么、没写下次会怎么做）
+   * 看着也「没长出东西」，但催那一步等于催他现在就总结出一个道理——
+   * 而一句为了填格子编出来的「我学会了团队协作」比空着有害得多。
+   * 第一层不一样：一件做过的事一个字都没记，那是实打实的缺口。
+   * 第二层到第三层是他自己的判断，不该由提醒条推着走。
+   */
+  const shallow = shallowEvents(longEvents, artifacts)
+    .filter((e) => e.endDate && daysUntil(e.endDate) <= -REFLECTION_LOOKBACK_DAYS)
     .slice(0, 1)
-  for (const e of needsReflection) {
+  for (const e of shallow) {
     reminders.push({
       key: `reflect:${e.id}`,
-      title: `要不要反思一下「${e.title}」？`,
-      body: '这件事已经结束一段时间了，趁记忆还新鲜，写一条反思记录下来。',
-      prompt: `带我反思一下「${e.title}」，一次问我一个问题，问完再用 propose_artifact 把反思存下来。`,
+      title: `「${e.title}」还只有一行履历`,
+      body: '做过什么、卡在哪、下次会怎么做——这些还没记下来。趁记得清楚聊一聊，以后用得上。',
+      prompt: `带我把「${e.title}」这段经历聊清楚：一次问我一个问题，问完用 propose_artifact 存下来，takeaway 只写我自己说过的「下次会怎么做」，我没说就留空。`,
     })
   }
 

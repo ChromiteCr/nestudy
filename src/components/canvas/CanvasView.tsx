@@ -18,6 +18,7 @@ import { Mono } from '@/components/ui/mono'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePlanningStore } from '@/stores/planningStore'
 import { ReflectionReader } from '@/components/artifacts/ReflectionReader'
+import { depthOf } from '@/lib/engine/depth'
 import { daysUntil } from '@/lib/db/dates'
 import { resolveDeadline, referenceStamp } from '@/lib/capabilities/application'
 import { APPLICATION_TRACK_LABEL, EVENT_CATEGORY_LABEL, type EventCategory } from '@/types'
@@ -238,6 +239,8 @@ interface DrawerProps {
  */
 function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory, onRead }: DrawerProps) {
   const growthEvents = usePlanningStore((s) => s.growthEvents)
+  // 算「长到第几层」要读反思：第三层的凭据是关联反思里的 takeaway
+  const artifacts = usePlanningStore((s) => s.artifacts)
 
   const upcoming = useMemo(
     () =>
@@ -277,13 +280,21 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory,
           </Section>
           <Section title="长期事项">
             {long.length === 0 && <Empty>还没有长期事项</Empty>}
-            {long.map((e) => (
-              <Row key={e.id} label={e.title}>
-                <Mono className="text-muted-foreground">
-                  {e.endDate ? '已结束' : '进行中'}
-                </Mono>
-              </Row>
-            ))}
+            {long.map((e) => {
+              const d = depthOf(e, artifacts)
+              return (
+                <Row key={e.id} label={e.title}>
+                  {/*
+                    显示的是「长到第几层」而不是「做完没有」。
+                    **这不是完成度**——只有履历的经历不代表没做好，代表它还没被消化。
+                    所以第三层不加任何标记：到位了就该安静，加个对勾就成了打分表
+                  */}
+                  <Mono className={cn('text-muted-foreground', d.depth === 3 && 'text-foreground')}>
+                    {d.label}
+                  </Mono>
+                </Row>
+              )
+            })}
           </Section>
         </TabsContent>
 

@@ -359,6 +359,7 @@ interface RawArtifact {
   tags?: unknown
   linkedNodeIds?: unknown
   qa?: unknown
+  takeaway?: unknown
 }
 
 export function parseArtifactArgs(rawArgs: string): ProposedArtifact[] {
@@ -382,6 +383,7 @@ export function parseArtifactArgs(rawArgs: string): ProposedArtifact[] {
       tags: strList(raw.tags),
       linkedNodeIds: strList(raw.linkedNodeIds),
       qa: qa.length > 0 ? qa : undefined,
+      takeaway: str(raw.takeaway) || undefined,
     })
   }
   return out
@@ -396,7 +398,10 @@ export const proposeArtifactCapability: Capability = {
   schema: {
     name: 'propose_artifact',
     description:
-      '把要保存的学习资产作为提案展示给用户确认（不会直接写入）。反思访谈结束、产出周复盘/学习计划/速查表等需要留存的长文时使用。**只保存学生自己说出来的内容与你的整理，不要代写应由学生本人产出的内容**。反思用 kind="reflection" 并把访谈问答填进 qa，正文写学生自己的话，不要替他总结成漂亮的成长故事。linkedNodeIds 用 get_events / get_profile 返回的 nodeId。',
+      '把要保存的学习资产作为提案展示给用户确认（不会直接写入）。反思访谈结束、产出周复盘/学习计划/速查表等需要留存的长文时使用。**只保存学生自己说出来的内容与你的整理，不要代写应由学生本人产出的内容**。反思用 kind="reflection" 并把访谈问答填进 qa，正文写学生自己的话，不要替他总结成漂亮的成长故事。linkedNodeIds 用 get_events / get_profile 返回的 nodeId。' +
+      '\n\n**takeaway 只填他自己说过的「下次会怎么做」。** 他没说就留空——' +
+      '空着说明这件事还没消化完，那是实话；而编一句「我学会了团队协作」会让他以为自己已经想明白了，' +
+      '**那比空着有害得多**。这一栏以后会在他做同类的事情时原样推回给他，所以它必须是他的话。',
     parameters: {
       type: 'object',
       properties: {
@@ -419,6 +424,12 @@ export const proposeArtifactCapability: Capability = {
                   properties: { question: { type: 'string' }, answer: { type: 'string' } },
                   required: ['question', 'answer'],
                 },
+              },
+              takeaway: {
+                type: 'string',
+                description:
+                  '「下次会怎么做」，**用他自己的话**。他没说出这一层就留空，不要代拟——' +
+                  '这一栏将来会原样推回给他',
               },
             },
             required: ['kind', 'title', 'content'],

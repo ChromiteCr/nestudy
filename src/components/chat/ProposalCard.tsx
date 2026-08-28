@@ -344,6 +344,25 @@ function ArtifactProposalCard({
                 )}
               </div>
               <p className="line-clamp-6 whitespace-pre-wrap text-sm text-muted-foreground">{a.content}</p>
+              {/*
+                「下次会怎么做」单独摆出来，因为它是这段经历里唯一会被将来用上的一句。
+                可改也可以整句删掉——**如果这句话不是他说的，删掉比留着好**
+              */}
+              {editable ? (
+                <TextField
+                  label="下次会怎么做（你的话，可留空）"
+                  size="sm"
+                  value={a.takeaway ?? ''}
+                  onChange={(e) => patch(i, { takeaway: e.target.value || undefined })}
+                />
+              ) : (
+                a.takeaway && (
+                  <p className="border-l-2 pl-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+                    <Mono className="mr-1.5 text-muted-foreground">下次</Mono>
+                    {a.takeaway}
+                  </p>
+                )
+              )}
               <div className="flex flex-wrap items-center gap-1.5">
                 {a.qa && a.qa.length > 0 && <QaDisclosure qa={a.qa} />}
                 {a.tags.map((t) => (

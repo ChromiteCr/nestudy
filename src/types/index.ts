@@ -187,6 +187,21 @@ export interface Artifact {
   content: string
   /** 反思保留结构化问答，不压成纯文本 */
   qa?: ReflectionQA[]
+  /**
+   * 「下次会怎么做」——**用学生自己的话**。
+   *
+   * 单独立一个字段而不是埋在 `content` 里，有两个理由：
+   *
+   * 1. **它是唯一能被将来用上的那一层。** 一段经历记下「发生过什么」「我做了什么」
+   *    之后，真正让人长进的是这一句；而要在他下一次做同类的事时把它推回给他
+   *    （见规划第 18 项），就必须能精确取到它，不能靠正则从散文里猜
+   * 2. **空着是有信息的。** 空着说明这件事还没被消化——那不是缺陷，
+   *    有些活动做完就是做完了。所以**宁可空着也不要替他编一个**，
+   *    一句编出来的「我学会了团队协作」比空着有害得多
+   *
+   * 不进 Dexie 索引，所以加这个字段不需要迁移（`artifacts: 'id, kind, createdAt'`）。
+   */
+  takeaway?: string
   /** 产出它的 skill 名（S8 起写入） */
   skillName?: string
   runId?: string
@@ -598,6 +613,8 @@ export interface ProposedArtifact {
   tags: string[]
   linkedNodeIds: GraphNodeId[]
   qa?: ReflectionQA[]
+  /** 「下次会怎么做」，学生自己的话；他没说就留空，不要代拟 */
+  takeaway?: string
 }
 
 /**
