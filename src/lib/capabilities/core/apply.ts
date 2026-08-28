@@ -1,5 +1,5 @@
 import { addApplication, updateApplication } from '@/lib/db/applications'
-import { addArtifact } from '@/lib/db/artifacts'
+import { addArtifact, appendToArtifact } from '@/lib/db/artifacts'
 import { addCanvasEdge, saveCanvasNode } from '@/lib/db/canvas'
 import { addGrowthEvent, updateGrowthEvent } from '@/lib/db/events'
 import { resolveDeadline } from '../application'
@@ -122,9 +122,30 @@ async function applyCanvas(edges: ProposedCanvasEdge[], notes: ProposedNodeNote[
   return parts.length ? `已写入画板：${parts.join('、')}` : '没有可写入的内容'
 }
 
+/**
+ * 资产入库。带 `artifactId` 的走追加，其余新建。
+ *
+ * 追加找不到原记录时**如实报出来，绝不退化成新建**——那会把「补充一段」
+ * 变成「又写了一份」，正是 15.1 要修的毛病；而且悄悄新建之后学生看到的是
+ * 一条成功提示，等他下次翻记录才发现同一段经历散成了两份。
+ */
 async function applyArtifacts(artifacts: ProposedArtifact[], skillName?: string, runId?: string): Promise<string> {
-  let count = 0
+  let created = 0
+  let appended = 0
+  let lost = 0
   for (const a of artifacts.filter((x) => x.include)) {
+    if (a.artifactId) {
+      const updated = await appendToArtifact(a.artifactId, {
+        content: a.content,
+        qa: a.qa,
+        takeaway: a.takeaway,
+        tags: a.tags,
+        linkedNodeIds: a.linkedNodeIds,
+      })
+      if (updated) appended++
+      else lost++
+      continue
+    }
     await addArtifact({
       kind: a.kind,
       title: a.title,
@@ -138,9 +159,13 @@ async function applyArtifacts(artifacts: ProposedArtifact[], skillName?: string,
       attachments: [],
       tags: a.tags,
     })
-    count++
+    created++
   }
-  return count > 0 ? `已保存 ${count} 份学习资产` : '没有勾选任何资产'
+  const parts: string[] = []
+  if (created) parts.push(`已保存 ${created} 份学习资产`)
+  if (appended) parts.push(`在 ${appended} 份原有记录上追加`)
+  if (lost) parts.push(`${lost} 份追加失败：找不到原记录`)
+  return parts.length > 0 ? parts.join('；') : '没有勾选任何资产'
 }
 
 /**

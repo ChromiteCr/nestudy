@@ -180,7 +180,7 @@ export const getArtifactsCapability: Capability = {
   schema: {
     name: 'get_artifacts',
     description:
-      '获取学生的学习资产（反思、文档、复盘、计划、文书草稿等）。正文默认只给前 300 字摘要；需要某一条的全文时传它的 id 到 ids。linkedNodeIds 是它关联的画板节点。takeaway 是学生自己写下的「下次会怎么做」，摘要模式下也是完整原话——**引用时一个字都不要改，也不要替他补一句他没说过的**；空着说明这件事他还没消化完，那本身就是实情。',
+      '获取学生的学习资产（反思、文档、复盘、计划、文书草稿等）。正文默认只给前 300 字摘要；需要某一条的全文时传它的 id 到 ids。linkedNodeIds 是它关联的画板节点。takeaway 是学生自己写下的「下次会怎么做」，摘要模式下也是完整原话——**引用时一个字都不要改，也不要替他补一句他没说过的**；空着说明这件事他还没消化完，那本身就是实情。id 可以传给 propose_artifact 的 artifactId 在这份记录上追加——学生想起新细节时该补在原处，不要另写一份。',
     parameters: {
       type: 'object',
       properties: {
@@ -226,6 +226,9 @@ export const getArtifactsCapability: Capability = {
           linkedNodeIds: a.linkedNodeIds,
           skillName: a.skillName,
           createdAt: new Date(a.createdAt).toISOString().slice(0, 10),
+          // 补记过的记录要让模型知道——它决定「这次是接着补还是另起一份」时用得上
+          updatedAt: a.updatedAt ? new Date(a.updatedAt).toISOString().slice(0, 10) : undefined,
+          appendedTimes: a.revisions?.length,
           content: full ? a.content : a.content.slice(0, EXCERPT_CHARS),
           truncated: !full && a.content.length > EXCERPT_CHARS,
           qa: full ? a.qa : undefined,

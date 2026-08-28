@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
+import { usePlanningStore } from '@/stores/planningStore'
 import { cn } from '@/lib/utils'
 import { ARTIFACT_KIND_LABEL } from '@/lib/artifact-labels'
 import { ProposedEventRow } from './ProposedEventRow'
@@ -28,6 +29,7 @@ import {
   type Message,
   type Proposal,
   type ProposedApplication,
+  type Artifact,
   type ProposedArtifact,
   type ProposedCanvasEdge,
   type ProposedGrowthEvent,
@@ -299,11 +301,19 @@ function ArtifactProposalCard({
 }) {
   const confirmProposal = useChatStore((s) => s.confirmProposal)
   const dismissProposal = useChatStore((s) => s.dismissProposal)
+  const saved = usePlanningStore((s) => s.artifacts)
   const [artifacts, setArtifacts] = useState<ProposedArtifact[]>(proposal.artifacts)
   const editable = proposal.status === 'pending'
 
   const patch = (i: number, next: Partial<ProposedArtifact>) =>
     setArtifacts((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...next } : a)))
+
+  // 追加的目标记录。取不到说明模型给了个不存在的 id——和画板里连不上的边、
+  // 写坏时区的申请同一处理：**摊开给用户看，但不让它进库**。
+  // 尤其不能悄悄退化成新建，那正是这一项要修的毛病
+  const target = (a: ProposedArtifact): Artifact | null =>
+    a.artifactId ? (saved.find((x) => x.id === a.artifactId) ?? null) : null
+  const broken = (a: ProposedArtifact) => Boolean(a.artifactId) && target(a) === null
 
   return (
     <CardShell
@@ -311,71 +321,155 @@ function ArtifactProposalCard({
       title={`资产提案 ${artifacts.length}`}
       status={proposal.status}
       resultNote={proposal.resultNote}
-      onConfirm={() => void confirmProposal(message.id, { ...proposal, artifacts })}
+      onConfirm={() =>
+        void confirmProposal(message.id, {
+          ...proposal,
+          artifacts: artifacts.map((a) => (broken(a) ? { ...a, include: false } : a)),
+        })
+      }
       onDismiss={() => void dismissProposal(message.id)}
       confirmLabel="保存"
     >
       <div className="flex flex-col gap-2">
-        {artifacts.map((a, i) => (
-          <div key={i} className="flex items-start gap-2 rounded-lg border bg-background/50 p-2">
-            {editable && (
-              <Checkbox
-                className="mt-1.5"
-                checked={a.include}
-                onCheckedChange={(v) => patch(i, { include: v === true })}
-              />
-            )}
-            <div className={cn('flex min-w-0 flex-1 flex-col gap-1', !a.include && 'opacity-50')}>
-              <div className="flex items-center gap-1.5">
-                <Badge variant="secondary" className="shrink-0">
-                  {ARTIFACT_KIND_LABEL[a.kind]}
-                </Badge>
-                {editable ? (
+        {artifacts.map((a, i) => {
+          const onto = target(a)
+          const isAppend = Boolean(a.artifactId)
+          const lost = broken(a)
+          return (
+            <div
+              key={i}
+              className={cn(
+                'flex items-start gap-2 rounded-lg border bg-background/50 p-2',
+                lost && 'border-destructive/40',
+              )}
+            >
+              {editable && (
+                <Checkbox
+                  className="mt-1.5"
+                  checked={a.include && !lost}
+                  disabled={lost}
+                  onCheckedChange={(v) => patch(i, { include: v === true })}
+                />
+              )}
+              <div className={cn('flex min-w-0 flex-1 flex-col gap-1', (!a.include || lost) && 'opacity-50')}>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="secondary" className="shrink-0">
+                    {ARTIFACT_KIND_LABEL[onto?.kind ?? a.kind]}
+                  </Badge>
+                  {/*
+                    追加时标题不给改：改标题不是「补充」，而且这张卡上改了名，
+                    学生会以为自己在编辑那份记录本身。追加就只是往上加东西
+                  */}
+                  {isAppend ? (
+                    <>
+                      <Badge variant="outline" className="shrink-0">
+                        追加
+                      </Badge>
+                      <span className="min-w-0 flex-1 truncate font-medium">{onto?.title ?? '（找不到的记录）'}</span>
+                    </>
+                  ) : editable ? (
+                    <TextField
+                      label="标题"
+                      size="sm"
+                      wrapClassName="min-w-0 flex-1"
+                      className="font-medium"
+                      value={a.title}
+                      onChange={(e) => patch(i, { title: e.target.value })}
+                    />
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate font-medium">{a.title}</span>
+                  )}
+                </div>
+
+                {lost && (
+                  <p className="text-sm leading-snug text-destructive">
+                    找不到要追加的那份记录，这条不会保存。让学栖重新查一遍再来。
+                  </p>
+                )}
+
+                {onto && <OriginalDisclosure artifact={onto} />}
+
+                {a.content && (
+                  <p className="line-clamp-6 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {isAppend && <Mono className="mr-1.5 text-foreground">新增</Mono>}
+                    {a.content}
+                  </p>
+                )}
+                {/*
+                  「下次会怎么做」单独摆出来，因为它是这段经历里唯一会被将来用上的一句。
+                  可改也可以整句删掉——**如果这句话不是他说的，删掉比留着好**
+                */}
+                {/* 追加不上的那条已经不会进库了，就别再给它可编辑的输入框——
+                    能改却存不下，比不给改更让人困惑 */}
+                {editable && !lost ? (
                   <TextField
-                    label="标题"
+                    label={isAppend ? '下次会怎么做（留空则保留原来那句）' : '下次会怎么做（你的话，可留空）'}
                     size="sm"
-                    wrapClassName="min-w-0 flex-1"
-                    className="font-medium"
-                    value={a.title}
-                    onChange={(e) => patch(i, { title: e.target.value })}
+                    value={a.takeaway ?? ''}
+                    onChange={(e) => patch(i, { takeaway: e.target.value || undefined })}
                   />
                 ) : (
-                  <span className="min-w-0 flex-1 truncate font-medium">{a.title}</span>
+                  a.takeaway && (
+                    <p className="border-l-2 pl-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+                      <Mono className="mr-1.5 text-muted-foreground">下次</Mono>
+                      {a.takeaway}
+                    </p>
+                  )
                 )}
-              </div>
-              <p className="line-clamp-6 whitespace-pre-wrap text-sm text-muted-foreground">{a.content}</p>
-              {/*
-                「下次会怎么做」单独摆出来，因为它是这段经历里唯一会被将来用上的一句。
-                可改也可以整句删掉——**如果这句话不是他说的，删掉比留着好**
-              */}
-              {editable ? (
-                <TextField
-                  label="下次会怎么做（你的话，可留空）"
-                  size="sm"
-                  value={a.takeaway ?? ''}
-                  onChange={(e) => patch(i, { takeaway: e.target.value || undefined })}
-                />
-              ) : (
-                a.takeaway && (
-                  <p className="border-l-2 pl-2.5 text-sm leading-relaxed whitespace-pre-wrap">
-                    <Mono className="mr-1.5 text-muted-foreground">下次</Mono>
-                    {a.takeaway}
-                  </p>
-                )
-              )}
-              <div className="flex flex-wrap items-center gap-1.5">
-                {a.qa && a.qa.length > 0 && <QaDisclosure qa={a.qa} />}
-                {a.tags.map((t) => (
-                  <Badge key={t} variant="outline">
-                    {t}
-                  </Badge>
-                ))}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {a.qa && a.qa.length > 0 && <QaDisclosure qa={a.qa} isAppend={isAppend} />}
+                  {a.tags.map((t) => (
+                    <Badge key={t} variant="outline">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </CardShell>
+  )
+}
+
+/**
+ * 追加时，把**要加到哪儿去**摊开给他看。
+ *
+ * 追加最容易出的问题不是写错，是学生**不知道自己在往哪份记录上加**——
+ * 卡上只有一段新文字的话，「在原有记录上追加」就成了一句需要他信任的话。
+ * 所以原文可展开，并且在收起状态下就写明**它不会被改动**：
+ * 追加只增不改这条边界，得让他在按保存之前就看见，而不是写在文档里。
+ */
+function OriginalDisclosure({ artifact }: { artifact: Artifact }) {
+  const [open, setOpen] = useState(false)
+  const qaCount = artifact.qa?.length ?? 0
+  return (
+    <div className="w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-left transition-colors hover:text-foreground"
+      >
+        <ChevronRight className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+        <Mono className="text-muted-foreground">
+          {open ? '收起原有记录' : `原有记录${qaCount > 0 ? ` ${qaCount} 组原话` : ''}，不会被改动`}
+        </Mono>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-col gap-1.5 border-l-2 pl-2.5">
+          <p className="line-clamp-[12] text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            {artifact.content}
+          </p>
+          {artifact.takeaway && (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              <Mono className="mr-1.5 text-muted-foreground">原来的「下次」</Mono>
+              {artifact.takeaway}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -388,7 +482,7 @@ function ArtifactProposalCard({
  *
  * 默认收着：多数时候他想看的是整理稿；但收着不等于藏起来，标题上写着有几组。
  */
-function QaDisclosure({ qa }: { qa: NonNullable<ProposedArtifact['qa']> }) {
+function QaDisclosure({ qa, isAppend }: { qa: NonNullable<ProposedArtifact['qa']>; isAppend?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="w-full">
@@ -398,7 +492,9 @@ function QaDisclosure({ qa }: { qa: NonNullable<ProposedArtifact['qa']> }) {
         className="flex items-center gap-1 text-left transition-colors hover:text-foreground"
       >
         <ChevronRight className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
-        <Mono className="text-muted-foreground">{open ? '收起原话' : `${qa.length} 组问答（你的原话）`}</Mono>
+        <Mono className="text-muted-foreground">
+          {open ? '收起原话' : `${qa.length} 组${isAppend ? '新问答' : '问答'}（你的原话）`}
+        </Mono>
       </button>
       {open && (
         <div className="mt-1.5 flex flex-col gap-2 border-l-2 pl-2.5">

@@ -179,6 +179,13 @@ export type ArtifactKind = 'reflection' | 'document' | 'cheatsheet' | 'plan' | '
 
 export type ArtifactFormat = 'markdown' | 'latex' | 'json' | 'text'
 
+/** 一次追加。见 `Artifact.revisions` */
+export interface ArtifactRevision {
+  at: number
+  /** 这次新增了几组原话（`qa`）。0 表示这次只补了整理稿或「下次会怎么做」 */
+  addedQa: number
+}
+
 export interface Artifact {
   id: string
   kind: ArtifactKind
@@ -202,6 +209,23 @@ export interface Artifact {
    * 不进 Dexie 索引，所以加这个字段不需要迁移（`artifacts: 'id, kind, createdAt'`）。
    */
   takeaway?: string
+  /**
+   * 最后一次**追加**的时间。没追加过就是 undefined——
+   * 「一次写成」和「补过三回」是两种不同的记录，这个字段的缺席本身有信息。
+   */
+  updatedAt?: number
+  /**
+   * 每追加一次留一条。
+   *
+   * 存的不是内容快照，是**这份记录长出来的过程**：什么时候回来补的、那次多说了几组话。
+   * 一段经历本来就不是一次讲完的——今天讲清楚了做什么，下周才想起当时为什么卡住。
+   * 把这个过程摆在明面上，学生看到的就不是一份静态档案，而是一件还在长的东西。
+   *
+   * 不存快照有两个理由：正文快照会让记录体积随追加次数线性膨胀；
+   * 而**真正不能丢的是原话，`qa` 只增不改已经保证了这一点**，
+   * 正文是整理稿，它的历史版本没有对照价值。
+   */
+  revisions?: ArtifactRevision[]
   /** 产出它的 skill 名（S8 起写入） */
   skillName?: string
   runId?: string
@@ -603,9 +627,22 @@ export interface ProposedNodeNote {
   resolved: boolean
 }
 
-/** 学习资产提案：skill 的文档类产出（含反思）落库前的确认形态 */
+/**
+ * 学习资产提案：skill 的文档类产出（含反思）落库前的确认形态。
+ *
+ * 带 `artifactId` 表示**在原有记录上追加**，不带表示新建——照
+ * `ProposedApplication.id` 那条先例。一段经历不是一次讲完的：
+ * 下周想起更多细节，该回到原来那份记录上补，而不是另写一份互不相干的反思。
+ */
 export interface ProposedArtifact {
   include: boolean
+  /**
+   * 来自 `get_artifacts` / `search_artifacts` 的 id。有则追加。
+   *
+   * 追加时 `kind` 与 `title` **一律沿用原记录**，模型给了也不采纳：
+   * 追加是往上加东西，不是改这份记录是什么。
+   */
+  artifactId?: string
   kind: ArtifactKind
   title: string
   format: ArtifactFormat

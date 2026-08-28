@@ -52,6 +52,7 @@ export function ReflectionReader({
                 {new Date(artifact.createdAt).toISOString().slice(0, 10)}
               </Mono>
               {artifact.skillName && <Mono className="text-muted-foreground">{artifact.skillName}</Mono>}
+              {growthTrail(artifact) && <Mono className="text-muted-foreground">{growthTrail(artifact)}</Mono>}
               {artifact.tags.map((t) => (
                 <Badge key={t} variant="outline">
                   {t}
@@ -116,6 +117,25 @@ export function ReflectionReader({
       </DialogContent>
     </Dialog>
   )
+}
+
+/**
+ * 「这份记录是怎么长出来的」。
+ *
+ * 一段经历不是一次讲完的：今天说清楚做了什么，下周才想起当时为什么卡住。
+ * 把补记的次数摆出来，学生看到的就不是一份静态档案，而是一件**还在长的东西**——
+ * 那正是这个产品和一张填完就完的素材表的区别。
+ *
+ * 没补过就整行不出现：绝大多数记录本来就是一次写成的，
+ * 给它们挂一个「补过 0 次」是在暗示这里少了点什么。
+ */
+function growthTrail(artifact: Artifact): string | null {
+  const revisions = artifact.revisions ?? []
+  const last = revisions[revisions.length - 1]
+  if (!last) return null
+  const addedQa = revisions.reduce((n, r) => n + r.addedQa, 0)
+  const when = new Date(last.at).toISOString().slice(0, 10)
+  return `补过 ${revisions.length} 次 · 最近 ${when}${addedQa > 0 ? ` · 多说了 ${addedQa} 组原话` : ''}`
 }
 
 /**

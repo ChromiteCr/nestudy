@@ -352,6 +352,7 @@ export const proposeCanvasCapability: Capability = {
 // ---- propose_artifact ----
 
 interface RawArtifact {
+  artifactId?: unknown
   kind?: unknown
   title?: unknown
   format?: unknown
@@ -366,16 +367,21 @@ export function parseArtifactArgs(rawArgs: string): ProposedArtifact[] {
   const args = JSON.parse(rawArgs) as { artifacts?: RawArtifact[] }
   const out: ProposedArtifact[] = []
   for (const raw of args.artifacts ?? []) {
+    const artifactId = str(raw.artifactId)
     const title = str(raw.title)
     const content = str(raw.content)
-    if (!title || !content) continue
     const qa: ReflectionQA[] = Array.isArray(raw.qa)
       ? (raw.qa as { question?: unknown; answer?: unknown }[])
           .map((item) => ({ question: str(item?.question), answer: str(item?.answer) }))
           .filter((item) => item.question && item.answer)
       : []
+    const takeaway = str(raw.takeaway)
+    // 新建和追加的必填项不一样：新建要有标题和正文才立得住；
+    // 追加只要真的加了点什么就行——补三组问答、补一句「下次会怎么做」，都算
+    if (artifactId ? !content && qa.length === 0 && !takeaway : !title || !content) continue
     out.push({
       include: true,
+      artifactId: artifactId || undefined,
       kind: ARTIFACT_KINDS.includes(raw.kind as ArtifactKind) ? (raw.kind as ArtifactKind) : 'document',
       title,
       format: ARTIFACT_FORMATS.includes(raw.format as ArtifactFormat) ? (raw.format as ArtifactFormat) : 'markdown',
@@ -383,7 +389,7 @@ export function parseArtifactArgs(rawArgs: string): ProposedArtifact[] {
       tags: strList(raw.tags),
       linkedNodeIds: strList(raw.linkedNodeIds),
       qa: qa.length > 0 ? qa : undefined,
-      takeaway: str(raw.takeaway) || undefined,
+      takeaway: takeaway || undefined,
     })
   }
   return out
@@ -401,7 +407,16 @@ export const proposeArtifactCapability: Capability = {
       '把要保存的学习资产作为提案展示给用户确认（不会直接写入）。反思访谈结束、产出周复盘/学习计划/速查表等需要留存的长文时使用。**只保存学生自己说出来的内容与你的整理，不要代写应由学生本人产出的内容**。反思用 kind="reflection" 并把访谈问答填进 qa，正文写学生自己的话，不要替他总结成漂亮的成长故事。linkedNodeIds 用 get_events / get_profile 返回的 nodeId。' +
       '\n\n**takeaway 只填他自己说过的「下次会怎么做」。** 他没说就留空——' +
       '空着说明这件事还没消化完，那是实话；而编一句「我学会了团队协作」会让他以为自己已经想明白了，' +
-      '**那比空着有害得多**。这一栏以后会在他做同类的事情时原样推回给他，所以它必须是他的话。',
+      '**那比空着有害得多**。这一栏以后会在他做同类的事情时原样推回给他，所以它必须是他的话。' +
+      '\n\n**一段经历不是一次讲完的。** 学生这次想起了新细节、补上了当时为什么卡住，' +
+      '要用 artifactId 回到那份原记录上**追加**，不要另写一份互不相干的反思。' +
+      'artifactId 从 get_artifacts / search_artifacts 拿；追加之前**先用 get_artifacts 传 ids 读一遍全文**，' +
+      '否则你会把已经写过的话再写一遍。' +
+      '\n\n两种用法的必填项不同：**新建**要 kind + title + content；' +
+      '**追加**要 artifactId，然后 content / qa / takeaway 至少给一样。追加时：' +
+      'content 只写**新增的那一段**（原文会自动接在前面，不要重复它）；' +
+      'qa 只给这次新问出来的几组（重复的会被丢掉，已有的原话一个字都不会被改）；' +
+      'takeaway 留空表示不动他上次说的那句；kind 与 title 一律沿用原记录，给了也不采纳。',
     parameters: {
       type: 'object',
       properties: {
@@ -410,15 +425,21 @@ export const proposeArtifactCapability: Capability = {
           items: {
             type: 'object',
             properties: {
-              kind: { type: 'string', enum: ARTIFACT_KINDS },
-              title: { type: 'string' },
+              artifactId: {
+                type: 'string',
+                description:
+                  '有则在这份已有记录上追加，无则新建。来自 get_artifacts / search_artifacts 的 id',
+              },
+              kind: { type: 'string', enum: ARTIFACT_KINDS, description: '新建必填；追加时沿用原记录' },
+              title: { type: 'string', description: '新建必填；追加时沿用原记录' },
               format: { type: 'string', enum: ARTIFACT_FORMATS, description: '默认 markdown' },
-              content: { type: 'string', description: '正文' },
+              content: { type: 'string', description: '正文。**追加时只写新增的那一段**，不要重复原文' },
               tags: { type: 'array', items: { type: 'string' }, description: '便于日后检索（文书素材库用）' },
               linkedNodeIds: { type: 'array', items: { type: 'string' }, description: '关联的画板节点 nodeId' },
               qa: {
                 type: 'array',
-                description: '反思专属：访谈的问答对，原样保留不要压成纯文本',
+                description:
+                  '反思专属：访谈的问答对，原样保留不要压成纯文本。追加时只给这次新问出来的几组',
                 items: {
                   type: 'object',
                   properties: { question: { type: 'string' }, answer: { type: 'string' } },
@@ -432,7 +453,9 @@ export const proposeArtifactCapability: Capability = {
                   '这一栏将来会原样推回给他',
               },
             },
-            required: ['kind', 'title', 'content'],
+            // 必填项随用法而变（新建要 kind+title+content，追加要 artifactId + 至少一样内容），
+            // JSON Schema 这一层表达不了，写在 description 里，由 parseArtifactArgs 把关
+            required: [],
           },
         },
       },
