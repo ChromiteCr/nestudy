@@ -36,6 +36,60 @@ export interface TargetSchool {
   deadline: string | null
 }
 
+/**
+ * 主线可勾的类别。
+ *
+ * **刻意排除 `'other'`**：那是模型没给或给错 category 时的静默兜底值
+ * （`proposals.ts` 的 `parseEventsArgs`），是「没分出类」的堆放处，
+ * 不是一个他能认领的方向。
+ *
+ * 也刻意排除全部短期类别（任务／截止／考试／申请）：比照只看长期事项，
+ * 勾了永远不生效，而学生会以为自己把口径框宽了。**类型层挡死，比注释可靠。**
+ */
+export type MainlineCategory = Exclude<ActivityCategory, 'other'>
+
+export const MAINLINE_CATEGORIES: MainlineCategory[] = [
+  'academic',
+  'research',
+  'leadership',
+  'service',
+  'athletics',
+  'arts',
+  'work',
+]
+
+/**
+ * 主线——**学生自己写下的那句话**。
+ *
+ * 它不是从记录里归纳出来的结论，也不从 `targetSchools[].major` 派生：
+ * 「AI 宣布你的主线是 X」正好是这个功能要防的那件事，而那也是这一整个阶段的由来
+ * （老师的原话：AI 替学生把碎片写成活动，「相当于中间跳过了一些步骤」）。
+ * 所以它**没有 AI 写入口**——`propose_profile_update` 的 schema 里没有它，
+ * `get_profile` 只把它读出去。
+ *
+ * 两个字段是两件事，不能混：
+ *
+ * - `text` 是他的原话。不分词、不抽关键词、不做任何解析，存进来什么样摆出去什么样
+ * - `categories` 是他自己勾的**比照口径**，是唯一能做确定性判断的东西
+ *
+ * `categories` **允许为空，空着是合法状态不是错误**：意思是「我不想用类别框这条线」，
+ * 那就只存一句话、一个字都不比照。保存时**绝不能因为没勾类别就把这条主线丢掉**——
+ * 他的原话连被保存的资格都要拿一次自我归类去换，那和「以原话为准」正面冲突。
+ *
+ * 为什么 `text` 一个字都不参与计算：字面重合度区分不了语义，
+ * `capabilities/research/dedupe.ts` 的注释里已经用实测表证过
+ * （「本周复盘」与「上周复盘」重合 21%，却是两周不同的事）。
+ * 那边猜错只是多合并两条搜索结果，**这边猜错是替他给自己的经历下结论**。
+ *
+ * 不进 Dexie 索引，加这个字段不需要迁移。
+ */
+export interface MainLine {
+  id: string
+  text: string
+  categories: MainlineCategory[]
+  createdAt: number
+}
+
 export interface StudentProfile {
   /** 固定为 'app'，profile 表只有这一行 */
   id: string
@@ -44,8 +98,8 @@ export interface StudentProfile {
   curriculum: Curriculum | null
   courses: Course[]
   targetSchools: TargetSchool[]
-  /** 成长星图中心的专业方向；空则从目标校专业派生 */
-  majorDirections?: string[]
+  /** 见 MainLine。**只由设置页的表单写入，AI 只读** */
+  mainlines?: MainLine[]
 }
 
 export function isProfileEmpty(p: StudentProfile): boolean {
@@ -169,6 +223,15 @@ export interface GrowthEvent {
   description?: string
   achievements?: string[]
   level?: ActivityLevel
+  /**
+   * 他自己按过的那个按钮：这件事在不在他那条线上。
+   *
+   * **这是比照链路里唯一 100% 属于学生的判据**，永远压过我们对 `category` 的读法——
+   * category 是模型填的，还带静默兜底。
+   *
+   * `undefined` 不是「不在」，是「他还没说」：未标的事项只在类别口径被锚定时才参与计数。
+   */
+  mainlineMark?: 'on' | 'off'
   source: DataSource
   createdAt: number
 }
@@ -831,6 +894,14 @@ export interface Settings {
   lastActiveAt?: number
   /** 已关闭的提醒：ruleKey → 关闭当天(yyyy-mm-dd)，当天内不再显示 */
   dismissedReminders?: Record<string, string>
+  /**
+   * 上次把「主线 vs 记录」并排摆出来的时间。
+   *
+   * 一个字段兼两职：既是冷却，也是**下次比照的窗口起点**——
+   * 没有它，他关掉之后第二天再记一条，`dismissedReminders` 按天过期，
+   * 同一份名单会原样再来一次。
+   */
+  mainlineShownAt?: number
   /** @deprecated S8 起改由 skillRuns 表承载；v7 迁移后不再写入，仅供旧备份导入读取 */
   usedSkillIds?: string[]
   /** 用户自定义界面主色；null/缺省 = 主题默认 */

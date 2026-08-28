@@ -43,9 +43,17 @@ export function ReminderStrip() {
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-1">
-            <Button variant="outline" size="sm" className="h-7" onClick={() => handle(r)}>
-              去处理
-            </Button>
+            {/*
+              没有去处的提醒不给按钮。主线那条就是这样一条：它只把两样东西并排摆出来，
+              说完一句事实就该闭嘴——给它一个「去处理」等于把这条提醒的解释权交回模型。
+              （已知遗留：`handle` 走的 newConversation 会把旧会话里 pending 的问题卡
+              永远留在 pending。本项不新增这条触发路径，也不在这一项里修它）
+            */}
+            {(r.prompt || r.suggestSkillName) && (
+              <Button variant="outline" size="sm" className="h-7" onClick={() => handle(r)}>
+                去处理
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"

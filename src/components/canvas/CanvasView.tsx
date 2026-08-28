@@ -21,7 +21,12 @@ import { ReflectionReader } from '@/components/artifacts/ReflectionReader'
 import { depthOf } from '@/lib/engine/depth'
 import { daysUntil } from '@/lib/db/dates'
 import { resolveDeadline, referenceStamp } from '@/lib/capabilities/application'
-import { APPLICATION_TRACK_LABEL, EVENT_CATEGORY_LABEL, type EventCategory } from '@/types'
+import {
+  APPLICATION_TRACK_LABEL,
+  EVENT_CATEGORY_LABEL,
+  type EventCategory,
+  type GrowthEvent,
+} from '@/types'
 import { cn } from '@/lib/utils'
 import { buildCanvas, type CanvasNodeData } from './canvas-model'
 import { CanvasNodeCard } from './CanvasNodeCard'
@@ -238,6 +243,8 @@ interface DrawerProps {
  * 「下一件要做的事是什么」会比列表难看，这里按日期排序补上。
  */
 function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory, onRead }: DrawerProps) {
+  // 没设主线就一个字都不多：不渲染标注控件，也不出那行说明
+  const hasMainline = usePlanningStore((s) => (s.profile?.mainlines?.length ?? 0) > 0)
   const growthEvents = usePlanningStore((s) => s.growthEvents)
   // 算「长到第几层」要读反思：第三层的凭据是关联反思里的 takeaway
   const artifacts = usePlanningStore((s) => s.artifacts)
@@ -280,10 +287,14 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory,
           </Section>
           <Section title="长期事项">
             {long.length === 0 && <Empty>还没有长期事项</Empty>}
+            {hasMainline && long.length > 0 && (
+              <p className="px-1 pb-1 text-xs text-muted-foreground">标一下它在不在你那条线上。不标也行。</p>
+            )}
             {long.map((e) => {
               const d = depthOf(e, artifacts)
               return (
                 <Row key={e.id} label={e.title}>
+                  {hasMainline && <MainlineMark event={e} />}
                   {/*
                     显示的是「长到第几层」而不是「做完没有」。
                     **这不是完成度**——只有履历的经历不代表没做好，代表它还没被消化。
@@ -422,6 +433,40 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+/**
+ * 「这件事在不在我那条线上」——**他自己按的那个按钮**。
+ *
+ * 这是整条比照链路里唯一 100% 属于学生的判据，永远压过我们对 `category` 的读法：
+ * category 是模型填的，还带静默兜底，拿它指着一段经历说话，错的概率不低。
+ *
+ * **未标时不留常驻占位**，只在 hover / 键盘聚焦时露出来。每行挂一个空格子，
+ * 和「第三层不加任何标记，加个对勾就成了打分表」是同一类毛病——
+ * 一排等着被填的空位本身就是在催他。
+ *
+ * 放在清单里而不做成「记完当场问他一句」：刚讲完一段经历的那五分钟，
+ * 他对「这算不算在我那条线上」最不客观，那时候什么都像在线上。
+ * 清单是他回头看的地方，隔几天再标，标的是判断不是余温。
+ */
+function MainlineMark({ event }: { event: GrowthEvent }) {
+  const editGrowthEvent = usePlanningStore((s) => s.editGrowthEvent)
+  const mark = event.mainlineMark
+  const next = mark === undefined ? 'on' : mark === 'on' ? 'off' : undefined
+  return (
+    <button
+      type="button"
+      className={cn(
+        'shrink-0 rounded-sm px-1 text-xs transition-opacity',
+        mark === undefined && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+        mark === 'off' ? 'text-foreground' : 'text-muted-foreground',
+      )}
+      aria-label="标记这件事在不在你的主线上"
+      onClick={() => void editGrowthEvent(event.id, { mainlineMark: next })}
+    >
+      {mark === 'on' ? '在线上' : mark === 'off' ? '不在' : '标一下'}
+    </button>
+  )
+}
+
 function Row({
   label,
   onClick,
@@ -438,7 +483,8 @@ function Row({
       {children}
     </>
   )
-  const shell = 'flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-accent/60'
+  const shell =
+    'group flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-accent/60'
   return onClick ? (
     <button type="button" className={shell} onClick={onClick}>
       {inner}

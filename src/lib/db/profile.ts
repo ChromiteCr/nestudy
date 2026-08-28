@@ -5,8 +5,10 @@ const PROFILE_ID = 'app'
 
 export async function getProfile(): Promise<StudentProfile> {
   const existing = await db.profile.get(PROFILE_ID)
-  // name 为 S2a2 新增字段，旧记录补默认值
-  if (existing) return { ...existing, name: existing.name ?? '' }
+  // name 为 S2a2 新增、mainlines 为 S15b 新增，旧记录在这里补默认值。
+  // 补在读取口而不是各调用点：tsconfig 开了 noUncheckedIndexedAccess，
+  // 靠每处写 `?? []` 迟早漏一个
+  if (existing) return { ...existing, name: existing.name ?? '', mainlines: existing.mainlines ?? [] }
   const fresh: StudentProfile = {
     id: PROFILE_ID,
     name: '',
@@ -14,6 +16,7 @@ export async function getProfile(): Promise<StudentProfile> {
     curriculum: null,
     courses: [],
     targetSchools: [],
+    mainlines: [],
   }
   await db.profile.put(fresh)
   return fresh

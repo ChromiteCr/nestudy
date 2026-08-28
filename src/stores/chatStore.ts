@@ -29,6 +29,7 @@ import {
   type RunHandlers,
 } from '@/lib/runtime/executor'
 import { useSettingsStore } from './settingsStore'
+import { useReminderStore } from './reminderStore'
 
 interface ChatState {
   conversations: Conversation[]
@@ -220,6 +221,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({
       messages: s.messages.map((m) => (m.id === messageId ? { ...m, proposal: updated } : m)),
     }))
+
+    /*
+      「记录之后」的那一刻——全应用唯一一个「记录刚进库、模型不在说话、
+      动作是他自己发起的」的点。applyProposal 已经把 planningStore refresh 过，
+      比照要的 profile 与 growthEvents 正好就是 refresh 出来的那两样。
+
+      守卫写在这里而不是 reminderStore 里：反向 import 会成环，而 chatStore
+      本来就同时持有 streaming 和 messages，放这儿是零成本的。
+
+      **不接 runConversation 的 finally 那个击发点。** RunStop 就在手边，
+      但那里是错的：reflection-interviewer 的开放访谈每一问都是「不调工具、
+      只出文字」，执行器当场 return stop:'text'——访谈的每一轮结束都会是一次
+      合法击发。「这一轮说完了」不等于「他这段思路走完了」。
+    */
+    // 闸 1：只有真的记了事项才重算。artifact 一条都不进比照的分子分母，
+    // 确认一份反思永远不可能改变结论，白算一次全是风险
+    if (proposal.kind !== 'events') return
+
+    const quiet = () => {
+      const s = get()
+      // 闸 2：提案卡的确认按钮没有 streaming 守卫（问题卡有），而出提案卡不停机——
+      // 一张卡完全可能在字还在往外冒的时候被点
+      if (s.streaming) return false
+      // 闸 3：ask 停机时 streaming 也会变回 false，那是个假的「讲完了」信号。
+      // 他正盯着一张问题卡想怎么选，顶上冒出一条比照，是这个功能最不该出现的样子
+      return !s.messages.some((m) => m.ask?.status === 'pending')
+    }
+    // 拦下来就丢弃，**不排队**：装弹标志留着跨会话等待，迟早在下一段访谈中途击发。
+    // 漏掉的那次由开屏 init 天然兜底，这条提醒本来就不紧急
+    if (!quiet()) return
+    await useReminderStore.getState().refreshMainline(quiet)
   },
 
   dismissProposal: async (messageId) => {

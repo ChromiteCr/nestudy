@@ -9,6 +9,7 @@ import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageBubble } from './MessageBubble'
 import { ReminderStrip } from './ReminderStrip'
+import { useReminderStore } from '@/stores/reminderStore'
 import { ThinkingIndicator } from './ThinkingIndicator'
 
 /** 到达时间差在这个窗口内的算同一批（一轮里的并发工具调用） */
@@ -39,6 +40,9 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   const signedIn = useAccountStore((s) => s.hasToken)
   const ready = signedIn && !needsKey
   const scrollRef = useRef<HTMLDivElement>(null)
+  /** 他是不是正贴着底看。滚到上面读旧消息时，任何新东西都不该把他拽走 */
+  const atBottomRef = useRef(true)
+  const reminderCount = useReminderStore((s) => s.reminders.length)
   // 挂载之前就存在的消息不做入场动画：否则每次刷新/切会话，
   // 满屏工具行都要重放一遍级联，那不是提示新内容，那是噪音
   const mountedAt = useRef(Date.now())
@@ -80,10 +84,16 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
   // 与画板抽屉同一取舍：窄屏默认收起，展开时浮层覆盖而不是挤压正文
   const [drawerOpen, setDrawerOpen] = useState(() => window.innerWidth >= 768)
 
-  // 新消息/思考指示出现时滚到底部
+  /*
+    新消息/思考指示/提醒条变化时滚到底部，**但只在他原本就贴着底的时候**。
+    提醒条是滚动容器的兄弟节点，多一行就把整个消息区往下推——
+    「打断」在物理层面就是这个视口跳位，不是措辞问题。
+    同时改掉一个既有行为：以前不管他滚到哪儿，新消息都会硬把他拽到底
+  */
   useEffect(() => {
+    if (!atBottomRef.current) return
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [messages, streaming])
+  }, [messages, streaming, reminderCount])
 
   // 带引导语进入（建档 CTA / 提醒卡跳转）：新开会话并自动发送。
   // 从 getState() 复核最新值：StrictMode 下 effect 会连跑两次，
@@ -102,7 +112,14 @@ export function ChatView({ onOpenSettings }: ChatViewProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <ChatHeader drawerOpen={drawerOpen} onToggleDrawer={() => setDrawerOpen((v) => !v)} />
         <ReminderStrip />
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto"
+          onScroll={() => {
+            const el = scrollRef.current
+            if (el) atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64
+          }}
+        >
           <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
             {messages.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-20 text-center">

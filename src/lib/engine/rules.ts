@@ -1,7 +1,8 @@
 import { daysUntil, isoToday } from '@/lib/db/dates'
 import { priorTakeaway, shallowEvents } from './depth'
+import { mainlineDrift } from './mainline'
 import { getSkill } from '@/lib/skills'
-import { isProfileEmpty } from '@/types'
+import { EVENT_CATEGORY_LABEL, isProfileEmpty } from '@/types'
 import type { Artifact, GrowthEvent, StudentProfile } from '@/types'
 
 /**
@@ -28,6 +29,23 @@ const REFLECTION_LOOKBACK_DAYS = 7
 const ADMISSIONS_READER_MIN_EVENTS = 3
 const CARRYOVER_WINDOW_DAYS = 14
 const QUOTE_MAX_CHARS = 60
+/** 主线原话在 body 里的字数上限 */
+const MAINLINE_QUOTE_MAX = 24
+/** body 里列举的事项标题字数上限 */
+const MAINLINE_TITLE_MAX = 12
+/** body 里最多列几个标题 */
+const MAINLINE_LIST_MAX = 2
+/** body 里最多列几个类别名 */
+const SCOPE_MAX = 3
+
+/**
+ * key 里**一个变量都不能有**。
+ *
+ * 写成 `mainline:${count}` 或嵌事项 id，他关掉之后当天再记一条就换出新 key，
+ * 同一天能弹五次——那正好是「记录之后打断他」；嵌主线文本则会让他每改一次主线、
+ * 已经关掉的提醒就以新身份复活。
+ */
+export const MAINLINE_REMINDER_KEY = 'mainline'
 
 const isTask = (e: GrowthEvent) => e.kind === 'short' && e.category === 'task'
 const isSchedule = (e: GrowthEvent) => e.kind === 'short' && e.category !== 'task'
@@ -38,8 +56,9 @@ export function computeReminders(input: {
   artifacts: Artifact[]
   usedSkillNames?: string[]
   lastActiveAt?: number
+  mainlineShownAt?: number
 }): Reminder[] {
-  const { profile, growthEvents, artifacts, usedSkillNames = [], lastActiveAt } = input
+  const { profile, growthEvents, artifacts, usedSkillNames = [], lastActiveAt, mainlineShownAt } = input
   const reminders: Reminder[] = []
   const pendingTasks = growthEvents.filter((e) => isTask(e) && e.status === 'pending')
   const longEvents = growthEvents.filter((e) => e.kind === 'long')
@@ -169,6 +188,22 @@ export function computeReminders(input: {
     break
   }
 
+  /**
+   * R8：他自己写的那条线，和这一阵记下的东西，对不对得上。
+   *
+   * **主线是他填的，不是算出来的。** 这条规则做的全部事情是把两样东西并排摆出来
+   * 数一遍，然后如实报数——判断「哪边该改」是他的事。这一点是整个「记录」阶段的
+   * 底线在这条规则上的落法：原计划本来要让系统数出「你真正的主线是 X」，
+   * 那是替他下了最要紧的那个判断，已经作废。
+   *
+   * 让位于 R5/R7：那两条讲的是某一段具体经历，比一条分布上的比照更有抓手。
+   * 同屏出现会变成「你这段没记 + 上次那句话 + 你还偏题」，那是审判不是提醒。
+   */
+  if (!mainlineYields(reminders)) {
+    const r = mainlineReminder({ profile, growthEvents, mainlineShownAt })
+    if (r) reminders.push(r)
+  }
+
   // R6：长期事项达标但从未用过「招生官读档」
   const admissionsReader = getSkill('admissions-reader')
   if (
@@ -187,6 +222,99 @@ export function computeReminders(input: {
   return reminders
 }
 
+/** R5/R7 同屏时让位。见 R8 那段注释 */
+export function mainlineYields(existing: Reminder[]): boolean {
+  return existing.some((r) => r.key.startsWith('reflect:') || r.key.startsWith('carryover:'))
+}
+
+/**
+ * 主线提醒的文案。
+ *
+ * 排版把结构定死了，不是风格选择：`ReminderStrip` 的 title 包在 `Mono` 里
+ * （等宽 = 系统说的话），body 是普通正文。于是——
+ *
+ * - **title 只放数，一个他的字都不进去。** 主线原话进 title 等于让他自己的句子
+ *   以机器声出现，在排版上宣称那条线是 AI 定的，恰好是这个功能最不能出的错
+ * - **body 三句，顺序不能换**：他的原话（带「」）→ 口径与对不上的名单 →
+ *   一句把裁决权还给他的话。这是从 `ReflectionReader` 那句「原话是你说的，
+ *   整理稿是 AI 把它串起来的。两边对不上，以原话为准」照搬来的三段式：
+ *   **并排摆两样 / 承认对不上 / 宣布谁说了算**
+ *
+ * 第三句「哪边该改，你说了算」任何情况下都不能省——**省了这条提醒就成了指控。**
+ *
+ * 列出具体标题而不是只报一个数，是这条提醒不越权的实质保证：一个光秃秃的计数
+ * 只能被接受或被无视，一份名单他能当场指出「模联我勾错类了」然后去改记录。
+ * **可被推翻，比任何禁语清单都硬。**
+ *
+ * ## 明令禁止的句式（改这段代码时对照）
+ *
+ * 这些在代码里根本不存在，不是靠 prompt 约束——文案模板是本地写死的，模型碰不到。
+ *
+ * 1. **宣布主线**：「你真正的主线其实是 X」「从你的记录看，你一直在做的是 X」
+ *    「你还没设主线，我看你适合设成 X」；任何以「其实／真正／本质上」去命名一条线的句子
+ * 2. **判决式动词**：「你偏离了主线」「跑偏」「不够专注」「杂而不精」。
+ *    **界面上一个「偏」字都不出现**——内部叫 `drift`，那是变量名不是文案。
+ *    也不说「这 3 件和你的主线无关」，「无关」是判断，能说的只有「不在你勾的那几类里」
+ * 3. **替他下结论定行动**：「所以你适合走管理方向」「建议把志愿的时间挪到科研上」
+ *    「要不要重新设一条主线？」——最后这句最像好意，但它在暗示他设的那条错了
+ * 4. **评分与量化包装**：「主线契合度 62%」「专注度 B」——代码里根本不存在比例这个量；
+ *    任何对勾／感叹号／红黄绿／进度条
+ * 5. **对得上时的表扬**：「你很专注，继续保持」。对得上就完全不出声
+ * 6. **催他设主线**：不进 `isProfileEmpty`、不进 R4 的 missing、不做 CTA
+ * 7. **把数说成事**：「你最近**做**的事都不在这条线上」——数的是**记下的**，不是做的。
+ *    这个词的差别是这条提醒能不能站得住的全部
+ * 8. **替他解释**：「可能是因为你最近被社团占了时间」。为什么对不上只有他知道
+ */
+export function mainlineReminder(input: {
+  profile: StudentProfile | null
+  growthEvents: GrowthEvent[]
+  mainlineShownAt?: number
+}): Reminder | null {
+  const mainlines = input.profile?.mainlines ?? []
+  const drift = mainlineDrift(mainlines, input.growthEvents, input.mainlineShownAt)
+  if (!drift) return null
+
+  const listed = drift.off
+    .slice(0, MAINLINE_LIST_MAX)
+    .map((e) => `「${quoteVerbatim(e.title, MAINLINE_TITLE_MAX)}」`)
+    .join('')
+  const more = drift.off.length > MAINLINE_LIST_MAX ? '等' : ''
+
+  // noUncheckedIndexedAccess：mainlines[0] 是 MainLine | undefined。
+  // 多条主线时不引原话——三句原话拼起来撑破 body，而且逐条念会把
+  // 「同时走几条线」说成三重偏离
+  const first = mainlines[0]
+  const said =
+    mainlines.length === 1 && first
+      ? `你写的是「${quoteVerbatim(first.text, MAINLINE_QUOTE_MAX)}」`
+      : `你写了 ${mainlines.length} 条主线`
+
+  const scope =
+    drift.declared
+      .slice(0, SCOPE_MAX)
+      .map((c) => EVENT_CATEGORY_LABEL[c])
+      .join('、') + (drift.declared.length > SCOPE_MAX ? '等' : '')
+  const these = drift.declared.length === 1 ? '这一类' : '这几类'
+
+  const body =
+    drift.basis === 'marked'
+      ? `${said}。这 ${drift.off.length} 件是你自己标了「不在」的：${listed}${more}。哪边该改，你说了算。`
+      : `${said}，勾的是${scope}。这 ${drift.off.length} 件不在${these}：${listed}${more}。哪边该改，你说了算。`
+
+  return {
+    key: MAINLINE_REMINDER_KEY,
+    title: `最近记下的 ${drift.on + drift.off.length} 件长期事项`,
+    body,
+    // prompt 与 suggestSkillName 都留空，「去处理」因此不渲染。三条理由：
+    // ① 带 prompt 就把这条提醒的解释权交回模型，而 BASE 系统提示词正要求
+    //    「缺信息时先按合理默认值做出第一版」——那条通用指令在这里的字面意思
+    //    就是替他拟一条主线；护栏只有几句中文否定，而否定句还会把
+    //    「你的主线其实是什么」原样写进上下文，是抬高而不是压低它的出现概率
+    // ② 「去处理」会新开会话，他刚讲完的那段对话就没了
+    // ③ 这条提醒没有要处理的东西，说完一句事实就该闭嘴。剩下的只有关闭
+  }
+}
+
 /**
  * 提醒条里的引文。**必须是原话**，所以这里只做一件事：太长时切短。
  *
@@ -195,10 +323,10 @@ export function computeReminders(input: {
  * 首句本身就超长时才硬切，并且都带上省略号，让人知道后面还有。
  * 完整的那句在 prompt 里，点进对话一个字都不少。
  */
-function quoteVerbatim(takeaway: string): string {
-  const text = takeaway.trim()
-  if (text.length <= QUOTE_MAX_CHARS) return text
+function quoteVerbatim(raw: string, max = QUOTE_MAX_CHARS): string {
+  const text = raw.trim()
+  if (text.length <= max) return text
   const at = text.search(/[。！？!?\n]/)
   const first = at > 0 ? text.slice(0, at + 1) : ''
-  return `${first && first.length <= QUOTE_MAX_CHARS ? first : text.slice(0, QUOTE_MAX_CHARS)}…`
+  return `${first && first.length <= max ? first : text.slice(0, max)}…`
 }

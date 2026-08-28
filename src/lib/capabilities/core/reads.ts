@@ -61,12 +61,15 @@ export const getProfileCapability: Capability = {
   name: 'get_profile',
   kind: 'read',
   label: '查看档案',
-  summary: '读取学生档案：年级、课程体系、在读课程、目标学校',
+  summary: '读取学生档案：年级、课程体系、在读课程、目标学校、他写下的主线',
   owner: 'core',
   schema: {
     name: 'get_profile',
     description:
-      '获取学生档案（年级、课程体系、课程列表、目标学校）。课程与目标学校都带 nodeId，可直接用于 propose_canvas。',
+      '获取学生档案（年级、课程体系、课程列表、目标学校、他自己写下的主线）。课程与目标学校都带 nodeId，可直接用于 propose_canvas。' +
+      '\n\n**mainlines 是学生本人在设置里写下的主线，只读。** 为空就是他没设——' +
+      '那时不要替他归纳一条、不要说「你的主线看起来是 X」、也不要建议他去设一条：' +
+      '**判断自己在做哪条线是他的事**。没有任何工具能写这个字段。',
     parameters: { type: 'object', properties: {} },
   },
   execute: async () => {
@@ -82,6 +85,7 @@ export const getProfileCapability: Capability = {
         currentGrade: c.currentGrade,
         targetGrade: c.targetGrade,
       })),
+      mainlines: (p.mainlines ?? []).map((m) => ({ text: m.text, categories: m.categories })),
       targetSchools: p.targetSchools.map((s) => ({
         nodeId: `school:${s.id}`,
         name: s.name,

@@ -121,7 +121,13 @@ export async function importAll(bundle: ExportBundle): Promise<void> {
       ])
       await db.conversations.bulkAdd(bundle.conversations)
       await db.messages.bulkAdd(bundle.messages)
-      if (bundle.profile) await db.profile.put(bundle.profile)
+      if (bundle.profile) {
+        // 覆盖式导入唯独放过主线：那是他手写的一句话，主线上线前导出的备份里没有，
+        // 别处也恢复不出来。新备份显式带了 mainlines（哪怕是空数组）就照它来——
+        // 清空也是他的决定
+        const kept = (await db.profile.get(bundle.profile.id))?.mainlines
+        await db.profile.put({ ...bundle.profile, mainlines: bundle.profile.mainlines ?? kept ?? [] })
+      }
       if (tables.growthEvents.length) await db.growthEvents.bulkAdd(tables.growthEvents)
       if (tables.artifacts.length) await db.artifacts.bulkAdd(tables.artifacts)
       if (tables.canvasNodes.length) await db.canvasNodes.bulkAdd(tables.canvasNodes)
