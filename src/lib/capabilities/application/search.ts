@@ -70,14 +70,14 @@ export const searchArtifactsCapability: Capability = {
   schema: {
     name: 'search_artifacts',
     description:
-      '在学生的历史学习资产（反思、复盘、文档、文书草稿）里按关键词检索，按相关度排序并给出命中处的上下文片段。写文书找素材时用——比 get_artifacts 更适合"他以前说过什么"这类问题。多个关键词默认命中任意一个即算（OR），要求全部命中就传 matchAll=true。**活动经历不在这里，在 get_events 里。**',
+      '在学生的历史学习资产（反思、复盘、文档、文书草稿）里按关键词检索，按相关度排序并给出命中处的上下文片段。写文书找素材时用——比 get_artifacts 更适合"他以前说过什么"这类问题。多个关键词默认命中任意一个即算（OR），要求全部命中就传 matchAll=true。**返回里的 takeaway 是他自己写下的「下次会怎么做」，是这批素材里分量最重的一句：写文书时优先用它，而且必须原样引用、不要转述成你的说法。**活动经历不在这里，在 get_events 里。',
     parameters: {
       type: 'object',
       properties: {
         keywords: {
           type: 'array',
           items: { type: 'string' },
-          description: '关键词。中英文都可以，会同时搜标题、正文、标签与访谈问答',
+          description: '关键词。中英文都可以，会同时搜标题、正文、标签、访谈问答与「下次会怎么做」',
         },
         matchAll: { type: 'boolean', description: '是否要求全部关键词都命中，默认 false' },
         kind: {
@@ -110,18 +110,22 @@ export const searchArtifactsCapability: Capability = {
     for (const artifact of pool) {
       const qaText = (artifact.qa ?? []).map((q) => `${q.question} ${q.answer}`).join('\n')
       const tagText = artifact.tags.join(' ')
+      const takeaway = artifact.takeaway?.trim() ?? ''
       const matched: string[] = []
       const snippets: string[] = []
       let score = 0
 
       for (const keyword of keywords) {
-        // 标题命中权重最高：学生给资产起的标题本来就是他自己的索引
+        // 标题命中权重最高：学生给资产起的标题本来就是他自己的索引。
+        // 「下次会怎么做」与标题同权——写文书时问的就是"他以前说过什么"，
+        // 而这一句是全部记录里唯一一句他打算带走的话，命中它就是命中了要找的东西
         const inTitle = artifact.title.toLowerCase().includes(keyword.toLowerCase())
+        const inTakeaway = takeaway.toLowerCase().includes(keyword.toLowerCase())
         const inTags = tagText.toLowerCase().includes(keyword.toLowerCase())
         const body = findSnippets(`${artifact.content}\n${qaText}`, keyword)
-        if (!inTitle && !inTags && body.count === 0) continue
+        if (!inTitle && !inTags && !inTakeaway && body.count === 0) continue
         matched.push(keyword)
-        score += (inTitle ? 5 : 0) + (inTags ? 3 : 0) + Math.min(body.count, 5)
+        score += (inTitle ? 5 : 0) + (inTakeaway ? 5 : 0) + (inTags ? 3 : 0) + Math.min(body.count, 5)
         for (const s of body.snippets) if (snippets.length < MAX_SNIPPETS_PER_ARTIFACT) snippets.push(s)
       }
 
@@ -146,9 +150,13 @@ export const searchArtifactsCapability: Capability = {
         linkedNodeIds: h.artifact.linkedNodeIds,
         createdAt: new Date(h.artifact.createdAt).toISOString().slice(0, 10),
         matched: h.matched,
+        // 原话整句给，不切片段——它只有一行，而切过的引文就不再是引文了
+        takeaway: h.artifact.takeaway,
         snippets: h.snippets,
       })),
-      note: '片段只是命中处的上下文。要某一条的全文，用 get_artifacts 传它的 id。',
+      note:
+        '片段只是命中处的上下文。要某一条的全文，用 get_artifacts 传它的 id。' +
+        'takeaway 是学生自己写下的「下次会怎么做」，是完整原话——引用时一个字都不要改。',
     })
   },
 }

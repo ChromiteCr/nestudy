@@ -48,14 +48,21 @@ function reflectionsOf(event: GrowthEvent, artifacts: Artifact[]): Artifact[] {
   return artifacts.filter((a) => a.kind === 'reflection' && a.linkedNodeIds.includes(nodeId))
 }
 
+/**
+ * 最近一次写下的「下次会怎么做」，连同**写下的时间**。
+ *
+ * 多份反思都写了 takeaway 时用最新的那条——人是会改主意的，
+ * 最近一次的说法才是他现在的想法。时间要一起带出来是因为 `priorTakeaway`
+ * 要按「这句话是什么时候想明白的」排序，而不是按那段经历什么时候发生。
+ */
+function latestTakeaway(linked: Artifact[]): { text: string; at: number } | null {
+  const said = linked.filter((a) => filled(a.takeaway)).sort((a, b) => b.createdAt - a.createdAt)[0]
+  return said?.takeaway ? { text: said.takeaway.trim(), at: said.createdAt } : null
+}
+
 export function depthOf(event: GrowthEvent, artifacts: Artifact[]): EventDepth {
   const linked = reflectionsOf(event, artifacts)
-  // 取第一条有原话的。多份反思都写了 takeaway 时用最新的那条——
-  // 人是会改主意的，最近一次的说法才是他现在的想法
-  const takeaway =
-    linked
-      .filter((a) => filled(a.takeaway))
-      .sort((a, b) => b.createdAt - a.createdAt)[0]?.takeaway?.trim() ?? null
+  const takeaway = latestTakeaway(linked)?.text ?? null
 
   const hasProcess =
     filled(event.description) ||
@@ -74,4 +81,45 @@ export function depthOf(event: GrowthEvent, artifacts: Artifact[]): EventDepth {
  */
 export function shallowEvents(events: GrowthEvent[], artifacts: Artifact[]): GrowthEvent[] {
   return events.filter((e) => e.kind === 'long' && e.endDate && depthOf(e, artifacts).depth === 1)
+}
+
+/**
+ * **上一次做同类的事情时，他自己写下的那句「下次会怎么做」。**
+ *
+ * 这是规划第 18 项——「让记录回到决策现场」——的取数口。整个「记录」阶段的收口
+ * 就在这里：前面做的一切让学生有了一份好读的记录，但如果它只是躺着，
+ * 那它仍然只是一张摆得好看的素材表（**郭老师原话：跟 word 没有区别，
+ * 就是填起来方便一些而已**）。记录要真的帮到人，就得在他**下一次做决定的时候**
+ * 自己冒出来，而不是等他想起来去翻。
+ *
+ * 三条筛选，每条都是为了让「上次做 X 你写过」这句话**字面为真**：
+ *
+ * - 同 `category`：跨类别的经验多半迁移不过去，硬推就成了套话
+ * - `startDate <= 新事项的 startDate`：「上次」必须真的在前面，否则是在拿后来的事教前面的事
+ * - 排序按**那句话写下的时间**，不按经历的时间：同一段经历隔一年再回看会写出不一样的话，
+ *   最近想明白的那句才是该推的
+ *
+ * 返回原话本身，不做任何加工——转述一次，那句话就不再是他的了。
+ */
+export interface PriorTakeaway {
+  /** 说这句话时做的那件事 */
+  event: GrowthEvent
+  /** 他的原话，一个字没动 */
+  takeaway: string
+}
+
+export function priorTakeaway(
+  event: GrowthEvent,
+  events: GrowthEvent[],
+  artifacts: Artifact[],
+): PriorTakeaway | null {
+  const candidates = events
+    .filter((e) => e.kind === 'long' && e.id !== event.id && e.category === event.category)
+    .filter((e) => e.startDate <= event.startDate)
+    .map((e) => ({ event: e, said: latestTakeaway(reflectionsOf(e, artifacts)) }))
+    .filter((c): c is { event: GrowthEvent; said: { text: string; at: number } } => c.said !== null)
+    .sort((a, b) => b.said.at - a.said.at)
+
+  const best = candidates[0]
+  return best ? { event: best.event, takeaway: best.said.text } : null
 }

@@ -180,7 +180,7 @@ export const getArtifactsCapability: Capability = {
   schema: {
     name: 'get_artifacts',
     description:
-      '获取学生的学习资产（反思、文档、复盘、计划、文书草稿等）。正文默认只给前 300 字摘要；需要某一条的全文时传它的 id 到 ids。linkedNodeIds 是它关联的画板节点。',
+      '获取学生的学习资产（反思、文档、复盘、计划、文书草稿等）。正文默认只给前 300 字摘要；需要某一条的全文时传它的 id 到 ids。linkedNodeIds 是它关联的画板节点。takeaway 是学生自己写下的「下次会怎么做」，摘要模式下也是完整原话——**引用时一个字都不要改，也不要替他补一句他没说过的**；空着说明这件事他还没消化完，那本身就是实情。',
     parameters: {
       type: 'object',
       properties: {
@@ -229,6 +229,9 @@ export const getArtifactsCapability: Capability = {
           content: full ? a.content : a.content.slice(0, EXCERPT_CHARS),
           truncated: !full && a.content.length > EXCERPT_CHARS,
           qa: full ? a.qa : undefined,
+          // 摘要模式下也整句给。它只有一行，而它是这条记录里唯一"将来用得上"的一层——
+          // 判断一个学生有没有在长进，看的就是这一句（招生官读档要引的证据）
+          takeaway: a.takeaway,
         }
       }),
     })

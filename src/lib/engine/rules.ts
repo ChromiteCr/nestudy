@@ -1,5 +1,5 @@
 import { daysUntil, isoToday } from '@/lib/db/dates'
-import { shallowEvents } from './depth'
+import { priorTakeaway, shallowEvents } from './depth'
 import { getSkill } from '@/lib/skills'
 import { isProfileEmpty } from '@/types'
 import type { Artifact, GrowthEvent, StudentProfile } from '@/types'
@@ -26,6 +26,8 @@ const OVERLOAD_THRESHOLD = 5
 const COMEBACK_DAYS = 3
 const REFLECTION_LOOKBACK_DAYS = 7
 const ADMISSIONS_READER_MIN_EVENTS = 3
+const CARRYOVER_WINDOW_DAYS = 14
+const QUOTE_MAX_CHARS = 60
 
 const isTask = (e: GrowthEvent) => e.kind === 'short' && e.category === 'task'
 const isSchedule = (e: GrowthEvent) => e.kind === 'short' && e.category !== 'task'
@@ -129,6 +131,44 @@ export function computeReminders(input: {
     })
   }
 
+  /**
+   * R7：**开始一件同类的新事情时，把上一次那句「下次会怎么做」推回来。**
+   *
+   * 这一条是「记录」阶段的收口。14 让记录看得见，但看得见还不够——
+   * 一份只在他想起来去翻的时候才有用的记录，和一张表格没有区别。
+   * 记录要真的帮到人，就得在**下一次做决定的现场**自己出现。
+   *
+   * **引的必须是原话，不是我们的总结。** 转述一次那句话就不再是他的了，
+   * 而「他自己说过的话」正是它有说服力的全部理由——同样一句「先定个交叉核对的规矩」
+   * 由我们说出来是一条建议，由他半年前的自己说出来是一次兑现。
+   *
+   * 窗口取 14 天：新建一个长期事项之后的两周里，这件事还在「怎么开头」的阶段，
+   * 推过去接得上；两周之后他已经上手了，再拿旧话去拦是马后炮。
+   *
+   * 摆在 R5 后面是有意的——两条都在讲记录，R5 说「这段还没长出东西」，
+   * R7 说「上次长出来的东西现在用得上」，挨着看才是一件事的两面。
+   */
+  const startingFresh = longEvents
+    // 已经结束的不推：那是在补录历史，不是在开始一件事，没有「这次要不要」可言
+    .filter((e) => !e.endDate || daysUntil(e.endDate) >= 0)
+    .filter((e) => Date.now() - e.createdAt <= CARRYOVER_WINDOW_DAYS * 86400000)
+    .sort((a, b) => b.createdAt - a.createdAt)
+  for (const e of startingFresh) {
+    const prior = priorTakeaway(e, longEvents, artifacts)
+    if (!prior) continue
+    reminders.push({
+      key: `carryover:${e.id}:${prior.event.id}`,
+      title: `开始「${e.title}」之前`,
+      // 引号后面接破折号而不是句号：原话本身常常自带句号，「…定下来。」。 这种叠标点
+      // 一眼就看得出是拼出来的；而**修掉原话末尾的句号又等于改了他的字**
+      body: `上次做「${prior.event.title}」你写过：「${quoteVerbatim(prior.takeaway)}」——这次要不要先照这句话定个规矩？`,
+      // prompt 里给**完整**原话，不给截断版：提醒条要短，但真进了对话就没有理由再省
+      prompt: `我要开始「${e.title}」。上次做「${prior.event.title}」的时候我写过：「${prior.takeaway}」。帮我把这句话落到这次的具体安排上——先用 get_events 看看这件事现在是什么样，再给一两条这周就能做的，不要泛泛的建议。`,
+    })
+    // 一次只推一条。同时甩出三段旧话，那是在翻旧账，不是在帮他开头
+    break
+  }
+
   // R6：长期事项达标但从未用过「招生官读档」
   const admissionsReader = getSkill('admissions-reader')
   if (
@@ -145,4 +185,20 @@ export function computeReminders(input: {
   }
 
   return reminders
+}
+
+/**
+ * 提醒条里的引文。**必须是原话**，所以这里只做一件事：太长时切短。
+ *
+ * 切在**句子边界**上，不切在半句里——「我们没有交叉核对的习惯，
+ * 但那次其实是来不及」拦腰截断之后意思正好反过来，那就不再是引用了。
+ * 首句本身就超长时才硬切，并且都带上省略号，让人知道后面还有。
+ * 完整的那句在 prompt 里，点进对话一个字都不少。
+ */
+function quoteVerbatim(takeaway: string): string {
+  const text = takeaway.trim()
+  if (text.length <= QUOTE_MAX_CHARS) return text
+  const at = text.search(/[。！？!?\n]/)
+  const first = at > 0 ? text.slice(0, at + 1) : ''
+  return `${first && first.length <= QUOTE_MAX_CHARS ? first : text.slice(0, QUOTE_MAX_CHARS)}…`
 }
