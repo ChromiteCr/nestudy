@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Archive, CalendarClock, Check, GraduationCap, History, Network, Puzzle, Send, X } from 'lucide-react'
+import {
+  Archive,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  GraduationCap,
+  History,
+  Network,
+  Puzzle,
+  Send,
+  X,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -7,6 +18,7 @@ import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
 import { cn } from '@/lib/utils'
+import { ARTIFACT_KIND_LABEL } from '@/lib/artifact-labels'
 import { ProposedEventRow } from './ProposedEventRow'
 import {
   APPLICATION_TRACK_LABEL,
@@ -23,16 +35,6 @@ import {
   type ProposedSkill,
 } from '@/types'
 import { resolveDeadline, type ResolvedDeadline } from '@/lib/capabilities/application'
-
-const ARTIFACT_KIND_LABEL: Record<ProposedArtifact['kind'], string> = {
-  reflection: '反思',
-  document: '文档',
-  cheatsheet: '速查表',
-  plan: '计划',
-  review: '复盘',
-  essay: '文书',
-  code: '代码',
-}
 
 interface ProposalCardProps {
   message: Message
@@ -343,9 +345,7 @@ function ArtifactProposalCard({
               </div>
               <p className="line-clamp-6 whitespace-pre-wrap text-sm text-muted-foreground">{a.content}</p>
               <div className="flex flex-wrap items-center gap-1.5">
-                {a.qa && a.qa.length > 0 && (
-                  <Mono className="text-muted-foreground">{a.qa.length} 组问答</Mono>
-                )}
+                {a.qa && a.qa.length > 0 && <QaDisclosure qa={a.qa} />}
                 {a.tags.map((t) => (
                   <Badge key={t} variant="outline">
                     {t}
@@ -357,6 +357,41 @@ function ArtifactProposalCard({
         ))}
       </div>
     </CardShell>
+  )
+}
+
+/**
+ * 访谈原话，可展开。
+ *
+ * 在此之前这里只有一个「N 组问答」的计数，而**这张卡是学生唯一一次能纠正原话的机会**——
+ * 一旦确认，`qa` 就只剩模型和检索读得到，界面上再也看不见（直到 `ReflectionReader`）。
+ * 让他在按「保存」之前能核对一遍自己到底说了什么，这是「记录」这件事的底线。
+ *
+ * 默认收着：多数时候他想看的是整理稿；但收着不等于藏起来，标题上写着有几组。
+ */
+function QaDisclosure({ qa }: { qa: NonNullable<ProposedArtifact['qa']> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-left transition-colors hover:text-foreground"
+      >
+        <ChevronRight className={cn('size-3 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+        <Mono className="text-muted-foreground">{open ? '收起原话' : `${qa.length} 组问答（你的原话）`}</Mono>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex flex-col gap-2 border-l-2 pl-2.5">
+          {qa.map((pair, i) => (
+            <div key={i} className="flex flex-col gap-0.5">
+              <p className="text-xs leading-relaxed text-muted-foreground">{pair.question}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{pair.answer}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

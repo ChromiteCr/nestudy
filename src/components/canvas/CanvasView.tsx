@@ -17,6 +17,7 @@ import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePlanningStore } from '@/stores/planningStore'
+import { ReflectionReader } from '@/components/artifacts/ReflectionReader'
 import { daysUntil } from '@/lib/db/dates'
 import { resolveDeadline, referenceStamp } from '@/lib/capabilities/application'
 import { APPLICATION_TRACK_LABEL, EVENT_CATEGORY_LABEL, type EventCategory } from '@/types'
@@ -43,6 +44,8 @@ export function CanvasView() {
   const [drawerOpen, setDrawerOpen] = useState(() => window.innerWidth >= 768)
   const [categoryFilter, setCategoryFilter] = useState<Set<EventCategory>>(new Set())
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  /** 正在读哪一份记录。存 id 不存对象：artifacts 会变，存对象就会读到旧的 */
+  const [readingId, setReadingId] = useState<string | null>(null)
 
   const built = useMemo(
     () => buildCanvas({ growthEvents, profile, canvasNodes, canvasEdges, artifacts, categoryFilter }),
@@ -98,6 +101,7 @@ export function CanvasView() {
           built={built}
           usedCategories={usedCategories}
           categoryFilter={categoryFilter}
+          onRead={setReadingId}
           onToggleCategory={(c) => {
             setCategoryFilter((prev) => {
               const next = new Set(prev)
@@ -176,6 +180,18 @@ export function CanvasView() {
               value={selectedEdge.label}
               onChange={(e) => void editCanvasEdge(selectedEdge.id, { label: e.target.value })}
             />
+            {selectedEdge.artifactId && (
+              // 绑了反思却读不了，等于只看得见一个标题。这里是画板上离
+              // 「这条边背后到底想了什么」最近的一个入口
+              <Button
+                variant="outline"
+                size="sm"
+                className="mb-2 w-full"
+                onClick={() => setReadingId(selectedEdge.artifactId ?? null)}
+              >
+                读这份反思
+              </Button>
+            )}
             <label className="flex flex-col gap-1">
               <Mono className="text-muted-foreground">绑定反思</Mono>
               <select
@@ -198,6 +214,11 @@ export function CanvasView() {
           </aside>
         )}
       </div>
+
+      <ReflectionReader
+        artifact={artifacts.find((a) => a.id === readingId) ?? null}
+        onClose={() => setReadingId(null)}
+      />
     </main>
   )
 }
@@ -207,13 +228,15 @@ interface DrawerProps {
   usedCategories: EventCategory[]
   categoryFilter: Set<EventCategory>
   onToggleCategory: (c: EventCategory) => void
+  /** 点开一份记录去读。抽屉自己不持有「在读哪份」，那是画板那一层的事 */
+  onRead: (artifactId: string) => void
 }
 
 /**
  * 画板左抽屉。列表模式是有意保留的——把截止日期只画在画板上，
  * 「下一件要做的事是什么」会比列表难看，这里按日期排序补上。
  */
-function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory }: DrawerProps) {
+function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory, onRead }: DrawerProps) {
   const growthEvents = usePlanningStore((s) => s.growthEvents)
 
   const upcoming = useMemo(
@@ -274,7 +297,7 @@ function CanvasDrawer({ built, usedCategories, categoryFilter, onToggleCategory 
           </p>
           {built.unlinkedReflections.length === 0 && <Empty>都已连接</Empty>}
           {built.unlinkedReflections.map((a) => (
-            <Row key={a.id} label={a.title}>
+            <Row key={a.id} label={a.title} onClick={() => onRead(a.id)}>
               <Mono className="text-muted-foreground">
                 {new Date(a.createdAt).toISOString().slice(0, 10)}
               </Mono>
@@ -388,12 +411,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2 rounded-sm px-1 py-1 hover:bg-accent/60">
+function Row({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  /** 给了就渲染成按钮。没给的行保持原样——不是每一行都有东西可点开 */
+  onClick?: () => void
+  children: React.ReactNode
+}) {
+  const inner = (
+    <>
       <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
       {children}
-    </div>
+    </>
+  )
+  const shell = 'flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-1 text-left hover:bg-accent/60'
+  return onClick ? (
+    <button type="button" className={shell} onClick={onClick}>
+      {inner}
+    </button>
+  ) : (
+    <div className={shell}>{inner}</div>
   )
 }
 
