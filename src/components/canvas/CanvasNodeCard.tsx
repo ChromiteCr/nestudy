@@ -1,18 +1,7 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Mono } from '@/components/ui/mono'
 import { cn } from '@/lib/utils'
-import type { CanvasNodeData } from './canvas-model'
-
-const TONE_BAR: Record<CanvasNodeData['tone'], string> = {
-  c1: 'bg-canvas-1',
-  c2: 'bg-canvas-2',
-  c3: 'bg-canvas-3',
-  c4: 'bg-canvas-4',
-  c5: 'bg-canvas-5',
-  c6: 'bg-canvas-6',
-  anchor: 'bg-foreground',
-  quiet: 'bg-muted-foreground/40',
-}
+import { TONE_BAR, type CanvasNodeData } from './canvas-model'
 
 /** 画板节点：一张安静的卡片，颜色只出现在左侧那一条——学生的数据是画板上唯一有彩的东西 */
 export function CanvasNodeCard({ data, selected }: NodeProps<Node<CanvasNodeData>>) {

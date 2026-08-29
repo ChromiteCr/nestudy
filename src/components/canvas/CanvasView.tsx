@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils'
 import { buildCanvas, type CanvasNodeData } from './canvas-model'
 import { CanvasNodeCard } from './CanvasNodeCard'
 import { ReflectionEdge, type ReflectionEdgeData } from './ReflectionEdge'
+import { TimelineView } from './TimelineView'
 
 const nodeTypes = { card: CanvasNodeCard }
 const edgeTypes = { reflection: ReflectionEdge }
@@ -48,6 +49,15 @@ export function CanvasView() {
 
   // 窄屏下 288px 的抽屉会把画布挤没，默认收起；展开时改为浮层覆盖而不是挤压
   const [drawerOpen, setDrawerOpen] = useState(() => window.innerWidth >= 768)
+  /*
+    画板的两种看法：图看关系（谁影响了谁），轴看疏密（什么时候发生、哪一段空着）。
+
+    **不进 URL、不进 settings。** 全仓没有路由；上一层的 `AppView` 本身就是
+    `useState('chat')`、刷新回到聊天——上一层的导航都不持久化，
+    却去持久化它的子模式，层级上说不通。而 URL 会让「轴」看起来像第五个导航目的地，
+    正好违反「不动导航四项」。
+  */
+  const [mode, setMode] = useState<'graph' | 'axis'>('graph')
   const [categoryFilter, setCategoryFilter] = useState<Set<EventCategory>>(new Set())
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   /** 正在读哪一份记录。存 id 不存对象：artifacts 会变，存对象就会读到旧的 */
@@ -120,6 +130,20 @@ export function CanvasView() {
       )}
 
       <div className="relative min-w-0 flex-1">
+        {/*
+          两边都卸载，不用 display:none。切回图时视口重置是**代价不是 bug**——
+          节点坐标是持久化的，丢的只是缩放平移。改成 display:none 会踩两个更难查的坑：
+          隐藏期间 ReactFlow 量到 0×0（回显靠 ResizeObserver，只在特定时序复现），
+          以及两者同挂载时那两个同步 effect 在不可见时继续跑。
+        */}
+        {mode === 'axis' ? (
+          <TimelineView
+            growthEvents={growthEvents}
+            artifacts={artifacts}
+            categoryFilter={categoryFilter}
+            onRead={setReadingId}
+          />
+        ) : (
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -138,18 +162,52 @@ export function CanvasView() {
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} className="opacity-60" />
           <Controls showInteractive={false} className="!shadow-none" />
         </ReactFlow>
+        )}
 
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute left-3 top-3 size-8 bg-card"
-          aria-label={drawerOpen ? '收起面板' : '展开面板'}
-          onClick={() => setDrawerOpen((v) => !v)}
-        >
-          {drawerOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-        </Button>
+        {/*
+          左上 chrome 簇。**必须挂在 ReactFlow 的兄弟层**：Background/Controls
+          是它的 children，跟着一起消失。**不加 z-index**：抽屉在窄屏是 z-10
+          的覆盖式浮层，给这一簇加 z 会让它盖住展开的抽屉。
 
-        {selectedEdge && (
+          不塞进抽屉的 TabsList 是算术不是审美：抽屉 w-72 减去边距约 266px，
+          4 列每格 66.5px、5 列每格 53.2px，而 TabsTrigger 无 truncate，
+          「待连接」三字约 58px——**现有的 tab 会先溢出**。
+          语义上也不对：抽屉四个 tab 是内容分区，视图切换是画布列的事。
+        */}
+        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8 bg-card"
+            aria-label={drawerOpen ? '收起面板' : '展开面板'}
+            onClick={() => setDrawerOpen((v) => !v)}
+          >
+            {drawerOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+          </Button>
+          {/* 手写小分段控件而不复用 Tabs：Tabs 是抽屉的词汇。
+              用「图 / 轴」两个汉字而不用图标——Waypoints 已经是导轨上「画板」那一项的图标，
+              在画板内部再用它表示子模式会指代不清 */}
+          <div role="group" aria-label="画板视图" className="flex rounded-sm border bg-card p-[3px]">
+            {(['graph', 'axis'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'rounded-[3px] px-2.5 py-1 text-xs transition-colors',
+                  mode === m ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {m === 'graph' ? '图' : '轴'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 边是画板独有的对象，轴上没有对应物。只加渲染门、保留 state，
+            回切时选中态还在，代价为零 */}
+        {mode === 'graph' && selectedEdge && (
           <aside className="absolute right-3 top-3 w-72 rounded-sm border bg-card p-3 shadow-sm">
             <div className="mb-2 flex items-center justify-between">
               <Mono className="text-muted-foreground">连接</Mono>

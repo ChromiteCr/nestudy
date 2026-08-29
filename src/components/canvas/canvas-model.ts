@@ -33,6 +33,24 @@ export function toneFor(category: EventCategory): CanvasNodeData['tone'] {
   return CATEGORY_TONE[category] ?? 'c5'
 }
 
+/**
+ * tone → 色条 class。和 `CATEGORY_TONE`、`toneFor` 是同一件事的三段，摆在一起。
+ *
+ * **画板与时间线共用这一份，不许各自复制一套。** 上面那句「6 个色相取在同一 L/C 上，
+ * 哪一类都不会因为颜色显得更重要」是靠共用这份映射兑现的，不是靠注释——
+ * 一旦有第二套色表，那条设计就只剩一句话。
+ */
+export const TONE_BAR: Record<CanvasNodeData['tone'], string> = {
+  c1: 'bg-canvas-1',
+  c2: 'bg-canvas-2',
+  c3: 'bg-canvas-3',
+  c4: 'bg-canvas-4',
+  c5: 'bg-canvas-5',
+  c6: 'bg-canvas-6',
+  anchor: 'bg-foreground',
+  quiet: 'bg-muted-foreground/40',
+}
+
 export interface LabelledNode {
   id: string
   label: string
