@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Mono } from '@/components/ui/mono'
 import { useChatStore } from '@/stores/chatStore'
 import { useSkillStore } from '@/stores/skillStore'
-import { listCapabilities, resolveForSkill } from '@/lib/capabilities'
+import { resolveForSkill } from '@/lib/capabilities'
+import { useCapabilities } from '@/lib/capabilities/use-capabilities'
 import {
   listBuiltinSkills,
   listSkillLoadIssues,
@@ -51,6 +52,9 @@ interface SkillsViewProps {
 }
 
 export function SkillsView({ onOpenChat }: SkillsViewProps) {
+  // 订阅而不是直接调 listCapabilities()：插件启停会改能力面，
+  // 一次性数组的话学生开了插件也看不见新工具，得刷新才出来
+  const capabilities = useCapabilities()
   const userSkills = useSkillStore((s) => s.userSkills)
   const saveSkill = useSkillStore((s) => s.saveSkill)
   const removeSkill = useSkillStore((s) => s.removeSkill)
@@ -218,9 +222,9 @@ export function SkillsView({ onOpenChat }: SkillsViewProps) {
         ))}
 
         <div className="flex flex-col gap-2 border-t pt-4">
-          <span className="text-sm text-muted-foreground">全部可用能力（{listCapabilities().length}）</span>
+          <span className="text-sm text-muted-foreground">全部可用能力（{capabilities.length}）</span>
           {(['read', 'propose', 'ask'] as const).map((kind) => {
-            const group = listCapabilities().filter((c) => c.kind === kind)
+            const group = capabilities.filter((c) => c.kind === kind)
             if (group.length === 0) return null
             return (
               <div key={kind} className="flex gap-2 text-sm">

@@ -6,13 +6,31 @@
  * S7 收敛为三项（聊天 / 画板 / 设置）；S10c 加回 skills 一项——
  * **这是对极简导航的一次有代价的让步**：自建 skill 之后，"我有哪些技能、
  * 这个能碰什么数据、导出给别人"需要一块常驻表面，塞进设置子页会让
- * 一个日常动作藏进配置里。四项仍在导轨承受范围内，但不该再加第五项。
+ * 一个日常动作藏进配置里。
  * - chat：唯一的操作入口（含主动提醒与 skill 会话）
  * - canvas：唯一的数据视图（事项是节点，反思是边）
  * - skills：技能库（内置 + 自建，含导入导出与授权范围）
  * - settings：配置
+ *
+ * ## S16a 推翻了这里原来那句「四项是上限，不该再加第五项」
+ *
+ * 那句话防的是**导轨长度失控**：一条 56px 的图标轨，项数一多就既认不出也点不准，
+ * 而每加一项都在替所有人多付一份认知成本。这个担心没有过时。
+ *
+ * 变的是**谁在加**。原来每一项都是核心功能，加不加是产品决定，四项确实该到顶；
+ * 插件不一样，它是**用户自己开的**——他开了时间规划，那一格对他就是有用的，
+ * 对没开的人则根本不存在。VSCode 的活动栏正是这么撑住几十个扩展的。
+ *
+ * 代价是那句话预言的事现在得**真的做掉**：溢出（装不下就进 `⋯` 菜单）、
+ * 排序、以及能把某个插件从栏上摘掉但不禁用它。三件都在 `Sidebar.tsx` 与
+ * 插件管理页里。**不做溢出就等于没推翻这条约束，只是把它忘了。**
+ *
+ * 编码沿用本仓库既有的 `CapabilityOwner = 'core' | \`plugin:${string}\`` 那套写法
+ * （`lib/capabilities/types.ts:19`）：同一个「核心 vs 插件」的区分，
+ * 用两种不同的类型形状表达只会让人多记一样东西。
  */
-export type AppView = 'chat' | 'canvas' | 'skills' | 'settings'
+export type CoreView = 'chat' | 'canvas' | 'skills' | 'settings'
+export type AppView = CoreView | `plugin:${string}`
 
 // ---- 学生档案 ----
 
@@ -906,6 +924,31 @@ export interface Settings {
   usedSkillIds?: string[]
   /** 用户自定义界面主色；null/缺省 = 主题默认 */
   themeColor?: { r: number; g: number; b: number } | null
+  /**
+   * 插件的启停、栏上顺序与隐藏。缺省 = 全部启用、全部上栏、按注册表顺序。
+   *
+   * 不进索引，所以**不需要 Dexie 迁移**（同 S15a 的 `Artifact.takeaway`、
+   * S15b 的 `GrowthEvent.mainlineMark`）。
+   */
+  pluginPrefs?: PluginPrefs
+}
+
+/**
+ * 插件的三项偏好。**定义放在这里而不是 `src/plugins/types.ts`**：
+ * 它是落库的数据，和 `Settings` 同层；那边的 `PluginManifest` 要 React 与 lucide 的类型，
+ * 放进来会把界面依赖拖进数据层，反过来放那边又会让 `@/types` 反向 import 插件层成环。
+ */
+export interface PluginPrefs {
+  /**
+   * 明确被关掉的。**记「关掉的」而不是「开着的」**：内置插件的默认状态是开，
+   * 记开着的那份名单会让将来新增的插件对老用户默认是关的——
+   * 而他从没表示过不要它。
+   */
+  disabled?: string[]
+  /** 开着、能力也在，但不占插件栏那一格。给「我用得着它的工具但不需要那个视图」留的 */
+  offBar?: string[]
+  /** 插件栏顺序。不在这里的按注册表顺序排在后面 */
+  order?: string[]
 }
 
 // ---- 数据导出 ----

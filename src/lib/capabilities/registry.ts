@@ -12,6 +12,41 @@ import type { Capability, CapabilityOwner } from './types'
 
 const registry = new Map<string, Capability>()
 
+/**
+ * 不可变快照，随注册表变动整体换一个新数组。
+ *
+ * 存在的理由是 `useSyncExternalStore` 要求 getSnapshot **同一状态下返回同一个引用**——
+ * 直接给它 `listCapabilities()` 会每次产出新数组，React 判定「变了」于是无限重渲染。
+ * 所以变动时换一次引用，不变时一直是同一个。
+ */
+let snapshot: Capability[] = []
+const listeners = new Set<() => void>()
+
+/**
+ * 能力面变了就通知订阅者。
+ *
+ * S16a 之前注册表是**一次性**的：核心能力在 `main.tsx` 的副作用 import 里全部注册完，
+ * 之后再没变过，所以 `SkillsView` 与 `Composer` 直接调 `listCapabilities()` 是安全的。
+ * plugin 可以中途启停之后这个前提就没了——学生开了插件，能力清单却还是旧的，
+ * 得刷新一次才看得见。变动通知是补上这个空档，不是新功能。
+ */
+function changed(): void {
+  snapshot = [...registry.values()]
+  for (const fn of listeners) fn()
+}
+
+export function subscribeCapabilities(fn: () => void): () => void {
+  listeners.add(fn)
+  return () => {
+    listeners.delete(fn)
+  }
+}
+
+/** 给 `useSyncExternalStore` 用；引用只在能力面真的变了之后才换 */
+export function capabilitiesSnapshot(): Capability[] {
+  return snapshot
+}
+
 export function registerCapability(cap: Capability): void {
   const existing = registry.get(cap.name)
   if (existing) {
@@ -19,13 +54,20 @@ export function registerCapability(cap: Capability): void {
     throw new Error(`capability 重名：${cap.name}（已由 ${existing.owner} 注册）`)
   }
   registry.set(cap.name, cap)
+  changed()
 }
 
 /** 撤销某个 owner 注册的全部能力（S13：禁用 plugin） */
 export function unregisterOwner(owner: CapabilityOwner): void {
+  let hit = false
   for (const [name, cap] of registry) {
-    if (cap.owner === owner) registry.delete(name)
+    if (cap.owner === owner) {
+      registry.delete(name)
+      hit = true
+    }
   }
+  // 没删掉任何东西就不通知：禁用一个没注册过能力的纯视图插件不该让整个界面重渲染
+  if (hit) changed()
 }
 
 export function getCapability(name: string): Capability | undefined {

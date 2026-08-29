@@ -6,7 +6,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { selectContextUsage, useChatStore } from '@/stores/chatStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { getSkill } from '@/lib/skills'
-import { resolveForSkill } from '@/lib/capabilities'
+import { narrowForSkill } from '@/lib/capabilities'
+import { useCapabilities } from '@/lib/capabilities/use-capabilities'
 import { cn } from '@/lib/utils'
 import { ImportDialog } from './ImportDialog'
 import { SlashCommandMenu } from './SlashCommandMenu'
@@ -46,15 +47,20 @@ export function Composer() {
   const contextWindow = useSettingsStore((s) => s.modelConfig.contextWindow)
 
   const usage = useMemo(() => selectContextUsage(messages, contextWindow), [messages, contextWindow])
+  // 订阅能力面，并**显式**喂给 narrowForSkill，而不是用读全局注册表的
+  // `resolveForSkill`。两者算出来的东西一样，但注册表在 S16a 之后会随插件启停变，
+  // 走全局那条的话这个 memo 看不见变化（依赖里也写不出来，lint 还会说这条依赖多余）。
+  // 把注册表当参数传进来，依赖关系就是真的了
+  const capabilities = useCapabilities()
   const activeSkill = useMemo(() => {
     const name = conversations.find((c) => c.id === activeId)?.skillName
     const skill = name ? getSkill(name) : undefined
     if (!skill) return undefined
     // 「可提案」要看实际拿到的能力面，不能只看有没有声明 capabilities——
     // 声明的全是读能力时，说成可提案是在吓唬用户
-    const granted = resolveForSkill(skill.manifest).granted
+    const granted = narrowForSkill(capabilities, skill.manifest).granted
     return { skill, canWrite: granted.some((c) => c.kind === 'propose') }
-  }, [conversations, activeId])
+  }, [conversations, activeId, capabilities])
 
   const commands = useMemo(() => (query ? filterCommands(listSlashCommands(), query.term) : []), [query])
 

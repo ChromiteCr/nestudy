@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { ClipboardList, Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
+import { Blocks, ClipboardList, Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
@@ -14,9 +14,10 @@ import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
 import { BoardPanel } from './BoardPanel'
 import { AccountSection } from './AccountPanel'
+import { PluginManagerPanel } from '@/components/plugins/PluginManagerPanel'
 import { cn } from '@/lib/utils'
 
-export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data' | 'board'
+export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'plugins' | 'data' | 'board'
 
 interface CategoryDef {
   key: SettingsCategory
@@ -27,16 +28,21 @@ interface CategoryDef {
 }
 
 /**
- * 看板加在设置里而不是导航上。
+ * 看板加在设置里而不是导航上：它**只有老师看得见**，为一小撮人在所有人的导轨上
+ * 加一格是不划算的，而设置页本来就是分类列表，多一个分类没有这个代价。
  *
- * `Sidebar.tsx` 写着「四项是上限，再多就该重新考虑导轨这个形态了」，
- * 而这一项只有老师看得见——为一小撮人在所有人的导轨上加一格，
- * 正是那句话要防的事。设置页本来就是分类列表，加第五个分类没有这个代价。
+ * （S16a 之前这里的理由写的是「`Sidebar.tsx` 说四项是上限」。那条上限已经被
+ * S16a 推翻——插件栏可以长——但看板留在设置里的判断没变，只是理由换成了
+ * 上面这条：推翻的是「导轨不能再长」，不是「什么都该往导轨上放」。）
+ *
+ * 插件管理同理留在设置里：它是**配置插件**的地方，不是插件本身；
+ * 插件自己的视图在插件栏上各占一格。
  */
 const CATEGORIES: CategoryDef[] = [
   { key: 'model', label: '模型', icon: Cpu },
   { key: 'profile', label: '档案', icon: GraduationCap },
   { key: 'appearance', label: '外观', icon: Palette },
+  { key: 'plugins', label: '插件', icon: Blocks },
   { key: 'data', label: '数据', icon: Database },
   { key: 'board', label: '看板', icon: ClipboardList, teacherOnly: true },
 ]
@@ -87,6 +93,7 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
           {active === 'model' && <ModelPanel />}
           {active === 'profile' && <ProfilePanel />}
           {active === 'appearance' && <AppearancePanel />}
+          {active === 'plugins' && <PluginManagerPanel />}
           {active === 'data' && <DataPanel />}
           {active === 'board' && <BoardPanel />}
         </div>

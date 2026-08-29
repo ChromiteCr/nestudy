@@ -11,7 +11,9 @@ import { useReminderStore } from '@/stores/reminderStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSkillStore } from '@/stores/skillStore'
+import { usePluginStore } from '@/stores/pluginStore'
 import { SkillsView } from '@/components/skills/SkillsView'
+import { PluginView } from '@/components/plugins/PluginView'
 import type { AppView } from '@/types'
 
 export default function App() {
@@ -28,6 +30,9 @@ export default function App() {
     // 自建 skill 要在会话开始前灌进 lib/skills 的缓存，否则第一轮的
     // system prompt 里没有它们，agent 就"看不见"用户自己写的技能
     void useSkillStore.getState().load()
+    // 插件偏好要在第一轮 system prompt 之前对齐能力面，理由同上面那条 skill：
+    // 晚一步的话，开屏第一句话里 agent 看不见已启用插件注册的工具
+    void usePluginStore.getState().load()
     void useChatStore.getState().init()
     // 规则引擎依赖档案/事项，等 planning 加载完再算提醒
     void usePlanningStore
@@ -46,6 +51,9 @@ export default function App() {
         {view === 'canvas' && <CanvasView />}
         {view === 'skills' && <SkillsView onOpenChat={() => setView('chat')} />}
         {view === 'settings' && <SettingsView />}
+        {view.startsWith('plugin:') && (
+          <PluginView id={view.slice('plugin:'.length)} onLeave={() => setView('chat')} />
+        )}
       </div>
       <Toaster position="top-center" />
     </TooltipProvider>
