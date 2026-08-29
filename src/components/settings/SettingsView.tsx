@@ -101,7 +101,7 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
  * 合起来是因为学生心里只有一个「我是谁」，不是「我的账号」和「我的档案」两件事——
  * 分成两栏的结果是他要在两个地方找同一件事。
  *
- * 中间那段话是这一页真正要说的：**上面那些一字都没上传过。**
+ * 中间两段话是这一页真正要说的：**你的表达不被代劳，你的数据也不出去。**
  * 它放在两段之间而不是页脚，因为它正好解释了这两样为什么能同页而互不相干。
  */
 function ProfilePanel() {
@@ -109,8 +109,50 @@ function ProfilePanel() {
     <div className="max-w-lg space-y-6">
       <ProfileForm onSaved={() => toast.success('档案已保存')} />
 
+      {/*
+        边界看得见。**这一段不是免责声明，是可以拿去核对的承诺。**
+
+        这三条本来只写在各个技能的 SKILL.md 里，而那份说明只有装了技能的人翻得到——
+        老师和家长从外面完全看不见，于是「AI 会不会替学生把活动写出来」
+        只能靠猜。这一阶段的由来正是一位老师的那句担心：AI 能把碎片写成活动、
+        还能翻译成英文，「那就相当于中间跳过了一些步骤」。把答案摆在他看得到的地方。
+
+        **每一条落地时都逐条核过，不是复述文档：**
+        ①「压短是编辑、空白处代写是代写」这句原文就在 `activity-list-optimizer` 里；
+        ②产品里确实没有翻译功能（全仓唯一那处「翻译」是 `deadline-to-study-plan`
+          里的比喻——把截止日「翻译成」这周的具体任务）；
+        ③`reflection-interviewer` 的边界一节写着「不替学生反思／不先写一版／
+          不润色／不追求圆满」，而 `Artifact.takeaway` 没说就留空是它的代码落点。
+
+        摆在「不上传云端」上面：先说不替你做，再说不传出去，
+        合起来是这个产品的两条底线。
+      */}
       <div className="space-y-1.5 border-t pt-5 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">上面这些不上传云端。</p>
+        <p className="font-medium text-foreground">学栖不替你写。</p>
+        <ul className="list-disc space-y-1 pl-4">
+          <li>
+            不替你写活动描述的第一版。
+            <strong className="font-medium text-foreground">
+              把你已经写出来的压短是编辑，在空白处替你写是代写
+            </strong>
+            ——前者做，后者不做。
+          </li>
+          <li>不替你翻译成英文。这个功能在产品里根本不存在。</li>
+          <li>
+            不替你把经历总结成成长感悟。反思访谈只负责问，
+            「下次会怎么做」那一栏你没说过就留空——
+            <strong className="font-medium text-foreground">空着是实话，编一句不是</strong>。
+          </li>
+        </ul>
+        <p>
+          这些边界原本只写在每个技能的说明里，而那份说明
+          <strong className="font-medium text-foreground">只有你自己翻得到</strong>
+          。写在这儿，是为了让它对老师和家长也是一句能拿去核对的话。
+        </p>
+      </div>
+
+      <div className="space-y-1.5 border-t pt-5 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">你写的这些也不上传云端。</p>
         <p>
           档案、事项、反思、画板、资产全都只在这台设备上，
           <strong className="font-medium text-foreground">一字都没上传过</strong>
