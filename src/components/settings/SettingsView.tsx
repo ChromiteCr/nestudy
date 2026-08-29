@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
+import { ClipboardList, Cpu, Database, Download, GraduationCap, Palette, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { Mono } from '@/components/ui/mono'
@@ -12,16 +12,33 @@ import { useAccountStore } from '@/stores/accountStore'
 import { downloadJson, exportAll, importAll } from '@/lib/db/backup'
 import { ProfileForm } from '@/components/profile/ProfileForm'
 import { AppearancePanel } from './AppearancePanel'
+import { BoardPanel } from './BoardPanel'
 import { AccountSection } from './AccountPanel'
 import { cn } from '@/lib/utils'
 
-export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data'
+export type SettingsCategory = 'model' | 'profile' | 'appearance' | 'data' | 'board'
 
-const CATEGORIES: { key: SettingsCategory; label: string; icon: typeof Cpu }[] = [
+interface CategoryDef {
+  key: SettingsCategory
+  label: string
+  icon: typeof Cpu
+  /** 只有老师看得见。**真正的边界在服务器**（`/v1/roster` 认 role），这里少画一项只是别去撩拨 */
+  teacherOnly?: boolean
+}
+
+/**
+ * 看板加在设置里而不是导航上。
+ *
+ * `Sidebar.tsx` 写着「四项是上限，再多就该重新考虑导轨这个形态了」，
+ * 而这一项只有老师看得见——为一小撮人在所有人的导轨上加一格，
+ * 正是那句话要防的事。设置页本来就是分类列表，加第五个分类没有这个代价。
+ */
+const CATEGORIES: CategoryDef[] = [
   { key: 'model', label: '模型', icon: Cpu },
   { key: 'profile', label: '档案', icon: GraduationCap },
   { key: 'appearance', label: '外观', icon: Palette },
   { key: 'data', label: '数据', icon: Database },
+  { key: 'board', label: '看板', icon: ClipboardList, teacherOnly: true },
 ]
 
 interface SettingsViewProps {
@@ -31,6 +48,14 @@ interface SettingsViewProps {
 /** 设置是三导航之一的独立视图，不再套 Dialog——对话框里再开对话框是上一版的结构债 */
 export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
   const [category, setCategory] = useState<SettingsCategory>(initialCategory)
+  const isTeacher = useAccountStore((s) => s.me?.role === 'teacher')
+  const categories = CATEGORIES.filter((c) => !c.teacherOnly || isTeacher)
+  /*
+    退出登录、或者换成学生账号之后，本来停在「看板」上的人要被送回去——
+    否则他会停在一个已经取不到数据的分类上，看到的是一句 403 错误，
+    像是坏了而不是「你不该看这个」。
+  */
+  const active = categories.some((c) => c.key === category) ? category : 'model'
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -40,14 +65,14 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
 
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b p-3 sm:w-40 sm:flex-col sm:border-b-0 sm:border-r">
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => setCategory(c.key)}
               className={cn(
                 'flex shrink-0 items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
-                category === c.key
+                active === c.key
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:bg-accent/60',
               )}
@@ -59,10 +84,11 @@ export function SettingsView({ initialCategory = 'model' }: SettingsViewProps) {
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {category === 'model' && <ModelPanel />}
-          {category === 'profile' && <ProfilePanel />}
-          {category === 'appearance' && <AppearancePanel />}
-          {category === 'data' && <DataPanel />}
+          {active === 'model' && <ModelPanel />}
+          {active === 'profile' && <ProfilePanel />}
+          {active === 'appearance' && <AppearancePanel />}
+          {active === 'data' && <DataPanel />}
+          {active === 'board' && <BoardPanel />}
         </div>
       </div>
     </main>

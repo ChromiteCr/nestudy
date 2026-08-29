@@ -1,4 +1,5 @@
 import type {
+  BoardUser,
   ErrorCode,
   MeView,
   PublishResult,
@@ -195,6 +196,18 @@ export const api = {
 
   webFetch: (url: string) =>
     request<WebFetchResponse>('/v1/web/fetch', { method: 'POST', body: JSON.stringify({ url }) }),
+
+  // ---- 看板（teacher）----
+
+  /**
+   * 名单与今日用量。**服务器端 `requireTeacher`，学生拿到的是 403。**
+   *
+   * 复用 relay 已有的 `/v1/roster`，不新开接口：那个查询算的
+   * `calls_today` / `tokens_today` 用的是服务器的 UTC+8 日界，
+   * 和额度计数同一个口径——另写一个只会得到第二个「今天」。
+   * 返回体里 modeling 的 `submission` 字段这边不取。
+   */
+  roster: () => request<{ day: string; week: string; students: BoardUser[] }>('/v1/roster'),
 
   // ---- 审核队列（teacher）----
 

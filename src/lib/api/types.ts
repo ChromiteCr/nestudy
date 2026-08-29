@@ -65,6 +65,41 @@ export interface MeView {
   quota: QuotaView
 }
 
+/**
+ * 看板上的一行：一个账号，和它今天用掉了多少。
+ *
+ * **这不是学生的学习数据。** 服务器上从来没有事项、反思、画板、档案——
+ * 那些一个字都没离开过学生的浏览器。这里能看到的只有身份与用量，
+ * 也就是设置页那段边界说明里「服务器存的是你的邮箱、用了多少额度」那半句。
+ *
+ * 字段是 relay 现成 `GET /v1/roster` 的子集，只取学栖用得上的几项：
+ * 那个接口还带 `submission`（modeling 的作业提交），学栖没有这个概念，不取。
+ */
+export interface BoardUser {
+  id: string
+  email: string
+  name: string | null
+  role: 'student' | 'teacher'
+  createdAt: number
+  blocked: boolean
+  /** 最近一次带着令牌来过的时间。从没登录过就是 null */
+  lastSeenAt: number | null
+  /** 这个账号的额度倍数。0.1 倍的人「用得少」是设定，不是他不学习 */
+  multiplier: number
+  /** 今天（UTC+8）的调用次数，含失败与在飞的那次 */
+  callsToday: number
+  /** 今天（UTC+8）的 prompt + completion token */
+  tokensToday: number
+}
+
+export interface BoardView {
+  /** 服务器算的那一天（UTC+8）。**不让前端按浏览器时区自己算**——
+      老师人在哪个时区，表头上那天都该是服务器计数用的那天 */
+  day: string
+  week: string
+  users: BoardUser[]
+}
+
 // ---- Skill 商店 ----
 
 export const REVIEW_CRITERIA = [
